@@ -105,20 +105,54 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       newSelection = [...toKeep, ...toAdd]
     }
 
-    // Disconnect from relays no longer in selection
-    const toDisconnect = activeRelayUrls.filter(url => !newSelection.includes(url))
+    // FIRST: Connect to new relays before disconnecting old ones
+    const toConnect = newSelection.filter(url => !activeRelayUrls.includes(url))
+    const connectionResults = await Promise.all(
+      toConnect.map(async url => {
+        const success = await relayPool.connect(url)
+        return { url, success }
+      })
+    )
+
+    // Check how many new connections succeeded
+    const successfulNewConnections = connectionResults.filter(r => r.success).map(r => r.url)
+    const failedConnections = connectionResults.filter(r => !r.success).map(r => r.url)
+
+    // Only proceed if we have at least some connected relays
+    const currentlyConnected = relayPool.getConnectedUrls()
+    const willBeConnected = [
+      ...currentlyConnected.filter(url => newSelection.includes(url)),
+      ...successfulNewConnections
+    ]
+
+    if (willBeConnected.length === 0) {
+      // Don't rotate if we'd end up with no connections - keep current relays
+      console.warn('[Relay] Rotation aborted - would result in no connections')
+      return
+    }
+
+    // Remove failed connections from selection, keep some old relays instead
+    let finalSelection = newSelection.filter(url => !failedConnections.includes(url))
+
+    // If we lost relays due to failures, try to keep more current ones
+    if (finalSelection.length < RELAYS_PER_SESSION) {
+      const additionalKeep = activeRelayUrls
+        .filter(url => !finalSelection.includes(url) && currentlyConnected.includes(url))
+        .slice(0, RELAYS_PER_SESSION - finalSelection.length)
+      finalSelection = [...finalSelection, ...additionalKeep]
+    }
+
+    // NOW disconnect from relays no longer in final selection
+    const toDisconnect = activeRelayUrls.filter(url => !finalSelection.includes(url))
     toDisconnect.forEach(url => relayPool.disconnect(url))
 
-    // Connect to new relays
-    const toConnect = newSelection.filter(url => !activeRelayUrls.includes(url))
-    await Promise.all(toConnect.map(url => relayPool.connect(url)))
-
     set({
-      activeRelayUrls: newSelection,
+      activeRelayUrls: finalSelection,
       relays: relayPool.getStatus()
     })
 
-    console.log('[Relay] Rotated relays:', newSelection)
+    console.log('[Relay] Rotated relays:', finalSelection,
+      failedConnections.length > 0 ? `(${failedConnections.length} failed)` : '')
   },
 
   addRelay: async (url: string) => {
