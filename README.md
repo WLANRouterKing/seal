@@ -6,7 +6,7 @@
 
 **Private messaging sealed with Nostr**
 
-Seal is a privacy-focused messaging app built on the [Nostr](https://nostr.com) protocol. Messages are end-to-end encrypted using [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md) (Gift Wraps), ensuring that even metadata like sender identity is protected.
+Seal is a privacy-focused messaging app built on the [Nostr](https://nostr.com) protocol. Messages are end-to-end encrypted using NIP-17 https://github.com/nostr-protocol/nips/blob/master/17.md (Gift Wraps), ensuring that even metadata like sender identity is protected.
 
 ## Features
 
