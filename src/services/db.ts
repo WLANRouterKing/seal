@@ -40,7 +40,7 @@ let dbPromise: Promise<IDBPDatabase<NostrChatDB>> | null = null
 export async function getDB(): Promise<IDBPDatabase<NostrChatDB>> {
   if (!dbPromise) {
     dbPromise = openDB<NostrChatDB>(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion, newVersion, transaction) {
+      upgrade(db, oldVersion, _newVersion, _transaction) {
         // Migration pattern:
         // - Each version block runs ONLY for users upgrading from a lower version
         // - New installs run ALL blocks sequentially (oldVersion = 0)
@@ -68,11 +68,11 @@ export async function getDB(): Promise<IDBPDatabase<NostrChatDB>> {
         //   // db.createObjectStore(STORES.NEW_STORE, { keyPath: 'id' })
         //
         //   // Add index to existing store:
-        //   // const store = transaction.objectStore(STORES.MESSAGES)
+        //   // const store = _transaction.objectStore(STORES.MESSAGES)
         //   // store.createIndex('by-status', 'status')
         //
         //   // Migrate existing data:
-        //   // const contactStore = transaction.objectStore(STORES.CONTACTS)
+        //   // const contactStore = _transaction.objectStore(STORES.CONTACTS)
         //   // contactStore.openCursor().then(function migrate(cursor) {
         //   //   if (!cursor) return
         //   //   const contact = cursor.value
