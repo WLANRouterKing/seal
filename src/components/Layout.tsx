@@ -18,7 +18,7 @@ export default function Layout() {
     <div className="flex flex-col h-full bg-theme-bg">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 bg-theme-surface border-b border-theme-border">
-        <h1 className="text-lg font-semibold text-theme-text">Nostr Chat</h1>
+        <h1 className="text-lg font-semibold text-theme-text">Seal - Decentralized messaging</h1>
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${connectedCount > 0 ? 'bg-green-500' : 'bg-red-500'}`} />
           <span className="text-xs text-theme-muted">

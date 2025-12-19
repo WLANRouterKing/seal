@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
 import { useRelayStore } from './stores/relayStore'
 import { useContactStore } from './stores/contactStore'
+import { useMessageStore } from './stores/messageStore'
 import { notificationService } from './services/notifications'
 import { useAutoLock } from './hooks/useAutoLock'
 import { useLockedNotifications } from './hooks/useLockedNotifications'
@@ -16,8 +17,12 @@ import Settings from './pages/Settings'
 
 function App() {
   const { keys, isLocked, hasPassword, publicInfo, isLoading, isInitialized, setupComplete, completeSetup, initialize: initAuth } = useAuthStore()
-  const { initialize: initRelays } = useRelayStore()
+  const { initialize: initRelays, relays } = useRelayStore()
   const { initialize: initContacts } = useContactStore()
+  const { initialize: initMessages, subscribeToMessages } = useMessageStore()
+
+  // Count connected relays to re-subscribe when connections change
+  const connectedCount = relays.filter(r => r.status === 'connected').length
 
   // Auto-lock after 5 minutes of inactivity
   useAutoLock(5 * 60 * 1000)
@@ -37,12 +42,21 @@ function App() {
     }
   }, [keys, hasPassword, publicInfo])
 
-  // Initialize contacts only when unlocked
+  // Initialize contacts and messages only when unlocked
   useEffect(() => {
     if (keys) {
       initContacts()
+      initMessages(keys.publicKey)
     }
   }, [keys])
+
+  // Subscribe to messages when unlocked and relays are connected
+  useEffect(() => {
+    if (keys && connectedCount > 0) {
+      const unsubscribe = subscribeToMessages(keys.publicKey, keys.privateKey)
+      return unsubscribe
+    }
+  }, [keys, connectedCount])
 
   if (!isInitialized || isLoading) {
     return (

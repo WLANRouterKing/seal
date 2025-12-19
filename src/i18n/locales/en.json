@@ -127,7 +127,7 @@
     "logoutHint": "Remove keys from this device",
     "language": "Language",
     "languageHint": "App language",
-    "version": "Nostr Chat PWA v1.0.0",
+    "version": "Seal v0.1.0-alpha",
     "footer": "Decentralized messaging with NIP-17"
   },
   "relaySettings": {
