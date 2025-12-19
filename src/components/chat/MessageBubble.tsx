@@ -8,8 +8,10 @@ interface MessageBubbleProps {
   onDelete?: (id: string) => void
 }
 
-// Regex to extract image from content: [img:data:image/...]
+// Regex to extract image from content: [img:data:image/...] (legacy base64)
 const IMAGE_REGEX = /\[img:(data:image\/[^\]]+)\]/g
+// Regex to extract file URLs: [file:https://...]
+const FILE_URL_REGEX = /\[file:(https?:\/\/[^\]]+)\]/g
 
 export default function MessageBubble({ message, onDelete }: MessageBubbleProps) {
   const { t } = useTranslation()
@@ -112,12 +114,21 @@ function parseContent(content: string): { textContent: string; images: string[] 
   const images: string[] = []
   let match
 
+  // Extract legacy base64 images [img:data:image/...]
   while ((match = IMAGE_REGEX.exec(content)) !== null) {
     images.push(match[1])
   }
 
-  // Remove image tags from text
-  const textContent = content.replace(IMAGE_REGEX, '').trim()
+  // Extract file URLs [file:https://...] (Kind 15)
+  while ((match = FILE_URL_REGEX.exec(content)) !== null) {
+    images.push(match[1])
+  }
+
+  // Remove image and file tags from text
+  const textContent = content
+    .replace(IMAGE_REGEX, '')
+    .replace(FILE_URL_REGEX, '')
+    .trim()
 
   return { textContent, images }
 }

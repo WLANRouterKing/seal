@@ -10,10 +10,12 @@ import {
   cleanupDeletedMessages
 } from '../services/db'
 import { relayPool } from '../services/relay'
-import { createGiftWrap, createSelfGiftWrap, unwrapGiftWrap } from '../services/crypto'
+import { createGiftWrap, createSelfGiftWrap, unwrapGiftWrap, createFileGiftWrap, type FileMetadata } from '../services/crypto'
 import { notificationService } from '../services/notifications'
 import { NIP17_KIND } from '../utils/constants'
 import { truncateKey } from '../utils/format'
+import { useRelayStore } from './relayStore'
+import { uploadFile, compressImage } from '../services/fileUpload'
 import type { Event } from 'nostr-tools'
 
 interface MessageState {
@@ -25,6 +27,7 @@ interface MessageState {
   // Actions
   initialize: (userPubkey: string) => Promise<void>
   sendMessage: (recipientPubkey: string, content: string, senderPrivateKey: string) => Promise<void>
+  sendFileMessage: (recipientPubkey: string, file: File, caption: string | undefined, senderPrivateKey: string) => Promise<void>
   subscribeToMessages: (userPubkey: string, userPrivateKey: string) => () => void
   setActiveChat: (pubkey: string | null) => void
   getMessagesForContact: (pubkey: string) => Message[]
@@ -110,11 +113,20 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       // Create self-addressed copy
       const selfGiftWrap = await createSelfGiftWrap(content, recipientPubkey, senderPrivateKey)
 
-      // Publish to relays
+      // Get recipient's preferred DM relays (NIP-17 Kind 10050)
+      const recipientDMRelays = await useRelayStore.getState().getDMRelays(recipientPubkey)
+
+      // Publish to recipient's preferred relays and our connected relays
       const connectedRelays = relayPool.getConnectedUrls()
+      const allTargetRelays = [...new Set([...recipientDMRelays, ...connectedRelays])]
+
+      // Connect to any recipient relays we're not already connected to
+      const newRelays = recipientDMRelays.filter(r => !connectedRelays.includes(r))
+      await Promise.all(newRelays.map(r => relayPool.connect(r)))
+
       const [result1] = await Promise.all([
-        relayPool.publish(connectedRelays, giftWrap as unknown as Event),
-        relayPool.publish(connectedRelays, selfGiftWrap as unknown as Event)
+        relayPool.publish(allTargetRelays, giftWrap as unknown as Event),
+        relayPool.publish(connectedRelays, selfGiftWrap as unknown as Event) // Self copy only to our relays
       ])
 
       // Update message status
@@ -143,6 +155,106 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       updatedMessages.set(
         recipientPubkey,
         contactMessages.map(m => m.id === tempId ? { ...m, status: 'failed' as const } : m)
+      )
+      set({ messages: new Map(updatedMessages) })
+    }
+  },
+
+  sendFileMessage: async (recipientPubkey: string, file: File, caption: string | undefined, senderPrivateKey: string) => {
+    const tempId = crypto.randomUUID()
+    const now = Math.floor(Date.now() / 1000)
+
+    // Create optimistic message with placeholder
+    const message: Message = {
+      id: tempId,
+      pubkey: '',
+      recipientPubkey,
+      content: caption ? `📷 ${caption}` : '📷 Uploading...',
+      createdAt: now,
+      status: 'sending',
+      isOutgoing: true
+    }
+
+    // Add to state optimistically
+    const messages = get().messages
+    const existing = messages.get(recipientPubkey) || []
+    messages.set(recipientPubkey, [...existing, message])
+    set({ messages: new Map(messages) })
+    updateChats(get, set, recipientPubkey, message)
+
+    try {
+      // Compress image if needed
+      const compressedFile = await compressImage(file)
+
+      // Upload file to nostr.build/void.cat
+      const uploadResult = await uploadFile(compressedFile)
+
+      // Create file metadata for Kind 15
+      const fileMetadata: FileMetadata = {
+        url: uploadResult.url,
+        mimeType: uploadResult.mimeType,
+        hash: uploadResult.hash,
+        size: uploadResult.size,
+        dimensions: uploadResult.dimensions,
+        caption
+      }
+
+      // Create file gift wrap (Kind 15)
+      const giftWrap = await createFileGiftWrap(fileMetadata, recipientPubkey, senderPrivateKey)
+
+      // Also create a regular text message for self (so we can see it in our chat)
+      // Include the image URL in a format we can display
+      const selfContent = caption
+        ? `${caption}\n[file:${uploadResult.url}]`
+        : `[file:${uploadResult.url}]`
+      const selfGiftWrap = await createSelfGiftWrap(selfContent, recipientPubkey, senderPrivateKey)
+
+      // Get recipient's preferred DM relays
+      const recipientDMRelays = await useRelayStore.getState().getDMRelays(recipientPubkey)
+      const connectedRelays = relayPool.getConnectedUrls()
+      const allTargetRelays = [...new Set([...recipientDMRelays, ...connectedRelays])]
+
+      // Connect to new relays if needed
+      const newRelays = recipientDMRelays.filter(r => !connectedRelays.includes(r))
+      await Promise.all(newRelays.map(r => relayPool.connect(r)))
+
+      // Publish
+      const [result1] = await Promise.all([
+        relayPool.publish(allTargetRelays, giftWrap as unknown as Event),
+        relayPool.publish(connectedRelays, selfGiftWrap as unknown as Event)
+      ])
+
+      // Update message with final content and status
+      const finalContent = caption
+        ? `${caption}\n[file:${uploadResult.url}]`
+        : `[file:${uploadResult.url}]`
+
+      const updatedMessage: Message = {
+        ...message,
+        id: giftWrap.id,
+        content: finalContent,
+        status: result1.successes.length > 0 ? 'sent' : 'failed'
+      }
+
+      await saveMessageToDB(updatedMessage)
+
+      const updatedMessages = get().messages
+      const contactMessages = updatedMessages.get(recipientPubkey) || []
+      updatedMessages.set(
+        recipientPubkey,
+        contactMessages.map(m => m.id === tempId ? updatedMessage : m)
+      )
+      set({ messages: new Map(updatedMessages) })
+      updateChats(get, set, recipientPubkey, updatedMessage)
+    } catch (error) {
+      console.error('Failed to send file message:', error)
+
+      // Mark as failed
+      const updatedMessages = get().messages
+      const contactMessages = updatedMessages.get(recipientPubkey) || []
+      updatedMessages.set(
+        recipientPubkey,
+        contactMessages.map(m => m.id === tempId ? { ...m, content: '📷 Failed to upload', status: 'failed' as const } : m)
       )
       set({ messages: new Map(updatedMessages) })
     }

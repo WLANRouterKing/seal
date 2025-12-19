@@ -3,15 +3,13 @@ import { useTranslation } from 'react-i18next'
 
 interface MessageInputProps {
   onSend: (content: string) => void
+  onSendFile?: (file: File, caption?: string) => void
 }
 
-// NIP-44 has a 65535 byte plaintext limit, Base64 adds ~33% overhead
-// So we limit to ~45KB which gives us room for caption text
-const MAX_IMAGE_SIZE = 45 * 1024
-
-export default function MessageInput({ onSend }: MessageInputProps) {
+export default function MessageInput({ onSend, onSendFile }: MessageInputProps) {
   const { t } = useTranslation()
   const [message, setMessage] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -21,12 +19,10 @@ export default function MessageInput({ onSend }: MessageInputProps) {
     e.preventDefault()
     const trimmedMessage = message.trim()
 
-    if (imagePreview) {
-      // Send image with optional caption
-      const content = trimmedMessage
-        ? `${trimmedMessage}\n[img:${imagePreview}]`
-        : `[img:${imagePreview}]`
-      onSend(content)
+    if (selectedFile && onSendFile) {
+      // Send file via NIP-17 Kind 15
+      onSendFile(selectedFile, trimmedMessage || undefined)
+      setSelectedFile(null)
       setImagePreview(null)
       setMessage('')
     } else if (trimmedMessage) {
@@ -54,8 +50,10 @@ export default function MessageInput({ onSend }: MessageInputProps) {
     setIsProcessing(true)
 
     try {
-      const base64 = await compressAndConvertToBase64(file)
-      setImagePreview(base64)
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file)
+      setImagePreview(previewUrl)
+      setSelectedFile(file)
     } catch (error) {
       console.error('Failed to process image:', error)
       alert(t('chat.imageFailed'))
@@ -68,7 +66,11 @@ export default function MessageInput({ onSend }: MessageInputProps) {
   }
 
   const removeImage = () => {
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview)
+    }
     setImagePreview(null)
+    setSelectedFile(null)
   }
 
   // Auto-resize textarea
@@ -165,65 +167,3 @@ export default function MessageInput({ onSend }: MessageInputProps) {
   )
 }
 
-async function compressAndConvertToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-
-    img.onload = () => {
-      // Calculate new dimensions (max 400px for smaller file size)
-      let maxDim = 400
-      let { width, height } = img
-
-      if (width > maxDim || height > maxDim) {
-        if (width > height) {
-          height = (height / width) * maxDim
-          width = maxDim
-        } else {
-          width = (width / height) * maxDim
-          height = maxDim
-        }
-      }
-
-      canvas.width = width
-      canvas.height = height
-      ctx?.drawImage(img, 0, 0, width, height)
-
-      // Use WebP for better compression (30% smaller than JPEG at same quality)
-      // Fall back to JPEG if WebP not supported
-      const supportsWebP = canvas.toDataURL('image/webp').startsWith('data:image/webp')
-      const format = supportsWebP ? 'image/webp' : 'image/jpeg'
-
-      // Start with quality 0.75 for WebP (looks better than JPEG at same size)
-      let quality = supportsWebP ? 0.75 : 0.6
-      let base64 = canvas.toDataURL(format, quality)
-
-      // Progressively reduce quality if too large
-      while (base64.length > MAX_IMAGE_SIZE && quality > 0.1) {
-        quality -= 0.1
-        base64 = canvas.toDataURL(format, quality)
-      }
-
-      // If still too large, reduce dimensions further
-      while (base64.length > MAX_IMAGE_SIZE && maxDim > 100) {
-        maxDim -= 50
-        const scale = maxDim / Math.max(img.width, img.height)
-        canvas.width = img.width * scale
-        canvas.height = img.height * scale
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-        base64 = canvas.toDataURL(format, 0.5)
-      }
-
-      if (base64.length > MAX_IMAGE_SIZE) {
-        reject(new Error('Image too large. Try a smaller image.'))
-        return
-      }
-
-      resolve(base64)
-    }
-
-    img.onerror = () => reject(new Error('Failed to load image'))
-    img.src = URL.createObjectURL(file)
-  })
-}

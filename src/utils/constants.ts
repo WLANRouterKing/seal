@@ -37,5 +37,7 @@ export const STORES = {
 export const NIP17_KIND = {
   GIFT_WRAP: 1059,
   SEAL: 13,
-  RUMOR: 14
+  RUMOR: 14,           // Chat message (kind 14)
+  FILE_MESSAGE: 15,    // Encrypted file message
+  DM_RELAYS: 10050     // User's preferred DM relays
 } as const

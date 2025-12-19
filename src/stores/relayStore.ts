@@ -1,8 +1,13 @@
 import { create } from 'zustand'
 import type { Relay } from '../types'
-import { DEFAULT_RELAYS, RELAYS_PER_SESSION, RELAY_ROTATION_INTERVAL } from '../utils/constants'
+import { DEFAULT_RELAYS, RELAYS_PER_SESSION, RELAY_ROTATION_INTERVAL, NIP17_KIND } from '../utils/constants'
 import { relayPool } from '../services/relay'
 import { getAllRelays, saveRelay, deleteRelay as deleteRelayFromDB } from '../services/db'
+import { parseDMRelayListEvent } from '../services/crypto'
+
+// Cache for DM relay lookups (pubkey -> relays)
+const dmRelayCache = new Map<string, { relays: string[]; timestamp: number }>()
+const DM_RELAY_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 interface RelayState {
   relays: Relay[]
@@ -18,6 +23,7 @@ interface RelayState {
   addRelay: (url: string) => Promise<void>
   removeRelay: (url: string) => Promise<void>
   disconnect: () => void
+  getDMRelays: (pubkey: string) => Promise<string[]>
 }
 
 // Fisher-Yates shuffle
@@ -199,5 +205,61 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     }
     relayPool.disconnectAll()
     set({ relays: [], rotationTimer: null })
+  },
+
+  // Fetch DM relay preferences for a pubkey (Kind 10050)
+  getDMRelays: async (pubkey: string): Promise<string[]> => {
+    // Check cache first
+    const cached = dmRelayCache.get(pubkey)
+    if (cached && Date.now() - cached.timestamp < DM_RELAY_CACHE_TTL) {
+      return cached.relays
+    }
+
+    const connectedRelays = relayPool.getConnectedUrls()
+    if (connectedRelays.length === 0) {
+      return get().activeRelayUrls
+    }
+
+    return new Promise((resolve) => {
+      let found = false
+      const timeout = setTimeout(() => {
+        if (!found) {
+          // No DM relays found, use our active relays as fallback
+          resolve(get().activeRelayUrls)
+        }
+      }, 3000) // 3 second timeout
+
+      const unsubscribe = relayPool.subscribe(
+        connectedRelays,
+        [{ kinds: [NIP17_KIND.DM_RELAYS], authors: [pubkey], limit: 1 }],
+        (event) => {
+          if (found) return
+          found = true
+          clearTimeout(timeout)
+          unsubscribe()
+
+          const dmRelayList = parseDMRelayListEvent(event)
+          if (dmRelayList && dmRelayList.relays.length > 0) {
+            // Cache the result
+            dmRelayCache.set(pubkey, {
+              relays: dmRelayList.relays,
+              timestamp: Date.now()
+            })
+            resolve(dmRelayList.relays)
+          } else {
+            resolve(get().activeRelayUrls)
+          }
+        },
+        () => {
+          // EOSE - no events found
+          if (!found) {
+            found = true
+            clearTimeout(timeout)
+            unsubscribe()
+            resolve(get().activeRelayUrls)
+          }
+        }
+      )
+    })
   }
 }))

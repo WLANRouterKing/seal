@@ -63,6 +63,12 @@ npm install
 # Start development server
 npm run dev
 
+# Run tests
+npm run test
+
+# Run tests with coverage
+npm run test:coverage
+
 # Build for production
 npm run build
 ```
@@ -80,6 +86,7 @@ npm run build
 - **React 19** - UI framework
 - **TypeScript** - Type safety
 - **Vite** - Build tool
+- **Vitest** - Unit testing
 - **Tailwind CSS** - Styling
 - **Zustand** - State management
 - **IndexedDB** - Local storage

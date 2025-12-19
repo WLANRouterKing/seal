@@ -16,7 +16,7 @@ interface ChatWindowProps {
 export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindowProps) {
   const { t } = useTranslation()
   const { keys } = useAuthStore()
-  const { getMessagesForContact, sendMessage, deleteMessage } = useMessageStore()
+  const { getMessagesForContact, sendMessage, sendFileMessage, deleteMessage } = useMessageStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const messages = getMessagesForContact(contactPubkey)
@@ -29,6 +29,11 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
   const handleSend = async (content: string) => {
     if (!keys) return
     await sendMessage(contactPubkey, content, keys.privateKey)
+  }
+
+  const handleSendFile = async (file: File, caption?: string) => {
+    if (!keys) return
+    await sendFileMessage(contactPubkey, file, caption, keys.privateKey)
   }
 
   const handleDelete = async (messageId: string) => {
@@ -83,7 +88,7 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
       </div>
 
       {/* Input */}
-      <MessageInput onSend={handleSend} />
+      <MessageInput onSend={handleSend} onSendFile={handleSendFile} />
     </div>
   )
 }
