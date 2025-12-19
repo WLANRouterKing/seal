@@ -1,10 +1,13 @@
 // Password-based encryption for private keys using Web Crypto API
 
+import { getEncryptionKey } from './encryptionKeyManager'
+
 const SALT_LENGTH = 16
 const IV_LENGTH = 12
 const ITERATIONS = 100000
+const ENCRYPTED_PREFIX = 'ENC:'
 
-async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+export async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const encoder = new TextEncoder()
   const passwordKey = await crypto.subtle.importKey(
     'raw',
@@ -82,3 +85,73 @@ export function isEncrypted(data: string): boolean {
     return false
   }
 }
+
+// Check if data is encrypted for storage (has ENC: prefix)
+export function isStorageEncrypted(data: string): boolean {
+  return data.startsWith(ENCRYPTED_PREFIX)
+}
+
+// Encrypt data for IndexedDB storage using the key from encryptionKeyManager
+export async function encryptForStorage(data: string): Promise<string> {
+  const keyData = getEncryptionKey()
+  if (!keyData) {
+    // No encryption key set - return data as-is
+    return data
+  }
+
+  const encoder = new TextEncoder()
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    keyData.key,
+    encoder.encode(data)
+  )
+
+  // Combine iv + encrypted data and encode as base64
+  const combined = new Uint8Array(iv.length + encrypted.byteLength)
+  combined.set(iv, 0)
+  combined.set(new Uint8Array(encrypted), iv.length)
+
+  return ENCRYPTED_PREFIX + btoa(String.fromCharCode(...combined))
+}
+
+// Decrypt data from IndexedDB storage using the key from encryptionKeyManager
+export async function decryptFromStorage(encryptedData: string): Promise<string | null> {
+  // If not encrypted, return as-is
+  if (!encryptedData.startsWith(ENCRYPTED_PREFIX)) {
+    return encryptedData
+  }
+
+  const keyData = getEncryptionKey()
+  if (!keyData) {
+    // No encryption key set - cannot decrypt
+    return null
+  }
+
+  try {
+    const base64Data = encryptedData.slice(ENCRYPTED_PREFIX.length)
+    const combined = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
+
+    const iv = combined.slice(0, IV_LENGTH)
+    const data = combined.slice(IV_LENGTH)
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      keyData.key,
+      data
+    )
+
+    return new TextDecoder().decode(decrypted)
+  } catch {
+    return null // Decryption failed
+  }
+}
+
+// Generate a random salt for encryption
+export function generateSalt(): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(SALT_LENGTH))
+}
+
+// Export salt length for external use
+export { SALT_LENGTH }

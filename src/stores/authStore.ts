@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import type { NostrKeys } from '../types'
-import { loadKeys, saveKeys, clearAllData, loadSettings, saveSettings, isEncryptedKeys, type EncryptedKeys } from '../services/db'
+import { loadKeys, saveKeys, clearAllData, loadSettings, saveSettings, isEncryptedKeys, migrateToEncrypted, migrateToDecrypted, type EncryptedKeys } from '../services/db'
 import { generateKeyPair, keysFromNsec } from '../services/keys'
-import { encryptWithPassword, decryptWithPassword } from '../services/encryption'
+import { encryptWithPassword, decryptWithPassword, deriveKey, generateSalt } from '../services/encryption'
+import { setEncryptionKey, clearEncryptionKey } from '../services/encryptionKeyManager'
 
 interface AuthState {
   keys: NostrKeys | null
@@ -171,6 +172,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         npub: storedKeys.npub
       }
 
+      // Set up DB encryption key
+      let dbSalt: Uint8Array
+      if (storedKeys.dbSalt) {
+        // Use existing salt
+        dbSalt = Uint8Array.from(atob(storedKeys.dbSalt), c => c.charCodeAt(0))
+      } else {
+        // Generate new salt for first-time encryption
+        dbSalt = generateSalt()
+        // Save the salt
+        const updatedKeys: EncryptedKeys = {
+          ...storedKeys,
+          dbSalt: btoa(String.fromCharCode(...dbSalt))
+        }
+        await saveKeys(updatedKeys)
+      }
+
+      const dbKey = await deriveKey(password, dbSalt)
+      setEncryptionKey(dbKey, dbSalt)
+
+      // Migrate unencrypted data if any
+      await migrateToEncrypted()
+
       set({ keys, isLocked: false, isLoading: false, error: null })
       return true
     } catch (error) {
@@ -183,6 +206,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   lock: () => {
     const { hasPassword, keys } = get()
     if (hasPassword && keys) {
+      // Clear DB encryption key
+      clearEncryptionKey()
       set({
         keys: null,
         isLocked: true,
@@ -210,6 +235,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!keys) return false
 
     try {
+      // Generate salt for DB encryption
+      const dbSalt = generateSalt()
+
+      // Derive and set DB encryption key
+      const dbKey = await deriveKey(password, dbSalt)
+      setEncryptionKey(dbKey, dbSalt)
+
+      // Migrate existing data to encrypted format
+      await migrateToEncrypted()
+
+      // Encrypt private keys
       const encrypted = await encryptWithPassword(
         JSON.stringify({ privateKey: keys.privateKey, nsec: keys.nsec }),
         password
@@ -217,7 +253,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const encryptedKeys: EncryptedKeys = {
         encrypted,
         publicKey: keys.publicKey,
-        npub: keys.npub
+        npub: keys.npub,
+        dbSalt: btoa(String.fromCharCode(...dbSalt))
       }
       await saveKeys(encryptedKeys)
       set({ hasPassword: true })
@@ -240,7 +277,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const decrypted = await decryptWithPassword(storedKeys.encrypted, currentPassword)
       if (!decrypted) return false
 
-      // Save unencrypted
+      // Migrate all data back to unencrypted format (while we still have the key)
+      await migrateToDecrypted()
+
+      // Clear DB encryption key
+      clearEncryptionKey()
+
+      // Save unencrypted keys
       await saveKeys(keys)
       set({ hasPassword: false })
       return true

@@ -4,7 +4,10 @@ import {
   saveMessage as saveMessageToDB,
   deleteMessage as deleteMessageFromDB,
   getAllMessages,
-  getContact
+  getContact,
+  saveDeletedMessageId,
+  isMessageDeleted,
+  cleanupDeletedMessages
 } from '../services/db'
 import { relayPool } from '../services/relay'
 import { createGiftWrap, createSelfGiftWrap, unwrapGiftWrap } from '../services/crypto'
@@ -40,6 +43,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     set({ isLoading: true })
 
     try {
+      // Cleanup old deleted message IDs (90+ days old)
+      await cleanupDeletedMessages()
+
       // Load messages from local DB
       const allMessages = await getAllMessages()
       const messageMap = new Map<string, Message[]>()
@@ -152,9 +158,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       connectedRelays,
       [{ kinds: [NIP17_KIND.GIFT_WRAP], '#p': [userPubkey] }],
       async (event) => {
-        // Skip if already processed
+        // Skip if already processed in this session
         if (processedIds.has(event.id)) return
         processedIds.add(event.id)
+
+        // Skip if message was previously deleted
+        if (await isMessageDeleted(event.id)) return
 
         try {
           const unwrapped = await unwrapGiftWrap(
@@ -245,8 +254,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   deleteMessage: async (contactPubkey: string, messageId: string) => {
     try {
-      // Delete from IndexedDB
+      // Delete from IndexedDB and save to deleted list
       await deleteMessageFromDB(messageId)
+      await saveDeletedMessageId(messageId)
 
       // Update state
       const messages = get().messages
@@ -282,8 +292,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       const messages = get().messages
       const contactMessages = messages.get(contactPubkey) || []
 
-      // Delete all messages from IndexedDB
-      await Promise.all(contactMessages.map(m => deleteMessageFromDB(m.id)))
+      // Delete all messages from IndexedDB and save to deleted list
+      await Promise.all(contactMessages.map(async m => {
+        await deleteMessageFromDB(m.id)
+        await saveDeletedMessageId(m.id)
+      }))
 
       // Remove from state
       messages.delete(contactPubkey)

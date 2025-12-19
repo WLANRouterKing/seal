@@ -23,14 +23,15 @@ export const RELAYS_PER_SESSION = 5
 export const RELAY_ROTATION_INTERVAL = 10 * 60 * 1000
 
 export const DB_NAME = 'nostr-chat-db'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 export const STORES = {
   KEYS: 'keys',
   MESSAGES: 'messages',
   CONTACTS: 'contacts',
   SETTINGS: 'settings',
-  RELAYS: 'relays'
+  RELAYS: 'relays',
+  DELETED_MESSAGES: 'deleted_messages'
 } as const
 
 export const NIP17_KIND = {
