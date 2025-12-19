@@ -36,7 +36,7 @@ deploy:
   script:
     - rsync -avz --delete --chmod=D755,F644 dist/ $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/
   only:
-    - main
+    - master
   environment:
     name: production
     url: https://$DEPLOY_DOMAIN
