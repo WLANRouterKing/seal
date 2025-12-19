@@ -3,7 +3,7 @@ stages:
   - deploy
 
 variables:
-  DEPLOY_PATH: /home/web/$DEPLOY_DOMAIN/public_html
+  DEPLOY_PATH: /home/$DEPLOY_USER/web/$DEPLOY_DOMAIN/public_html
 
 build:
   stage: build
