@@ -1,15 +1,10 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
-# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/pipeline/#customization
-# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
-# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
 stages:
 - build
 - deploy
 variables:
-  DEPLOY_PATH: "/home/$DEPLOY_USER/web/$DEPLOY_DOMAIN/public_html"
+  DEPLOY_PATH: /home/$DEPLOY_USER/web/$DEPLOY_DOMAIN/public_html
+  GIT_DEPTH: 0  # Fetch all history and tags for version detection
+
 build:
   stage: build
   image: node:20-alpine
@@ -18,8 +13,9 @@ build:
     paths:
     - node_modules/
   script:
-  - npm ci
-  - npm run build
+    - apk add --no-cache git
+    - npm ci
+    - npm run build
   artifacts:
     paths:
     - dist/

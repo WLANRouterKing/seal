@@ -101,7 +101,11 @@
     "nameHint": "Ein freundlicher Name zur Identifikation dieses Kontakts",
     "displayNamePlaceholder": "Anzeigename",
     "startChat": "Chat starten",
-    "removeContact": "Kontakt entfernen"
+    "removeContact": "Kontakt entfernen",
+    "enterManually": "Eingeben",
+    "scanQR": "QR scannen",
+    "scanQRHint": "Scanne den QR-Code mit dem Public Key deines Kontakts",
+    "invalidQR": "Ungültiger QR-Code - kein npub-Key gefunden"
   },
   "settings": {
     "yourProfile": "Dein Profil",
