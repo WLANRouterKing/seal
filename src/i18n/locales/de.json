@@ -1,0 +1,183 @@
+{
+  "common": {
+    "back": "Zurück",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "copy": "Kopieren",
+    "copied": "Kopiert!",
+    "add": "Hinzufügen",
+    "show": "Anzeigen",
+    "hide": "Verbergen",
+    "enabled": "Aktiviert",
+    "notSet": "Nicht gesetzt",
+    "photo": "Foto",
+    "you": "Du",
+    "important": "Wichtig",
+    "warning": "Warnung"
+  },
+  "nav": {
+    "chats": "Chats",
+    "contacts": "Kontakte",
+    "settings": "Einstellungen"
+  },
+  "onboarding": {
+    "title": "Nostr Chat",
+    "subtitle": "Dezentrales, verschlüsseltes Messaging mit dem Nostr-Protokoll",
+    "createAccount": "Neues Konto erstellen",
+    "creating": "Wird erstellt...",
+    "importKey": "Vorhandenen Key importieren",
+    "privacyNote": "Deine Keys werden lokal gespeichert und verlassen niemals dein Gerät. Keine E-Mail oder Telefonnummer erforderlich.",
+    "importTitle": "Key importieren",
+    "importSubtitle": "Gib deinen Nostr Private Key (nsec) ein, um dein Konto wiederherzustellen",
+    "privateKeyLabel": "Private Key (nsec)",
+    "importing": "Wird importiert...",
+    "importButton": "Key importieren",
+    "importWarning": "Teile deinen Private Key niemals mit anderen. Dein Key kontrolliert deine Identität.",
+    "generating": "Keys werden generiert...",
+    "generated": "Keys generiert!",
+    "generatingDesc": "Erstelle ein sicheres kryptografisches Schlüsselpaar für deine Identität"
+  },
+  "backup": {
+    "title": "Key sichern",
+    "subtitle": "Das ist dein Private Key. Speichere ihn sicher - er ist der einzige Weg, dein Konto wiederherzustellen.",
+    "privateKeyLabel": "Private Key (nsec)",
+    "warnings": {
+      "neverShare": "Teile deinen Private Key niemals mit anderen",
+      "storeSecurely": "Speichere ihn in einem sicheren Passwort-Manager",
+      "ifLost": "Bei Verlust kann dein Konto nicht wiederhergestellt werden"
+    },
+    "confirmLabel": "Ich habe meinen Private Key sicher gespeichert und verstehe, dass ein Verlust bedeutet, den Zugang zu meinem Konto zu verlieren",
+    "continueButton": "Weiter zur App"
+  },
+  "setupPassword": {
+    "title": "Konto schützen",
+    "subtitle": "Schütze deinen Private Key mit einem Passwort. Du wirst beim Öffnen der App danach gefragt.",
+    "yourPublicKey": "Dein Public Key (npub)",
+    "password": "Passwort",
+    "passwordPlaceholder": "Mindestens 6 Zeichen",
+    "confirmPassword": "Passwort bestätigen",
+    "confirmPlaceholder": "Passwort wiederholen",
+    "setButton": "Passwort setzen",
+    "saving": "Wird gespeichert...",
+    "skipButton": "Überspringen (nicht empfohlen)",
+    "importantNote": "Bei Passwortverlust kannst du nur mit deinem nsec (Private Key Backup) wieder zugreifen.",
+    "errors": {
+      "tooShort": "Passwort muss mindestens 6 Zeichen haben",
+      "noMatch": "Passwörter stimmen nicht überein",
+      "failed": "Fehler beim Setzen des Passworts"
+    }
+  },
+  "lockScreen": {
+    "title": "Nostr Chat entsperren",
+    "placeholder": "Passwort eingeben",
+    "unlocking": "Wird entsperrt...",
+    "unlock": "Entsperren",
+    "logout": "Abmelden und Keys löschen"
+  },
+  "chat": {
+    "noMessages": "Noch keine Nachrichten",
+    "noMessagesHint": "Füge einen Kontakt hinzu und starte eine Konversation",
+    "startConversation": "Sende eine Nachricht, um die Konversation zu starten",
+    "messagePlaceholder": "Nachricht schreiben...",
+    "captionPlaceholder": "Beschriftung hinzufügen...",
+    "imageError": "Bitte wähle eine Bilddatei aus",
+    "imageFailed": "Bild konnte nicht verarbeitet werden. Versuche eine kleinere Datei."
+  },
+  "contacts": {
+    "title": "Kontakte",
+    "noContacts": "Noch keine Kontakte",
+    "noContactsHint": "Füge Kontakte mit ihrem Nostr Public Key (npub) hinzu, um zu chatten",
+    "addContact": "Kontakt hinzufügen",
+    "publicKeyLabel": "Public Key (npub) *",
+    "publicKeyHint": "Gib den Nostr Public Key der Person ein, die du hinzufügen möchtest",
+    "nameLabel": "Name (optional)",
+    "nameHint": "Ein freundlicher Name zur Identifikation dieses Kontakts",
+    "displayNamePlaceholder": "Anzeigename",
+    "startChat": "Chat starten",
+    "removeContact": "Kontakt entfernen"
+  },
+  "settings": {
+    "yourProfile": "Dein Profil",
+    "notLoggedIn": "Nicht angemeldet",
+    "network": "Netzwerk",
+    "relays": "Relays",
+    "relaysConnected": "{{connected}} von {{total}} verbunden",
+    "appearance": "Darstellung",
+    "theme": "Design",
+    "themeDark": "Dunkel",
+    "themeLight": "Hell",
+    "themeSystem": "System",
+    "security": "Sicherheit",
+    "passwordProtection": "Passwortschutz",
+    "exportKeys": "Keys exportieren",
+    "backupPrivateKey": "Private Key sichern",
+    "account": "Konto",
+    "logout": "Abmelden",
+    "logoutHint": "Keys von diesem Gerät entfernen",
+    "language": "Sprache",
+    "languageHint": "App-Sprache",
+    "version": "Nostr Chat PWA v1.0.0",
+    "footer": "Dezentrales Messaging mit NIP-17"
+  },
+  "relaySettings": {
+    "title": "Relay-Einstellungen",
+    "addNewRelay": "Neues Relay hinzufügen",
+    "connectedRelays": "Verbundene Relays ({{count}})"
+  },
+  "themeSettings": {
+    "title": "Darstellung",
+    "themeLabel": "Design",
+    "darkDesc": "Dunkler Hintergrund mit hellem Text",
+    "lightDesc": "Heller Hintergrund mit dunklem Text",
+    "systemDesc": "Geräteeinstellungen folgen"
+  },
+  "securitySettings": {
+    "title": "Sicherheit",
+    "passwordProtection": "Passwortschutz",
+    "setPassword": "Passwort setzen",
+    "setPasswordHint": "Schütze deine Keys mit einem Passwort",
+    "passwordEnabled": "Passwort aktiviert",
+    "keysProtected": "Deine Keys sind geschützt",
+    "lockNow": "Jetzt sperren",
+    "lockNowHint": "Passwort zum Fortfahren erforderlich",
+    "removePassword": "Passwort entfernen",
+    "removePasswordHint": "Keys unverschlüsselt speichern",
+    "importantWithPassword": "Wenn du dein Passwort vergisst, brauchst du deine Backup-Phrase (nsec), um dein Konto wiederherzustellen.",
+    "importantWithoutPassword": "Ohne Passwort kann jeder mit Zugang zu diesem Gerät deine Nostr-Identität nutzen.",
+    "createPasswordTitle": "Passwort setzen",
+    "createPasswordHint": "Erstelle ein Passwort, um deinen Private Key zu verschlüsseln",
+    "passwordLabel": "Passwort",
+    "passwordPlaceholder": "Passwort eingeben",
+    "confirmPasswordLabel": "Passwort bestätigen",
+    "confirmPasswordPlaceholder": "Passwort bestätigen",
+    "setting": "Wird gesetzt...",
+    "setPasswordButton": "Passwort setzen",
+    "removePasswordTitle": "Passwort entfernen",
+    "removePasswordHint2": "Gib dein aktuelles Passwort ein, um den Schutz zu entfernen",
+    "currentPasswordLabel": "Aktuelles Passwort",
+    "currentPasswordPlaceholder": "Aktuelles Passwort eingeben",
+    "removing": "Wird entfernt...",
+    "removePasswordButton": "Passwort entfernen",
+    "errors": {
+      "tooShort": "Passwort muss mindestens 6 Zeichen haben",
+      "noMatch": "Passwörter stimmen nicht überein",
+      "setFailed": "Fehler beim Setzen des Passworts",
+      "incorrect": "Falsches Passwort"
+    }
+  },
+  "keyExport": {
+    "title": "Keys exportieren",
+    "publicKeyLabel": "Public Key (npub)",
+    "publicKeyHint": "Teile diesen mit anderen, damit sie dir Nachrichten senden können",
+    "privateKeyLabel": "Private Key (nsec)",
+    "warnings": {
+      "neverShare": "Teile deinen Private Key niemals mit anderen",
+      "impersonate": "Jeder mit deinem Private Key kann sich als du ausgeben",
+      "storeSecurely": "Speichere ihn in einem sicheren Passwort-Manager"
+    }
+  },
+  "message": {
+    "delete": "Löschen"
+  }
+}
