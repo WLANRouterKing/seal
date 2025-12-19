@@ -40,7 +40,7 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
 
   if (chats.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 mt-14 text-center">
         <div className="w-16 h-16 bg-theme-surface rounded-full flex items-center justify-center mb-4">
           <svg className="w-8 h-8 text-theme-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

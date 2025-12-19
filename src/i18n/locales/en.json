@@ -22,8 +22,8 @@
     "settings": "Settings"
   },
   "onboarding": {
-    "title": "Nostr Chat",
-    "subtitle": "Decentralized, encrypted messaging powered by Nostr protocol",
+    "title": "Seal",
+    "subtitle": "Private messaging sealed with Nostr",
     "createAccount": "Create New Account",
     "creating": "Creating...",
     "importKey": "Import Existing Key",
@@ -34,6 +34,10 @@
     "importing": "Importing...",
     "importButton": "Import Key",
     "importWarning": "Never share your private key with anyone. Your key controls your identity.",
+    "pasteKey": "Paste Key",
+    "scanQR": "Scan QR",
+    "scanKeyQR": "Point camera at the QR code showing your private key",
+    "invalidQR": "Invalid QR code - not an nsec key",
     "generating": "Generating Your Keys...",
     "generated": "Keys Generated!",
     "generatingDesc": "Creating a secure cryptographic key pair for your identity"
@@ -69,7 +73,7 @@
     }
   },
   "lockScreen": {
-    "title": "Unlock Nostr Chat",
+    "title": "Unlock Seal",
     "placeholder": "Enter your password",
     "unlocking": "Unlocking...",
     "unlock": "Unlock",
@@ -173,6 +177,9 @@
     "publicKeyLabel": "Public Key (npub)",
     "publicKeyHint": "Share this with others so they can message you",
     "privateKeyLabel": "Private Key (nsec)",
+    "qrCodeLabel": "QR Code for Import",
+    "qrCodeHint": "Scan this QR code on another device to import your account",
+    "qrCodeDescription": "Show QR code to easily import your key on another device",
     "warnings": {
       "neverShare": "Never share your private key with anyone",
       "impersonate": "Anyone with your private key can impersonate you",
@@ -181,5 +188,39 @@
   },
   "message": {
     "delete": "Delete"
+  },
+  "sync": {
+    "title": "Device Sync",
+    "description": "Transfer chats to another device",
+    "sendData": "Send Data",
+    "receiveData": "Receive Data",
+    "showingQR": "Scan this QR code with your other device",
+    "enterCode": "Enter Code",
+    "enterCodeFromDevice": "Enter the code shown on the other device",
+    "scanning": "Point camera at QR code",
+    "confirmationCode": "Confirmation Code",
+    "tellOtherDevice": "Enter this code on the other device",
+    "waitingForConnection": "Waiting for connection...",
+    "connected": "Connected!",
+    "readyToReceive": "Ready to receive data from the other device?",
+    "confirm": "Start Transfer",
+    "sending": "Sending...",
+    "receiving": "Receiving...",
+    "chunks": "chunks",
+    "doNotClose": "Do not close this screen",
+    "complete": "Sync Complete!",
+    "messages": "messages",
+    "contacts": "contacts",
+    "relays": "relays",
+    "done": "Done",
+    "error": "Sync Failed",
+    "codeInvalid": "Invalid confirmation code",
+    "cameraError": "Failed to access camera",
+    "retry": "Try Again",
+    "cancel": "Cancel",
+    "back": "Back",
+    "connect": "Connect",
+    "pasteAnswer": "Connection data (for manual setup)",
+    "answerPlaceholder": "Paste connection data here..."
   }
 }

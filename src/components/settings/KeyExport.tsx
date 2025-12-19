@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { QRCodeSVG } from 'qrcode.react'
 import { useAuthStore } from '../../stores/authStore'
 import { copyToClipboard } from '../../utils/format'
 
@@ -11,6 +12,7 @@ export default function KeyExport({ onBack }: KeyExportProps) {
   const { t } = useTranslation()
   const { keys } = useAuthStore()
   const [showPrivate, setShowPrivate] = useState(false)
+  const [showQR, setShowQR] = useState(false)
   const [copiedPub, setCopiedPub] = useState(false)
   const [copiedPriv, setCopiedPriv] = useState(false)
 
@@ -103,6 +105,43 @@ export default function KeyExport({ onBack }: KeyExportProps) {
               </p>
             )}
           </div>
+        </div>
+
+        {/* QR Code for Import */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-300">
+              {t('keyExport.qrCodeLabel') || 'QR Code for Import'}
+            </label>
+            <button
+              onClick={() => setShowQR(!showQR)}
+              className="text-theme-muted text-sm hover:text-theme-text"
+            >
+              {showQR ? t('common.hide') : t('common.show')}
+            </button>
+          </div>
+          {showQR && keys?.nsec && (
+            <div className="bg-theme-surface border border-theme-border rounded-xl p-4">
+              <div className="flex justify-center mb-3">
+                <div className="bg-white p-3 rounded-lg">
+                  <QRCodeSVG
+                    value={keys.nsec}
+                    size={200}
+                    level="M"
+                    includeMargin={false}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-theme-muted text-center">
+                {t('keyExport.qrCodeHint') || 'Scan this QR code on another device to import your account'}
+              </p>
+            </div>
+          )}
+          {!showQR && (
+            <p className="text-xs text-theme-muted">
+              {t('keyExport.qrCodeDescription') || 'Show QR code to easily import your key on another device'}
+            </p>
+          )}
         </div>
 
         {/* Warning */}

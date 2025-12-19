@@ -9,8 +9,9 @@ import KeyExport from '../components/settings/KeyExport'
 import ThemeSettings from '../components/settings/ThemeSettings'
 import SecuritySettings from '../components/settings/SecuritySettings'
 import LanguageSettings from '../components/settings/LanguageSettings'
+import { SyncModal } from '../components/sync/SyncModal'
 
-type SettingsView = 'main' | 'relays' | 'keys' | 'theme' | 'security' | 'language'
+type SettingsView = 'main' | 'relays' | 'keys' | 'theme' | 'security' | 'language' | 'sync'
 
 export default function Settings() {
   const { t, i18n } = useTranslation()
@@ -39,6 +40,10 @@ export default function Settings() {
 
   if (view === 'language') {
     return <LanguageSettings onBack={() => setView('main')} />
+  }
+
+  if (view === 'sync') {
+    return <SyncModal onBack={() => setView('main')} />
   }
 
   const themeLabel = theme === 'dark' ? t('settings.themeDark') : theme === 'light' ? t('settings.themeLight') : t('settings.themeSystem')
@@ -89,6 +94,26 @@ export default function Settings() {
               <div className="text-left">
                 <p className="text-theme-text font-medium">{t('settings.relays')}</p>
                 <p className="text-xs text-theme-muted">{t('settings.relaysConnected', { connected: connectedCount, total: relays.length })}</p>
+              </div>
+            </div>
+            <svg className="w-5 h-5 text-theme-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          <button
+            onClick={() => setView('sync')}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-theme-hover transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <p className="text-theme-text font-medium">{t('sync.title')}</p>
+                <p className="text-xs text-theme-muted">{t('sync.description')}</p>
               </div>
             </div>
             <svg className="w-5 h-5 text-theme-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,7 +241,7 @@ export default function Settings() {
       {/* Footer */}
       <div className="px-4 py-6 text-center">
         <p className="text-xs text-theme-muted">
-          {t('settings.version')}
+          Seal {__APP_VERSION__}
         </p>
         <p className="text-xs text-theme-muted mt-1">
           {t('settings.footer')}

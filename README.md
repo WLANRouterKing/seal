@@ -1,73 +1,121 @@
-# React + TypeScript + Vite
+# Seal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[![pipeline status](https://gitlab.web-art.dev/open-source/seal/badges/master/pipeline.svg)](https://gitlab.web-art.dev/open-source/seal/-/commits/master)
 
-Currently, two official plugins are available:
+[![coverage report](https://gitlab.web-art.dev/open-source/seal/badges/master/coverage.svg)](https://gitlab.web-art.dev/open-source/seal/-/commits/master)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+**Private messaging sealed with Nostr**
 
-## React Compiler
+Seal is a privacy-focused messaging app built on the [Nostr](https://nostr.com) protocol. Messages are end-to-end encrypted using [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md) (Gift Wraps), ensuring that even metadata like sender identity is protected.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the ESLint configuration
+- **End-to-End Encryption** - All messages are encrypted using NIP-17 Gift Wraps with NIP-44 encryption
+- **No Account Required** - Your cryptographic keys are your identity. No email, phone number, or registration
+- **Decentralized** - Messages are relayed through multiple Nostr relays. No single point of failure
+- **Local-First** - All data stored locally with optional password protection (AES-256)
+- **Device Sync** - Transfer chats between devices via P2P WebRTC connection
+- **QR Code Import** - Easily import your private key by scanning a QR code
+- **PWA** - Install as a Progressive Web App on any device
+- **Multi-Language** - English and German support
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## How It Works
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### NIP-17 Gift Wraps
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Messages are wrapped in multiple layers of encryption:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+┌─────────────────────────────────────┐
+│           Gift Wrap (1059)          │  ← Encrypted to recipient
+│  ┌───────────────────────────────┐  │
+│  │         Seal (13)             │  │  ← Encrypted content
+│  │  ┌─────────────────────────┐  │  │
+│  │  │      Rumor (14)         │  │  │  ← Actual message
+│  │  │  - sender pubkey        │  │  │
+│  │  │  - content              │  │  │
+│  │  │  - timestamp            │  │  │
+│  │  └─────────────────────────┘  │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+This ensures:
+- Relays cannot see message content
+- Relays cannot see who sent the message
+- Only the recipient can decrypt the message
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Local Encryption
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+When you set a password, all local data is encrypted:
+- Private keys encrypted with PBKDF2-derived AES-256 key
+- Messages, contacts, and settings encrypted at rest
+- Automatic migration between encrypted/unencrypted states
+
+## Getting Started
+
+### Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
+
+### Deployment
+
+The app builds to the `dist/` folder and can be hosted on any static file server.
+
+```bash
+npm run build
+```
+
+## Tech Stack
+
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **Tailwind CSS** - Styling
+- **Zustand** - State management
+- **IndexedDB** - Local storage
+- **nostr-tools** - Nostr protocol implementation
+- **WebRTC** - P2P device sync
+
+## Project Structure
+
+```
+src/
+├── components/       # React components
+│   ├── chat/         # Chat UI components
+│   ├── onboarding/   # Setup flow
+│   ├── settings/     # Settings screens
+│   └── sync/         # Device sync UI
+├── i18n/             # Translations
+├── pages/            # Main app pages
+├── services/         # Core services
+│   ├── crypto.ts     # NIP-17 implementation
+│   ├── db.ts         # IndexedDB operations
+│   ├── encryption.ts # Local encryption
+│   ├── relay.ts      # Nostr relay management
+│   ├── syncService.ts # Data export/import
+│   └── webrtc.ts     # P2P connection
+├── stores/           # Zustand stores
+├── types/            # TypeScript types
+└── utils/            # Helper functions
+```
+
+## Security
+
+- Private keys never leave your device
+- No analytics or tracking
+- No server-side storage
+- Open source and auditable
+
+## License
+
+MIT

@@ -22,8 +22,8 @@
     "settings": "Einstellungen"
   },
   "onboarding": {
-    "title": "Nostr Chat",
-    "subtitle": "Dezentrales, verschlüsseltes Messaging mit dem Nostr-Protokoll",
+    "title": "Seal",
+    "subtitle": "Private Nachrichten, versiegelt mit Nostr",
     "createAccount": "Neues Konto erstellen",
     "creating": "Wird erstellt...",
     "importKey": "Vorhandenen Key importieren",
@@ -34,6 +34,10 @@
     "importing": "Wird importiert...",
     "importButton": "Key importieren",
     "importWarning": "Teile deinen Private Key niemals mit anderen. Dein Key kontrolliert deine Identität.",
+    "pasteKey": "Key einfügen",
+    "scanQR": "QR scannen",
+    "scanKeyQR": "Kamera auf den QR-Code mit deinem Private Key richten",
+    "invalidQR": "Ungültiger QR-Code - kein nsec-Key",
     "generating": "Keys werden generiert...",
     "generated": "Keys generiert!",
     "generatingDesc": "Erstelle ein sicheres kryptografisches Schlüsselpaar für deine Identität"
@@ -69,7 +73,7 @@
     }
   },
   "lockScreen": {
-    "title": "Nostr Chat entsperren",
+    "title": "Seal entsperren",
     "placeholder": "Passwort eingeben",
     "unlocking": "Wird entsperrt...",
     "unlock": "Entsperren",
@@ -173,6 +177,9 @@
     "publicKeyLabel": "Public Key (npub)",
     "publicKeyHint": "Teile diesen mit anderen, damit sie dir Nachrichten senden können",
     "privateKeyLabel": "Private Key (nsec)",
+    "qrCodeLabel": "QR-Code für Import",
+    "qrCodeHint": "Scanne diesen QR-Code auf einem anderen Gerät, um dein Konto zu importieren",
+    "qrCodeDescription": "QR-Code anzeigen, um deinen Key einfach auf einem anderen Gerät zu importieren",
     "warnings": {
       "neverShare": "Teile deinen Private Key niemals mit anderen",
       "impersonate": "Jeder mit deinem Private Key kann sich als du ausgeben",
@@ -181,5 +188,39 @@
   },
   "message": {
     "delete": "Löschen"
+  },
+  "sync": {
+    "title": "Geräte-Sync",
+    "description": "Chats auf ein anderes Gerät übertragen",
+    "sendData": "Daten senden",
+    "receiveData": "Daten empfangen",
+    "showingQR": "Scanne diesen QR-Code mit deinem anderen Gerät",
+    "enterCode": "Code eingeben",
+    "enterCodeFromDevice": "Gib den Code ein, der auf dem anderen Gerät angezeigt wird",
+    "scanning": "Kamera auf QR-Code richten",
+    "confirmationCode": "Bestätigungscode",
+    "tellOtherDevice": "Gib diesen Code auf dem anderen Gerät ein",
+    "waitingForConnection": "Warte auf Verbindung...",
+    "connected": "Verbunden!",
+    "readyToReceive": "Bereit, Daten vom anderen Gerät zu empfangen?",
+    "confirm": "Transfer starten",
+    "sending": "Wird gesendet...",
+    "receiving": "Wird empfangen...",
+    "chunks": "Pakete",
+    "doNotClose": "Diesen Bildschirm nicht schließen",
+    "complete": "Sync abgeschlossen!",
+    "messages": "Nachrichten",
+    "contacts": "Kontakte",
+    "relays": "Relays",
+    "done": "Fertig",
+    "error": "Sync fehlgeschlagen",
+    "codeInvalid": "Ungültiger Bestätigungscode",
+    "cameraError": "Kamerazugriff fehlgeschlagen",
+    "retry": "Erneut versuchen",
+    "cancel": "Abbrechen",
+    "back": "Zurück",
+    "connect": "Verbinden",
+    "pasteAnswer": "Verbindungsdaten (für manuelle Einrichtung)",
+    "answerPlaceholder": "Verbindungsdaten hier einfügen..."
   }
 }
