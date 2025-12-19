@@ -302,17 +302,23 @@ export async function getAllRelays(): Promise<RelayData[]> {
   const db = await getDB()
   const relays = await db.getAll(STORES.RELAYS) as StoredRelay[]
 
-  return Promise.all(relays.map(async (relay) => {
+  const results = await Promise.all(relays.map(async (relay) => {
     if (isStorageEncrypted(relay.url)) {
       const decryptedUrl = await decryptFromStorage(relay.url)
+      // Skip if decryption failed - don't return encrypted URL
+      if (!decryptedUrl) {
+        return null
+      }
       return {
-        url: decryptedUrl ?? relay.url,
+        url: decryptedUrl,
         read: relay.read,
         write: relay.write
       }
     }
     return { url: relay.url, read: relay.read, write: relay.write }
   }))
+
+  return results.filter((r): r is RelayData => r !== null)
 }
 
 export async function deleteRelay(url: string): Promise<void> {
