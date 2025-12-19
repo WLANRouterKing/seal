@@ -109,13 +109,13 @@ export default function MessageInput({ onSend }: MessageInputProps) {
         </div>
       )}
 
-      <div className="flex items-end gap-2 px-4 py-3">
+      <div className="flex items-center gap-3 px-4 py-3">
         {/* Image Upload Button */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isProcessing}
-          className="w-11 h-11 rounded-full flex items-center justify-center hover:bg-theme-hover transition-colors disabled:opacity-50"
+          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-theme-hover transition-colors disabled:opacity-50 flex-shrink-0"
         >
           {isProcessing ? (
             <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
@@ -134,7 +134,7 @@ export default function MessageInput({ onSend }: MessageInputProps) {
           className="hidden"
         />
 
-        <div className="flex-1 relative">
+        <div className="flex-1">
           <textarea
             ref={textareaRef}
             value={message}
@@ -142,16 +142,16 @@ export default function MessageInput({ onSend }: MessageInputProps) {
             onKeyDown={handleKeyDown}
             placeholder={imagePreview ? t('chat.captionPlaceholder') : t('chat.messagePlaceholder')}
             rows={1}
-            className="w-full bg-theme-bg border border-theme-border rounded-2xl px-4 py-3 text-theme-text placeholder-gray-500 focus:outline-none focus:border-primary-500 resize-none max-h-30 scrollbar-hide"
+            className="w-full bg-theme-bg border border-theme-border rounded-2xl px-4 py-2.5 text-theme-text placeholder-gray-500 focus:outline-none focus:border-primary-500 resize-none max-h-30 scrollbar-hide"
           />
         </div>
 
         <button
           type="submit"
           disabled={!canSend || isProcessing}
-          className="w-11 h-11 bg-primary-500 rounded-full flex items-center justify-center hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+          className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center hover:bg-primary-600 transition-colors disabled:opacity-50 flex-shrink-0"
         >
-          <svg className="w-5 h-5 text-theme-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -190,14 +190,19 @@ async function compressAndConvertToBase64(file: File): Promise<string> {
       canvas.height = height
       ctx?.drawImage(img, 0, 0, width, height)
 
-      // Start with quality 0.6, reduce if too large
-      let quality = 0.6
-      let base64 = canvas.toDataURL('image/jpeg', quality)
+      // Use WebP for better compression (30% smaller than JPEG at same quality)
+      // Fall back to JPEG if WebP not supported
+      const supportsWebP = canvas.toDataURL('image/webp').startsWith('data:image/webp')
+      const format = supportsWebP ? 'image/webp' : 'image/jpeg'
 
-      // Progressively reduce quality and size if needed
+      // Start with quality 0.75 for WebP (looks better than JPEG at same size)
+      let quality = supportsWebP ? 0.75 : 0.6
+      let base64 = canvas.toDataURL(format, quality)
+
+      // Progressively reduce quality if too large
       while (base64.length > MAX_IMAGE_SIZE && quality > 0.1) {
         quality -= 0.1
-        base64 = canvas.toDataURL('image/jpeg', quality)
+        base64 = canvas.toDataURL(format, quality)
       }
 
       // If still too large, reduce dimensions further
@@ -207,7 +212,7 @@ async function compressAndConvertToBase64(file: File): Promise<string> {
         canvas.width = img.width * scale
         canvas.height = img.height * scale
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-        base64 = canvas.toDataURL('image/jpeg', 0.5)
+        base64 = canvas.toDataURL(format, 0.5)
       }
 
       if (base64.length > MAX_IMAGE_SIZE) {

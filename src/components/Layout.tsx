@@ -33,11 +33,11 @@ export default function Layout() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="flex items-center justify-around bg-theme-surface border-t border-theme-border py-2 px-4">
+      <nav className="grid grid-cols-3 bg-theme-surface border-t border-theme-border py-2">
         <NavLink
           to="/"
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${
+            `flex flex-col items-center justify-center gap-1 py-2 transition-colors ${
               isActive ? 'text-primary-500' : 'text-theme-muted hover:text-theme-text'
             }`
           }
@@ -49,7 +49,7 @@ export default function Layout() {
         <NavLink
           to="/contacts"
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${
+            `flex flex-col items-center justify-center gap-1 py-2 transition-colors ${
               isActive ? 'text-primary-500' : 'text-theme-muted hover:text-theme-text'
             }`
           }
@@ -61,7 +61,7 @@ export default function Layout() {
         <NavLink
           to="/settings"
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${
+            `flex flex-col items-center justify-center gap-1 py-2 transition-colors ${
               isActive ? 'text-primary-500' : 'text-theme-muted hover:text-theme-text'
             }`
           }

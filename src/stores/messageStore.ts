@@ -27,6 +27,7 @@ interface MessageState {
   getMessagesForContact: (pubkey: string) => Message[]
   markAsRead: (pubkey: string) => Promise<void>
   deleteMessage: (contactPubkey: string, messageId: string) => Promise<void>
+  deleteChat: (contactPubkey: string) => Promise<void>
 }
 
 export const useMessageStore = create<MessageState>((set, get) => ({
@@ -272,6 +273,28 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to delete message:', error)
+    }
+  },
+
+  deleteChat: async (contactPubkey: string) => {
+    try {
+      // Get all messages for this chat
+      const messages = get().messages
+      const contactMessages = messages.get(contactPubkey) || []
+
+      // Delete all messages from IndexedDB
+      await Promise.all(contactMessages.map(m => deleteMessageFromDB(m.id)))
+
+      // Remove from state
+      messages.delete(contactPubkey)
+      const chats = get().chats.filter(c => c.pubkey !== contactPubkey)
+
+      // Clear active chat if it was this one
+      const activeChat = get().activeChat === contactPubkey ? null : get().activeChat
+
+      set({ messages: new Map(messages), chats, activeChat })
+    } catch (error) {
+      console.error('Failed to delete chat:', error)
     }
   }
 }))

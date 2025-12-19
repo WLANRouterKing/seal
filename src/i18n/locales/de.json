@@ -82,7 +82,9 @@
     "messagePlaceholder": "Nachricht schreiben...",
     "captionPlaceholder": "Beschriftung hinzufügen...",
     "imageError": "Bitte wähle eine Bilddatei aus",
-    "imageFailed": "Bild konnte nicht verarbeitet werden. Versuche eine kleinere Datei."
+    "imageFailed": "Bild konnte nicht verarbeitet werden. Versuche eine kleinere Datei.",
+    "deleteChat": "Chat löschen",
+    "deleteChatConfirm": "Möchtest du diese gesamte Konversation wirklich löschen? Dies kann nicht rückgängig gemacht werden."
   },
   "contacts": {
     "title": "Kontakte",
