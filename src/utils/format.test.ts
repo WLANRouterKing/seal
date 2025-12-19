@@ -26,8 +26,8 @@ describe('format utilities', () => {
     it('should format today timestamps as time only', () => {
       const now = Math.floor(Date.now() / 1000)
       const result = formatTimestamp(now)
-      // Should be HH:MM format
-      expect(result).toMatch(/^\d{1,2}:\d{2}$/)
+      // Should be time format (HH:MM or H:MM AM/PM depending on locale)
+      expect(result).toMatch(/^\d{1,2}:\d{2}(\s?(AM|PM))?$/)
     })
 
     it('should format old timestamps with date', () => {
