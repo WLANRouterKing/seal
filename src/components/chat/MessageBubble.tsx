@@ -1,24 +1,39 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Message } from '../../types'
 import { formatTimestamp } from '../../utils/format'
+import { useAuthStore } from '../../stores/authStore'
+import { getDecryptedFileUrl } from '../../services/fileUpload'
 
 interface MessageBubbleProps {
   message: Message
+  contactPubkey: string
   onDelete?: (id: string) => void
+}
+
+interface FileData {
+  url: string
+  mimeType: string
+  encrypted?: boolean
 }
 
 // Regex to extract image from content: [img:data:image/...] (legacy base64)
 const IMAGE_REGEX = /\[img:(data:image\/[^\]]+)\]/g
-// Regex to extract file URLs: [file:https://...]
-const FILE_URL_REGEX = /\[file:(https?:\/\/[^\]]+)\]/g
+// Regex to extract file data: [file:{...}] (new JSON format) or [file:https://...] (legacy)
+const FILE_DATA_REGEX = /\[file:(\{[^\]]+\}|https?:\/\/[^\]]+)\]/g
 
-export default function MessageBubble({ message, onDelete }: MessageBubbleProps) {
+export default function MessageBubble({ message, contactPubkey, onDelete }: MessageBubbleProps) {
   const { t } = useTranslation()
+  const { keys } = useAuthStore()
   const isOutgoing = message.isOutgoing
-  const { textContent, images } = parseContent(message.content)
+  const { textContent, legacyImages, files } = parseContent(message.content)
   const [showMenu, setShowMenu] = useState(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // For decryption: use our private key + contact's pubkey
+  // (same conversation key works for both directions in NIP-44)
+  const privateKey = keys?.privateKey || ''
+  const otherPubkey = contactPubkey
 
   const handleTouchStart = () => {
     longPressTimer.current = setTimeout(() => {
@@ -55,11 +70,25 @@ export default function MessageBubble({ message, onDelete }: MessageBubbleProps)
         onTouchCancel={handleTouchEnd}
         onContextMenu={handleContextMenu}
       >
-        {/* Images */}
-        {images.length > 0 && (
+        {/* Legacy base64 images */}
+        {legacyImages.length > 0 && (
           <div className="space-y-1">
-            {images.map((src, index) => (
-              <ImageWithLightbox key={index} src={src} />
+            {legacyImages.map((src, index) => (
+              <ImageWithLightbox key={`legacy-${index}`} src={src} />
+            ))}
+          </div>
+        )}
+
+        {/* Encrypted file images */}
+        {files.length > 0 && (
+          <div className="space-y-1">
+            {files.map((file, index) => (
+              <EncryptedImage
+                key={`file-${index}`}
+                file={file}
+                privateKey={privateKey}
+                otherPubkey={otherPubkey}
+              />
             ))}
           </div>
         )}
@@ -72,7 +101,7 @@ export default function MessageBubble({ message, onDelete }: MessageBubbleProps)
         )}
 
         {/* Timestamp and Status */}
-        <div className={`flex items-center gap-1 px-4 pb-2 ${!textContent && images.length > 0 ? 'pt-2' : ''} ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex items-center gap-1 px-4 pb-2 ${!textContent && (legacyImages.length > 0 || files.length > 0) ? 'pt-2' : ''} ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
           <span className={`text-xs ${isOutgoing ? 'text-primary-200' : 'text-theme-muted'}`}>
             {formatTimestamp(message.createdAt)}
           </span>
@@ -110,27 +139,122 @@ export default function MessageBubble({ message, onDelete }: MessageBubbleProps)
   )
 }
 
-function parseContent(content: string): { textContent: string; images: string[] } {
-  const images: string[] = []
+function parseContent(content: string): { textContent: string; legacyImages: string[]; files: FileData[] } {
+  const legacyImages: string[] = []
+  const files: FileData[] = []
   let match
 
   // Extract legacy base64 images [img:data:image/...]
   while ((match = IMAGE_REGEX.exec(content)) !== null) {
-    images.push(match[1])
+    legacyImages.push(match[1])
   }
 
-  // Extract file URLs [file:https://...] (Kind 15)
-  while ((match = FILE_URL_REGEX.exec(content)) !== null) {
-    images.push(match[1])
+  // Extract file data [file:{...}] or [file:https://...]
+  while ((match = FILE_DATA_REGEX.exec(content)) !== null) {
+    const data = match[1]
+    if (data.startsWith('{')) {
+      // New JSON format
+      try {
+        const fileData = JSON.parse(data) as FileData
+        files.push(fileData)
+      } catch {
+        // Invalid JSON, skip
+      }
+    } else {
+      // Legacy URL format (unencrypted)
+      files.push({
+        url: data,
+        mimeType: 'image/jpeg', // Assume image
+        encrypted: false
+      })
+    }
   }
 
   // Remove image and file tags from text
   const textContent = content
     .replace(IMAGE_REGEX, '')
-    .replace(FILE_URL_REGEX, '')
+    .replace(FILE_DATA_REGEX, '')
     .trim()
 
-  return { textContent, images }
+  return { textContent, legacyImages, files }
+}
+
+// Component for displaying encrypted images
+function EncryptedImage({
+  file,
+  privateKey,
+  otherPubkey
+}: {
+  file: FileData
+  privateKey: string
+  otherPubkey: string
+}) {
+  const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let objectUrl: string | null = null
+
+    async function decrypt() {
+      if (!file.encrypted) {
+        // Not encrypted, use URL directly
+        setDecryptedUrl(file.url)
+        setIsLoading(false)
+        return
+      }
+
+      if (!privateKey || !otherPubkey) {
+        setError(true)
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        objectUrl = await getDecryptedFileUrl(
+          file.url,
+          file.mimeType,
+          privateKey,
+          otherPubkey
+        )
+        setDecryptedUrl(objectUrl)
+      } catch (err) {
+        console.error('Failed to decrypt image:', err)
+        setError(true)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    decrypt()
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl)
+      }
+    }
+  }, [file.url, file.mimeType, file.encrypted, privateKey, otherPubkey])
+
+  if (isLoading) {
+    return (
+      <div className="w-48 h-48 bg-theme-surface flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (error || !decryptedUrl) {
+    return (
+      <div className="w-48 h-32 bg-theme-surface flex items-center justify-center text-theme-muted text-sm">
+        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        Failed to load
+      </div>
+    )
+  }
+
+  return <ImageWithLightbox src={decryptedUrl} />
 }
 
 function ImageWithLightbox({ src }: { src: string }) {

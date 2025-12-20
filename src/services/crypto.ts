@@ -273,6 +273,7 @@ export interface FileMetadata {
   blurhash?: string     // Blurhash for image preview
   thumb?: string        // Thumbnail URL
   caption?: string      // Optional caption
+  encrypted?: boolean   // Whether file is encrypted with NIP-44
 }
 
 export function createFileRumor(

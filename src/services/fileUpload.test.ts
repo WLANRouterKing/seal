@@ -8,8 +8,31 @@ vi.stubGlobal('crypto', {
   }
 })
 
+// Mock nostr-tools nip44
+vi.mock('nostr-tools', () => ({
+  nip44: {
+    v2: {
+      utils: {
+        getConversationKey: vi.fn().mockReturnValue(new Uint8Array(32))
+      },
+      encrypt: vi.fn().mockReturnValue('encrypted-data'),
+      decrypt: vi.fn().mockReturnValue('base64data')
+    }
+  },
+  finalizeEvent: vi.fn().mockReturnValue({
+    id: 'test-event-id',
+    pubkey: 'test-pubkey',
+    sig: 'test-sig'
+  })
+}))
+
+// Mock @noble/hashes/utils
+vi.mock('@noble/hashes/utils', () => ({
+  hexToBytes: vi.fn().mockReturnValue(new Uint8Array(32))
+}))
+
 // Now import the module
-const { uploadToCatbox, uploadToLitterbox, uploadFile, compressImage } = await import('./fileUpload')
+const { uploadFile, compressImage, decryptFileData } = await import('./fileUpload')
 
 // Mock fetch globally
 const mockFetch = vi.fn()
@@ -33,19 +56,25 @@ describe('fileUpload', () => {
     vi.clearAllMocks()
   })
 
-  describe('uploadToCatbox', () => {
-    it('should upload file to catbox.moe and return URL', async () => {
-      const testUrl = 'https://files.catbox.moe/abc123.png'
+  describe('uploadFile', () => {
+    it('should upload encrypted file to nostr.build and return result', async () => {
+      const testUrl = 'https://nostr.build/i/abc123.txt'
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        text: async () => testUrl
+        json: async () => ({
+          status: 'success',
+          data: [{ url: testUrl }]
+        })
       })
 
       const file = createMockFile('test content', 'test.png', 'image/png')
-      const result = await uploadToCatbox(file)
+      const privateKey = '0'.repeat(64) // Mock 32-byte hex private key
+      const recipientPubkey = '1'.repeat(64) // Mock 32-byte hex public key
+
+      const result = await uploadFile(file, privateKey, recipientPubkey)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://catbox.moe/user/api.php',
+        'https://nostr.build/api/v2/upload/files',
         expect.objectContaining({
           method: 'POST',
           body: expect.any(FormData)
@@ -53,6 +82,7 @@ describe('fileUpload', () => {
       )
       expect(result.url).toBe(testUrl)
       expect(result.mimeType).toBe('image/png')
+      expect(result.encrypted).toBe(true)
     })
 
     it('should throw error on failed upload', async () => {
@@ -63,77 +93,26 @@ describe('fileUpload', () => {
       })
 
       const file = createMockFile('test', 'test.png', 'image/png')
-      await expect(uploadToCatbox(file)).rejects.toThrow('Catbox upload failed: 500')
+      const privateKey = '0'.repeat(64)
+      const recipientPubkey = '1'.repeat(64)
+
+      await expect(uploadFile(file, privateKey, recipientPubkey)).rejects.toThrow('nostr.build upload failed: 500')
     })
 
     it('should throw error on invalid response', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        text: async () => 'Error: file too large'
-      })
-
-      const file = createMockFile('test', 'test.png', 'image/png')
-      await expect(uploadToCatbox(file)).rejects.toThrow('Catbox upload failed: Error: file too large')
-    })
-  })
-
-  describe('uploadToLitterbox', () => {
-    it('should upload file with 72h expiration', async () => {
-      const testUrl = 'https://litter.catbox.moe/xyz789.jpg'
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        text: async () => testUrl
-      })
-
-      const file = createMockFile('test', 'test.jpg', 'image/jpeg')
-      const result = await uploadToLitterbox(file)
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://litterbox.catbox.moe/resources/internals/api.php',
-        expect.objectContaining({
-          method: 'POST'
+        json: async () => ({
+          status: 'error',
+          message: 'File too large'
         })
-      )
-
-      // Check that 72h time parameter was included
-      const formData = mockFetch.mock.calls[0][1].body as FormData
-      expect(formData.get('time')).toBe('72h')
-      expect(result.url).toBe(testUrl)
-    })
-  })
-
-  describe('uploadFile', () => {
-    it('should try catbox first, then litterbox on failure', async () => {
-      // First call (catbox) fails
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 503,
-        statusText: 'Service Unavailable'
-      })
-      // Second call (litterbox) succeeds
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        text: async () => 'https://litter.catbox.moe/fallback.png'
       })
 
       const file = createMockFile('test', 'test.png', 'image/png')
-      const result = await uploadFile(file)
+      const privateKey = '0'.repeat(64)
+      const recipientPubkey = '1'.repeat(64)
 
-      expect(mockFetch).toHaveBeenCalledTimes(2)
-      expect(result.url).toBe('https://litter.catbox.moe/fallback.png')
-    })
-
-    it('should return catbox result on first success', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        text: async () => 'https://files.catbox.moe/success.png'
-      })
-
-      const file = createMockFile('test', 'test.png', 'image/png')
-      const result = await uploadFile(file)
-
-      expect(mockFetch).toHaveBeenCalledTimes(1)
-      expect(result.url).toBe('https://files.catbox.moe/success.png')
+      await expect(uploadFile(file, privateKey, recipientPubkey)).rejects.toThrow('Invalid response')
     })
   })
 
@@ -151,17 +130,37 @@ describe('fileUpload', () => {
       expect(result).toBe(file)
     })
   })
+
+  describe('decryptFileData', () => {
+    it('should return decrypted data as ArrayBuffer', () => {
+      const encryptedData = 'encrypted-test-data'
+      const privateKey = '0'.repeat(64)
+      const senderPubkey = '1'.repeat(64)
+
+      // Mock returns 'base64data' which atob can decode
+      const result = decryptFileData(encryptedData, privateKey, senderPubkey)
+
+      // Should return an ArrayBuffer
+      expect(result).toBeInstanceOf(ArrayBuffer)
+    })
+  })
 })
 
 describe('uploadFile hash calculation', () => {
   it('should return a hash in the result', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      text: async () => 'https://files.catbox.moe/test.png'
+      json: async () => ({
+        status: 'success',
+        data: [{ url: 'https://nostr.build/i/test.txt' }]
+      })
     })
 
     const file = createMockFile('hello world', 'test.png', 'image/png')
-    const result = await uploadFile(file)
+    const privateKey = '0'.repeat(64)
+    const recipientPubkey = '1'.repeat(64)
+
+    const result = await uploadFile(file, privateKey, recipientPubkey)
 
     // Hash should be a 64-character hex string (mocked returns zeros)
     expect(result.hash).toMatch(/^[a-f0-9]{64}$/)

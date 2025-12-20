@@ -186,8 +186,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       // Compress image if needed
       const compressedFile = await compressImage(file)
 
-      // Upload file to nostr.build/void.cat
-      const uploadResult = await uploadFile(compressedFile)
+      // Upload encrypted file to nostr.build (encrypted with recipient's pubkey)
+      const uploadResult = await uploadFile(compressedFile, senderPrivateKey, recipientPubkey)
 
       // Create file metadata for Kind 15
       const fileMetadata: FileMetadata = {
@@ -196,17 +196,24 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         hash: uploadResult.hash,
         size: uploadResult.size,
         dimensions: uploadResult.dimensions,
-        caption
+        caption,
+        encrypted: true
       }
 
       // Create file gift wrap (Kind 15)
       const giftWrap = await createFileGiftWrap(fileMetadata, recipientPubkey, senderPrivateKey)
 
+      // Create file metadata JSON for storing in content
+      const fileData = JSON.stringify({
+        url: uploadResult.url,
+        mimeType: uploadResult.mimeType,
+        encrypted: true
+      })
+
       // Also create a regular text message for self (so we can see it in our chat)
-      // Include the image URL in a format we can display
       const selfContent = caption
-        ? `${caption}\n[file:${uploadResult.url}]`
-        : `[file:${uploadResult.url}]`
+        ? `${caption}\n[file:${fileData}]`
+        : `[file:${fileData}]`
       const selfGiftWrap = await createSelfGiftWrap(selfContent, recipientPubkey, senderPrivateKey)
 
       // Get recipient's preferred DM relays
@@ -225,9 +232,14 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       ])
 
       // Update message with final content and status
+      const finalFileData = JSON.stringify({
+        url: uploadResult.url,
+        mimeType: uploadResult.mimeType,
+        encrypted: true
+      })
       const finalContent = caption
-        ? `${caption}\n[file:${uploadResult.url}]`
-        : `[file:${uploadResult.url}]`
+        ? `${caption}\n[file:${finalFileData}]`
+        : `[file:${finalFileData}]`
 
       const updatedMessage: Message = {
         ...message,

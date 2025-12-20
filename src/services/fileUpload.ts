@@ -1,19 +1,20 @@
 // File upload service for NIP-17 Kind 15 file messages
-// Uses catbox.moe as default (anonymous, no auth required)
-// Falls back to nostr.build with NIP-98 auth if available
+// Uses nostr.build with NIP-98 authentication
+// Files are encrypted with NIP-44 before upload for privacy
 
 import { nip44, finalizeEvent } from 'nostr-tools'
 import { hexToBytes } from '@noble/hashes/utils'
 
 export interface UploadResult {
   url: string
-  hash: string  // SHA-256 hash of original file
-  mimeType: string
-  size: number
+  hash: string  // SHA-256 hash of original (unencrypted) file
+  mimeType: string  // Original mime type (before encryption)
+  size: number  // Original size (before encryption)
   dimensions?: { width: number; height: number }
+  encrypted: true  // Always encrypted
 }
 
-// Calculate SHA-256 hash of file
+// Calculate SHA-256 hash of data
 async function calculateHash(data: ArrayBuffer): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
   const hashArray = Array.from(new Uint8Array(hashBuffer))
@@ -34,11 +35,11 @@ function getImageDimensions(file: File): Promise<{ width: number; height: number
 }
 
 // Encrypt file content with NIP-44
-export async function encryptFile(
+function encryptFileData(
   fileData: ArrayBuffer,
   senderPrivateKey: string,
   recipientPubkey: string
-): Promise<{ encrypted: string; nonce: string }> {
+): string {
   const senderPrivateKeyBytes = hexToBytes(senderPrivateKey)
   const conversationKey = nip44.v2.utils.getConversationKey(
     senderPrivateKeyBytes,
@@ -50,56 +51,59 @@ export async function encryptFile(
     new Uint8Array(fileData).reduce((data, byte) => data + String.fromCharCode(byte), '')
   )
 
-  const encrypted = nip44.v2.encrypt(base64Data, conversationKey)
-
-  return {
-    encrypted,
-    nonce: '' // NIP-44 handles nonce internally
-  }
+  return nip44.v2.encrypt(base64Data, conversationKey)
 }
 
-// Upload file to catbox.moe (anonymous, no auth required)
-// https://catbox.moe/tools.php
-export async function uploadToCatbox(file: File): Promise<UploadResult> {
-  const formData = new FormData()
-  formData.append('reqtype', 'fileupload')
-  formData.append('fileToUpload', file)
+// Decrypt file content with NIP-44
+export function decryptFileData(
+  encryptedData: string,
+  recipientPrivateKey: string,
+  senderPubkey: string
+): ArrayBuffer {
+  const recipientPrivateKeyBytes = hexToBytes(recipientPrivateKey)
+  const conversationKey = nip44.v2.utils.getConversationKey(
+    recipientPrivateKeyBytes,
+    senderPubkey
+  )
 
-  const response = await fetch('https://catbox.moe/user/api.php', {
-    method: 'POST',
-    body: formData
-  })
+  const base64Data = nip44.v2.decrypt(encryptedData, conversationKey)
 
+  // Convert base64 back to ArrayBuffer
+  const binaryString = atob(base64Data)
+  const bytes = new Uint8Array(binaryString.length)
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i)
+  }
+  return bytes.buffer
+}
+
+// Download and decrypt a file from URL
+export async function downloadAndDecryptFile(
+  url: string,
+  mimeType: string,
+  recipientPrivateKey: string,
+  senderPubkey: string
+): Promise<Blob> {
+  const response = await fetch(url)
   if (!response.ok) {
-    throw new Error(`Catbox upload failed: ${response.status} ${response.statusText}`)
+    throw new Error(`Failed to download file: ${response.status}`)
   }
 
-  // Catbox returns the URL directly as text
-  const url = await response.text()
+  const encryptedText = await response.text()
+  const decryptedData = decryptFileData(encryptedText, recipientPrivateKey, senderPubkey)
 
-  if (!url.startsWith('https://')) {
-    throw new Error(`Catbox upload failed: ${url}`)
-  }
+  return new Blob([decryptedData], { type: mimeType })
+}
 
-  const fileBuffer = await file.arrayBuffer()
-  const hash = await calculateHash(fileBuffer)
-
-  let dimensions: { width: number; height: number } | undefined
-  if (file.type.startsWith('image/')) {
-    try {
-      dimensions = await getImageDimensions(file)
-    } catch {
-      // Ignore dimension errors
-    }
-  }
-
-  return {
-    url: url.trim(),
-    hash,
-    mimeType: file.type,
-    size: file.size,
-    dimensions
-  }
+// Create object URL for decrypted file (for displaying in UI)
+export async function getDecryptedFileUrl(
+  url: string,
+  mimeType: string,
+  recipientPrivateKey: string,
+  senderPubkey: string
+): Promise<string> {
+  const blob = await downloadAndDecryptFile(url, mimeType, recipientPrivateKey, senderPubkey)
+  return URL.createObjectURL(blob)
 }
 
 // Create NIP-98 authorization header for authenticated uploads
@@ -130,18 +134,23 @@ function createNip98AuthHeader(
   return `Nostr ${btoa(JSON.stringify(event))}`
 }
 
-// Upload file to nostr.build with NIP-98 authentication
-export async function uploadToNostrBuild(file: File, privateKey?: string): Promise<UploadResult> {
+// Upload encrypted file to nostr.build with NIP-98 authentication
+async function uploadEncryptedToNostrBuild(
+  encryptedData: string,
+  privateKey: string
+): Promise<string> {
+  // Create a text file with the encrypted content
+  const blob = new Blob([encryptedData], { type: 'text/plain' })
+  const file = new File([blob], 'encrypted.txt', { type: 'text/plain' })
+
   const formData = new FormData()
   formData.append('file', file)
 
-  const headers: HeadersInit = {}
+  const fileBuffer = await file.arrayBuffer()
+  const payloadHash = await calculateHash(fileBuffer)
 
-  // Add NIP-98 auth if private key provided
-  if (privateKey) {
-    const fileBuffer = await file.arrayBuffer()
-    const payloadHash = await calculateHash(fileBuffer)
-    headers['Authorization'] = createNip98AuthHeader(
+  const headers: HeadersInit = {
+    'Authorization': createNip98AuthHeader(
       'https://nostr.build/api/v2/upload/files',
       'POST',
       privateKey,
@@ -165,10 +174,21 @@ export async function uploadToNostrBuild(file: File, privateKey?: string): Promi
     throw new Error('nostr.build upload failed: Invalid response')
   }
 
-  const uploadData = result.data[0]
+  return result.data[0].url
+}
+
+// Main upload function - encrypts file and uploads to nostr.build
+export async function uploadFile(
+  file: File,
+  privateKey: string,
+  recipientPubkey: string
+): Promise<UploadResult> {
   const fileBuffer = await file.arrayBuffer()
+
+  // Calculate hash of original file (before encryption)
   const hash = await calculateHash(fileBuffer)
 
+  // Get dimensions for images (before encryption)
   let dimensions: { width: number; height: number } | undefined
   if (file.type.startsWith('image/')) {
     try {
@@ -178,78 +198,20 @@ export async function uploadToNostrBuild(file: File, privateKey?: string): Promi
     }
   }
 
+  // Encrypt the file with NIP-44
+  const encryptedData = encryptFileData(fileBuffer, privateKey, recipientPubkey)
+
+  // Upload encrypted data to nostr.build
+  const url = await uploadEncryptedToNostrBuild(encryptedData, privateKey)
+
   return {
-    url: uploadData.url,
+    url,
     hash,
     mimeType: file.type,
     size: file.size,
-    dimensions
+    dimensions,
+    encrypted: true
   }
-}
-
-// Upload to litterbox.catbox.moe (temporary storage, 72h max)
-export async function uploadToLitterbox(file: File): Promise<UploadResult> {
-  const formData = new FormData()
-  formData.append('reqtype', 'fileupload')
-  formData.append('time', '72h')
-  formData.append('fileToUpload', file)
-
-  const response = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
-    method: 'POST',
-    body: formData
-  })
-
-  if (!response.ok) {
-    throw new Error(`Litterbox upload failed: ${response.status} ${response.statusText}`)
-  }
-
-  const url = await response.text()
-
-  if (!url.startsWith('https://')) {
-    throw new Error(`Litterbox upload failed: ${url}`)
-  }
-
-  const fileBuffer = await file.arrayBuffer()
-  const hash = await calculateHash(fileBuffer)
-
-  let dimensions: { width: number; height: number } | undefined
-  if (file.type.startsWith('image/')) {
-    try {
-      dimensions = await getImageDimensions(file)
-    } catch {
-      // Ignore dimension errors
-    }
-  }
-
-  return {
-    url: url.trim(),
-    hash,
-    mimeType: file.type,
-    size: file.size,
-    dimensions
-  }
-}
-
-// Main upload function - tries catbox.moe first, falls back to litterbox
-export async function uploadFile(file: File, privateKey?: string): Promise<UploadResult> {
-  // Try nostr.build with auth if private key provided
-  if (privateKey) {
-    try {
-      return await uploadToNostrBuild(file, privateKey)
-    } catch (error) {
-      console.warn('nostr.build upload failed:', error)
-    }
-  }
-
-  // Try catbox.moe (permanent, anonymous)
-  try {
-    return await uploadToCatbox(file)
-  } catch (error) {
-    console.warn('catbox.moe upload failed, trying litterbox:', error)
-  }
-
-  // Fallback to litterbox (temporary 72h, anonymous)
-  return await uploadToLitterbox(file)
 }
 
 // Compress image before upload (for better performance)

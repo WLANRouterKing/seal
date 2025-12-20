@@ -81,7 +81,7 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
           </div>
         ) : (
           messages.map((message) => (
-            <MessageBubble key={message.id} message={message} onDelete={handleDelete} />
+            <MessageBubble key={message.id} message={message} contactPubkey={contactPubkey} onDelete={handleDelete} />
           ))
         )}
         <div ref={messagesEndRef} />
