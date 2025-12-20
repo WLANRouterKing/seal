@@ -20,6 +20,7 @@ feat automatic changelog
 
 ### Änderungen
 
+- Remove wrong changelog file
 - Merge remote-tracking branch 'origin/master'
 - Fix exclude coverage folder from git
 - Merge remote-tracking branch 'origin/master'
