@@ -89,14 +89,15 @@ changelog:
     # Generate changelog
     - git-cliff --output CHANGELOG.md
     - cat CHANGELOG.md
-    # Check if changelog changed
+    # Check if changelog changed (using git status for new/modified files)
     - |
-      if git diff --quiet CHANGELOG.md 2>/dev/null; then
+      git add CHANGELOG.md
+      if git diff --cached --quiet CHANGELOG.md; then
         echo "No changelog changes"
       else
-        git add CHANGELOG.md
         git commit -m "chore(release): update changelog [skip ci]"
         git push origin HEAD:${CI_COMMIT_REF_NAME}
+        echo "Changelog updated and pushed!"
       fi
   only:
     - master
