@@ -77,7 +77,7 @@
     "placeholder": "Enter your password",
     "unlocking": "Unlocking...",
     "unlock": "Unlock",
-    "logout": "Logout and delete keys"
+    "logout": "Wipe data and delete keys"
   },
   "chat": {
     "noMessages": "No Messages Yet",
@@ -123,7 +123,7 @@
     "exportKeys": "Export Keys",
     "backupPrivateKey": "Backup your private key",
     "account": "Account",
-    "logout": "Logout",
+    "logout": "Wipe data",
     "logoutHint": "Remove keys from this device",
     "language": "Language",
     "languageHint": "App language",
