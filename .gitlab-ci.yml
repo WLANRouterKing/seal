@@ -69,6 +69,9 @@ deploy:
 changelog:
   stage: changelog
   image: alpine:latest
+  variables:
+    GIT_DEPTH: 0  # Volle Historie für Changelog
+    GIT_STRATEGY: fetch
   before_script:
     - apk add --no-cache git curl
     # Install git-cliff
@@ -76,12 +79,16 @@ changelog:
     - mv git-cliff-*/git-cliff /usr/local/bin/
     - chmod +x /usr/local/bin/git-cliff
   script:
+    # Debug - zeige verfügbare Commits
+    - echo "Verfügbare Commits:"
+    - git log --oneline -20
     # Configure git
     - git config user.email "ci@gitlab.com"
     - git config user.name "GitLab CI"
     - git remote set-url origin "https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
     # Generate changelog
     - git-cliff --output CHANGELOG.md
+    - cat CHANGELOG.md
     # Check if changelog changed
     - |
       if git diff --quiet CHANGELOG.md 2>/dev/null; then

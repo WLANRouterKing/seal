@@ -29,11 +29,11 @@ trim = true
 
 [git]
 conventional_commits = true
-filter_unconventional = true
+filter_unconventional = false  # Auch nicht-konventionelle Commits einbeziehen
 split_commits = false
 commit_parsers = [
     { message = "^feat", group = "Features" },
-    { message = "^fix", group = "Bug Fixes" },
+    { message = "^fix:", group = "Bug Fixes" },
     { message = "^doc", group = "Dokumentation" },
     { message = "^perf", group = "Performance" },
     { message = "^refactor", group = "Refactoring" },
@@ -44,6 +44,8 @@ commit_parsers = [
     { message = "^chore", group = "Sonstiges" },
     { message = "^ci", group = "CI/CD" },
     { body = ".*security", group = "Sicherheit" },
+    # Fallback für alle anderen Commits
+    { message = ".*", group = "Änderungen" },
 ]
 protect_breaking_commits = false
 filter_commits = false
