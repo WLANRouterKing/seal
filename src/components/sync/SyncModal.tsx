@@ -1,5 +1,19 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  Stack,
+  Group,
+  Text,
+  Paper,
+  ActionIcon,
+  Button,
+  ThemeIcon,
+  Box,
+  Code,
+  CopyButton,
+  Textarea,
+} from '@mantine/core'
+import { IconArrowLeft, IconUpload, IconDownload, IconCheck, IconX } from '@tabler/icons-react'
 import { QRCodeDisplay } from './QRCodeDisplay'
 import { QRCodeScanner } from './QRCodeScanner'
 import { SyncProgress } from './SyncProgress'
@@ -38,7 +52,6 @@ export function SyncModal({ onBack }: SyncModalProps) {
   const [error, setError] = useState('')
   const [isSender, setIsSender] = useState(false)
 
-  // Start as sender (show QR code)
   const startAsSender = async () => {
     try {
       setIsSender(true)
@@ -52,13 +65,11 @@ export function SyncModal({ onBack }: SyncModalProps) {
     }
   }
 
-  // Start as receiver (scan QR code)
   const startAsReceiver = () => {
     setIsSender(false)
     setState('scanning')
   }
 
-  // Handle QR code scanned (receiver side)
   const handleQRScanned = async (data: string) => {
     try {
       const { code, answerData: answer } = await webrtc.processOffer(data)
@@ -66,7 +77,6 @@ export function SyncModal({ onBack }: SyncModalProps) {
       setAnswerData(answer)
       setState('confirming')
 
-      // Wait for connection after sender enters code
       const connected = await webrtc.waitForConnection()
       if (connected) {
         setState('connected')
@@ -81,13 +91,11 @@ export function SyncModal({ onBack }: SyncModalProps) {
     }
   }
 
-  // Handle code entered (sender side)
   const handleCodeEntered = async (code: string, answer: string) => {
     try {
       const connected = await webrtc.completeConnection(answer, code)
       if (connected) {
         setState('connected')
-        // Sender starts transfer after connection
         startTransfer()
       } else {
         setError(t('sync.codeInvalid') || 'Invalid confirmation code')
@@ -100,13 +108,11 @@ export function SyncModal({ onBack }: SyncModalProps) {
     }
   }
 
-  // Start data transfer
   const startTransfer = async () => {
     setState('transferring')
 
     try {
       if (isSender) {
-        // Export and send data
         const data = await exportSyncData()
         const json = serializeSyncData(data)
 
@@ -121,7 +127,6 @@ export function SyncModal({ onBack }: SyncModalProps) {
         })
         setState('complete')
       } else {
-        // Receive data
         const json = await webrtc.receiveSyncData((received, total) => {
           setProgress({ current: received, total })
         })
@@ -139,12 +144,10 @@ export function SyncModal({ onBack }: SyncModalProps) {
     }
   }
 
-  // Confirm ready to receive (receiver side)
   const handleConfirmReceive = () => {
     startTransfer()
   }
 
-  // Reset to initial state
   const handleReset = () => {
     webrtc.close()
     setState('idle')
@@ -156,181 +159,114 @@ export function SyncModal({ onBack }: SyncModalProps) {
     setError('')
   }
 
-  // Close and go back
   const handleClose = () => {
     webrtc.close()
     onBack()
   }
 
   return (
-    <div className="flex flex-col h-full bg-theme-bg">
-      {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 bg-theme-surface border-b border-theme-border">
-        <button
-          onClick={handleClose}
-          className="p-2 -ml-2 hover:bg-theme-hover rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-lg font-semibold">{t('sync.title')}</h1>
-      </header>
+    <Stack h="100%" gap={0}>
+      <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+        <Group gap="sm">
+          <ActionIcon variant="subtle" onClick={handleClose}>
+            <IconArrowLeft size={24} />
+          </ActionIcon>
+          <Text fw={500} size="lg">{t('sync.title')}</Text>
+        </Group>
+      </Paper>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+      <Box p="md" style={{ flex: 1, overflow: 'auto' }}>
         {state === 'idle' && (
-          <div className="flex flex-col gap-6">
-            <p className="text-theme-text-secondary text-center">
-              {t('sync.description')}
-            </p>
-
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={startAsSender}
-                className="btn-primary py-4 text-lg"
-              >
-                <svg className="w-6 h-6 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
+          <Stack gap="lg" align="center">
+            <Text c="dimmed" ta="center">{t('sync.description')}</Text>
+            <Stack w="100%" maw={320}>
+              <Button size="lg" color="cyan" leftSection={<IconUpload size={20} />} onClick={startAsSender}>
                 {t('sync.sendData')}
-              </button>
-
-              <button
-                onClick={startAsReceiver}
-                className="btn-secondary py-4 text-lg"
-              >
-                <svg className="w-6 h-6 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
+              </Button>
+              <Button size="lg" variant="default" leftSection={<IconDownload size={20} />} onClick={startAsReceiver}>
                 {t('sync.receiveData')}
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Stack>
+          </Stack>
         )}
 
         {state === 'showing_qr' && (
-          <QRCodeDisplay
-            qrData={qrData}
-            onCodeEntered={handleCodeEntered}
-            onCancel={handleReset}
-          />
+          <QRCodeDisplay qrData={qrData} onCodeEntered={handleCodeEntered} onCancel={handleReset} />
         )}
 
         {state === 'scanning' && (
-          <QRCodeScanner
-            onScan={handleQRScanned}
-            onCancel={handleReset}
-          />
+          <QRCodeScanner onScan={handleQRScanned} onCancel={handleReset} />
         )}
 
         {state === 'confirming' && (
-          <div className="flex flex-col items-center gap-6">
-            <div className="text-center">
-              <p className="text-theme-text-secondary mb-4">
-                {t('sync.tellOtherDevice')}
-              </p>
-              <div className="text-4xl font-mono font-bold tracking-wider bg-theme-surface p-6 rounded-xl">
-                {confirmCode}
-              </div>
-            </div>
-
-            <div className="w-full">
-              <p className="text-sm text-theme-text-secondary mb-2">
-                {t('sync.copyAnswerData') || 'Copy this connection data to the other device:'}
-              </p>
-              <div className="relative">
-                <textarea
-                  readOnly
-                  value={answerData}
-                  className="input-field w-full h-20 font-mono text-xs resize-none"
-                  onClick={(e) => (e.target as HTMLTextAreaElement).select()}
-                />
-                <button
-                  onClick={() => navigator.clipboard.writeText(answerData)}
-                  className="absolute top-2 right-2 p-1 bg-theme-surface rounded hover:bg-theme-hover"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <p className="text-theme-text-secondary text-sm">
-              {t('sync.waitingForConnection') || 'Waiting for connection...'}
-            </p>
-            <button onClick={handleReset} className="btn-secondary">
-              {t('sync.cancel')}
-            </button>
-          </div>
+          <Stack align="center" gap="lg">
+            <Text c="dimmed" ta="center">{t('sync.tellOtherDevice')}</Text>
+            <Paper p="xl" withBorder>
+              <Code fz="2rem" fw={700} style={{ letterSpacing: '0.2em' }}>{confirmCode}</Code>
+            </Paper>
+            <Box w="100%">
+              <Text size="sm" c="dimmed" mb="xs">{t('sync.copyAnswerData') || 'Copy this connection data:'}</Text>
+              <CopyButton value={answerData}>
+                {({ copied, copy }) => (
+                  <Textarea
+                    value={answerData}
+                    readOnly
+                    minRows={3}
+                    styles={{ input: { fontFamily: 'monospace', fontSize: '0.75rem' } }}
+                    onClick={copy}
+                    rightSection={copied ? <IconCheck size={14} /> : null}
+                  />
+                )}
+              </CopyButton>
+            </Box>
+            <Text c="dimmed" size="sm">{t('sync.waitingForConnection') || 'Waiting for connection...'}</Text>
+            <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
+          </Stack>
         )}
 
         {state === 'connected' && !isSender && (
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="text-lg font-medium">{t('sync.connected') || 'Connected!'}</p>
-            <p className="text-theme-text-secondary text-center">
-              {t('sync.readyToReceive')}
-            </p>
-            <button onClick={handleConfirmReceive} className="btn-primary py-3 px-8">
-              {t('sync.confirm')}
-            </button>
-            <button onClick={handleReset} className="btn-secondary">
-              {t('sync.cancel')}
-            </button>
-          </div>
+          <Stack align="center" gap="lg">
+            <ThemeIcon size={64} radius="xl" color="green" variant="light">
+              <IconCheck size={32} />
+            </ThemeIcon>
+            <Text size="lg" fw={500}>{t('sync.connected') || 'Connected!'}</Text>
+            <Text c="dimmed" ta="center">{t('sync.readyToReceive')}</Text>
+            <Button color="cyan" onClick={handleConfirmReceive}>{t('sync.confirm')}</Button>
+            <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
+          </Stack>
         )}
 
         {state === 'transferring' && (
-          <SyncProgress
-            current={progress.current}
-            total={progress.total}
-            isSending={isSender}
-          />
+          <SyncProgress current={progress.current} total={progress.total} isSending={isSender} />
         )}
 
         {state === 'complete' && stats && (
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="text-xl font-semibold">{t('sync.complete')}</p>
-            <div className="text-theme-text-secondary text-center">
-              <p>{stats.messages} {t('sync.messages') || 'messages'}</p>
-              <p>{stats.contacts} {t('sync.contacts') || 'contacts'}</p>
-              <p>{stats.relays} {t('sync.relays') || 'relays'}</p>
-            </div>
-            <button onClick={handleClose} className="btn-primary py-3 px-8">
-              {t('sync.done') || 'Done'}
-            </button>
-          </div>
+          <Stack align="center" gap="lg">
+            <ThemeIcon size={80} radius="xl" color="green" variant="light">
+              <IconCheck size={40} />
+            </ThemeIcon>
+            <Text size="xl" fw={600}>{t('sync.complete')}</Text>
+            <Stack gap={4} align="center">
+              <Text c="dimmed">{stats.messages} {t('sync.messages') || 'messages'}</Text>
+              <Text c="dimmed">{stats.contacts} {t('sync.contacts') || 'contacts'}</Text>
+              <Text c="dimmed">{stats.relays} {t('sync.relays') || 'relays'}</Text>
+            </Stack>
+            <Button color="cyan" onClick={handleClose}>{t('sync.done') || 'Done'}</Button>
+          </Stack>
         )}
 
         {state === 'error' && (
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <p className="text-xl font-semibold text-red-500">{t('sync.error')}</p>
-            {error && <p className="text-theme-text-secondary">{error}</p>}
-            <button onClick={handleReset} className="btn-primary py-3 px-8">
-              {t('sync.retry')}
-            </button>
-            <button onClick={handleClose} className="btn-secondary">
-              {t('sync.cancel')}
-            </button>
-          </div>
+          <Stack align="center" gap="lg">
+            <ThemeIcon size={80} radius="xl" color="red" variant="light">
+              <IconX size={40} />
+            </ThemeIcon>
+            <Text size="xl" fw={600} c="red">{t('sync.error')}</Text>
+            {error && <Text c="dimmed">{error}</Text>}
+            <Button color="cyan" onClick={handleReset}>{t('sync.retry')}</Button>
+            <Button variant="default" onClick={handleClose}>{t('sync.cancel')}</Button>
+          </Stack>
         )}
-      </div>
-    </div>
+      </Box>
+    </Stack>
   )
 }

@@ -1,8 +1,22 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  Stack,
+  Group,
+  Text,
+  Paper,
+  ActionIcon,
+  Box,
+  ScrollArea,
+  Button,
+  Code,
+  Alert,
+  CopyButton,
+  Tooltip,
+} from '@mantine/core'
+import { IconArrowLeft, IconCopy, IconCheck, IconAlertTriangle, IconEye, IconEyeOff } from '@tabler/icons-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuthStore } from '../../stores/authStore'
-import { copyToClipboard } from '../../utils/format'
 
 interface KeyExportProps {
   onBack: () => void
@@ -13,154 +27,135 @@ export default function KeyExport({ onBack }: KeyExportProps) {
   const { keys } = useAuthStore()
   const [showPrivate, setShowPrivate] = useState(false)
   const [showQR, setShowQR] = useState(false)
-  const [copiedPub, setCopiedPub] = useState(false)
-  const [copiedPriv, setCopiedPriv] = useState(false)
-
-  const handleCopyPublic = async () => {
-    if (keys) {
-      await copyToClipboard(keys.npub)
-      setCopiedPub(true)
-      setTimeout(() => setCopiedPub(false), 2000)
-    }
-  }
-
-  const handleCopyPrivate = async () => {
-    if (keys) {
-      await copyToClipboard(keys.nsec)
-      setCopiedPriv(true)
-      setTimeout(() => setCopiedPriv(false), 2000)
-    }
-  }
 
   return (
-    <div className="flex flex-col h-full">
+    <Stack h="100%" gap={0}>
       {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 bg-theme-surface border-b border-theme-border">
-        <button
-          onClick={onBack}
-          className="p-1 hover:bg-theme-hover rounded-lg transition-colors"
-        >
-          <svg className="w-6 h-6 text-theme-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h2 className="text-lg font-medium text-theme-text">{t('keyExport.title')}</h2>
-      </header>
+      <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+        <Group gap="sm">
+          <ActionIcon variant="subtle" onClick={onBack}>
+            <IconArrowLeft size={24} />
+          </ActionIcon>
+          <Text fw={500} size="lg">{t('keyExport.title')}</Text>
+        </Group>
+      </Paper>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 scrollbar-hide">
-        {/* Public Key */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-300">
-              {t('keyExport.publicKeyLabel')}
-            </label>
-            <button
-              onClick={handleCopyPublic}
-              className="text-primary-500 text-sm hover:text-primary-400"
-            >
-              {copiedPub ? t('common.copied') : t('common.copy')}
-            </button>
-          </div>
-          <div className="bg-theme-surface border border-theme-border rounded-xl p-4">
-            <p className="font-mono text-sm text-theme-text break-all leading-relaxed">
-              {keys?.npub}
-            </p>
-          </div>
-          <p className="mt-2 text-xs text-theme-muted">
-            {t('keyExport.publicKeyHint')}
-          </p>
-        </div>
+      <ScrollArea style={{ flex: 1 }} p="md">
+        <Stack gap="lg">
+          {/* Public Key */}
+          <Box>
+            <Group justify="space-between" mb="xs">
+              <Text size="sm" fw={500}>{t('keyExport.publicKeyLabel')}</Text>
+              <CopyButton value={keys?.npub || ''}>
+                {({ copied, copy }) => (
+                  <Tooltip label={copied ? t('common.copied') : t('common.copy')}>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      onClick={copy}
+                      leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                    >
+                      {copied ? t('common.copied') : t('common.copy')}
+                    </Button>
+                  </Tooltip>
+                )}
+              </CopyButton>
+            </Group>
+            <Paper p="sm" withBorder>
+              <Code block style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
+                {keys?.npub}
+              </Code>
+            </Paper>
+            <Text size="xs" c="dimmed" mt="xs">
+              {t('keyExport.publicKeyHint')}
+            </Text>
+          </Box>
 
-        {/* Private Key */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-300">
-              {t('keyExport.privateKeyLabel')}
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowPrivate(!showPrivate)}
-                className="text-theme-muted text-sm hover:text-theme-text"
-              >
-                {showPrivate ? t('common.hide') : t('common.show')}
-              </button>
-              {showPrivate && (
-                <button
-                  onClick={handleCopyPrivate}
-                  className="text-primary-500 text-sm hover:text-primary-400"
+          {/* Private Key */}
+          <Box>
+            <Group justify="space-between" mb="xs">
+              <Text size="sm" fw={500}>{t('keyExport.privateKeyLabel')}</Text>
+              <Group gap="xs">
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  onClick={() => setShowPrivate(!showPrivate)}
+                  leftSection={showPrivate ? <IconEyeOff size={14} /> : <IconEye size={14} />}
                 >
-                  {copiedPriv ? t('common.copied') : t('common.copy')}
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="bg-theme-surface border border-theme-border rounded-xl p-4">
-            {showPrivate ? (
-              <p className="font-mono text-sm text-theme-text break-all leading-relaxed">
-                {keys?.nsec}
-              </p>
-            ) : (
-              <p className="font-mono text-sm text-theme-muted">
-                ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-              </p>
+                  {showPrivate ? t('common.hide') : t('common.show')}
+                </Button>
+                {showPrivate && (
+                  <CopyButton value={keys?.nsec || ''}>
+                    {({ copied, copy }) => (
+                      <Tooltip label={copied ? t('common.copied') : t('common.copy')}>
+                        <Button
+                          variant="subtle"
+                          size="xs"
+                          onClick={copy}
+                          leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                        >
+                          {copied ? t('common.copied') : t('common.copy')}
+                        </Button>
+                      </Tooltip>
+                    )}
+                  </CopyButton>
+                )}
+              </Group>
+            </Group>
+            <Paper p="sm" withBorder>
+              <Code block style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
+                {showPrivate ? keys?.nsec : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
+              </Code>
+            </Paper>
+          </Box>
+
+          {/* QR Code */}
+          <Box>
+            <Group justify="space-between" mb="xs">
+              <Text size="sm" fw={500}>{t('keyExport.qrCodeLabel') || 'QR Code for Import'}</Text>
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={() => setShowQR(!showQR)}
+                leftSection={showQR ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+              >
+                {showQR ? t('common.hide') : t('common.show')}
+              </Button>
+            </Group>
+            {showQR && keys?.nsec && (
+              <Paper p="md" withBorder>
+                <Stack align="center" gap="sm">
+                  <Box p="sm" bg="white" style={{ borderRadius: 8 }}>
+                    <QRCodeSVG
+                      value={keys.nsec}
+                      size={200}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </Box>
+                  <Text size="xs" c="dimmed" ta="center">
+                    {t('keyExport.qrCodeHint') || 'Scan this QR code on another device to import your account'}
+                  </Text>
+                </Stack>
+              </Paper>
             )}
-          </div>
-        </div>
+            {!showQR && (
+              <Text size="xs" c="dimmed">
+                {t('keyExport.qrCodeDescription') || 'Show QR code to easily import your key on another device'}
+              </Text>
+            )}
+          </Box>
 
-        {/* QR Code for Import */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-300">
-              {t('keyExport.qrCodeLabel') || 'QR Code for Import'}
-            </label>
-            <button
-              onClick={() => setShowQR(!showQR)}
-              className="text-theme-muted text-sm hover:text-theme-text"
-            >
-              {showQR ? t('common.hide') : t('common.show')}
-            </button>
-          </div>
-          {showQR && keys?.nsec && (
-            <div className="bg-theme-surface border border-theme-border rounded-xl p-4">
-              <div className="flex justify-center mb-3">
-                <div className="bg-white p-3 rounded-lg">
-                  <QRCodeSVG
-                    value={keys.nsec}
-                    size={200}
-                    level="M"
-                    includeMargin={false}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-theme-muted text-center">
-                {t('keyExport.qrCodeHint') || 'Scan this QR code on another device to import your account'}
-              </p>
-            </div>
-          )}
-          {!showQR && (
-            <p className="text-xs text-theme-muted">
-              {t('keyExport.qrCodeDescription') || 'Show QR code to easily import your key on another device'}
-            </p>
-          )}
-        </div>
-
-        {/* Warning */}
-        <div className="bg-red-900/20 border border-red-600/30 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div>
-              <p className="text-red-400 font-medium text-sm mb-1">{t('common.warning')}</p>
-              <ul className="text-red-400/80 text-xs space-y-1">
-                <li>• {t('keyExport.warnings.neverShare')}</li>
-                <li>• {t('keyExport.warnings.impersonate')}</li>
-                <li>• {t('keyExport.warnings.storeSecurely')}</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          {/* Warning */}
+          <Alert color="red" icon={<IconAlertTriangle size={16} />} title={t('common.warning')}>
+            <Stack gap={4}>
+              <Text size="xs">• {t('keyExport.warnings.neverShare')}</Text>
+              <Text size="xs">• {t('keyExport.warnings.impersonate')}</Text>
+              <Text size="xs">• {t('keyExport.warnings.storeSecurely')}</Text>
+            </Stack>
+          </Alert>
+        </Stack>
+      </ScrollArea>
+    </Stack>
   )
 }

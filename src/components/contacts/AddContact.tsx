@@ -1,5 +1,19 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  Stack,
+  Group,
+  Text,
+  Paper,
+  ActionIcon,
+  Textarea,
+  TextInput,
+  Button,
+  Alert,
+  SegmentedControl,
+  Box,
+} from '@mantine/core'
+import { IconX, IconAlertCircle } from '@tabler/icons-react'
 import { QRCodeScanner } from '../sync/QRCodeScanner'
 
 interface AddContactProps {
@@ -26,7 +40,6 @@ export default function AddContact({ onAdd, onCancel, error }: AddContactProps) 
 
   const handleScan = (data: string) => {
     setScanError(null)
-    // Check if it's a valid npub
     if (data.startsWith('npub1')) {
       setNpub(data)
       setMode('manual')
@@ -36,115 +49,90 @@ export default function AddContact({ onAdd, onCancel, error }: AddContactProps) 
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <Stack h="100%" gap={0}>
       {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 bg-theme-surface border-b border-theme-border">
-        <button
-          onClick={onCancel}
-          className="p-1 hover:bg-theme-hover rounded-lg transition-colors"
-        >
-          <svg className="w-6 h-6 text-theme-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        <h2 className="text-lg font-medium text-theme-text">{t('contacts.addContact')}</h2>
-      </header>
+      <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+        <Group gap="sm">
+          <ActionIcon variant="subtle" onClick={onCancel}>
+            <IconX size={24} />
+          </ActionIcon>
+          <Text fw={500} size="lg">{t('contacts.addContact')}</Text>
+        </Group>
+      </Paper>
 
       {/* Mode Toggle */}
-      <div className="flex border-b border-theme-border">
-        <button
-          onClick={() => setMode('manual')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            mode === 'manual'
-              ? 'text-primary-500 border-b-2 border-primary-500'
-              : 'text-theme-muted hover:text-theme-text'
-          }`}
-        >
-          {t('contacts.enterManually')}
-        </button>
-        <button
-          onClick={() => { setMode('scan'); setScanError(null) }}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            mode === 'scan'
-              ? 'text-primary-500 border-b-2 border-primary-500'
-              : 'text-theme-muted hover:text-theme-text'
-          }`}
-        >
-          {t('contacts.scanQR')}
-        </button>
-      </div>
+      <Box px="md" pt="md">
+        <SegmentedControl
+          fullWidth
+          value={mode}
+          onChange={(value) => {
+            setMode(value as InputMode)
+            setScanError(null)
+          }}
+          data={[
+            { label: t('contacts.enterManually'), value: 'manual' },
+            { label: t('contacts.scanQR'), value: 'scan' },
+          ]}
+        />
+      </Box>
 
       {mode === 'manual' ? (
-        /* Manual Input Form */
-        <form onSubmit={handleSubmit} className="flex-1 px-4 py-6 space-y-4">
-          <div>
-            <label htmlFor="npub" className="block text-sm font-medium text-gray-300 mb-2">
-              {t('contacts.publicKeyLabel')}
-            </label>
-            <textarea
-              id="npub"
+        <Box component="form" onSubmit={handleSubmit} p="md" style={{ flex: 1 }}>
+          <Stack gap="md">
+            <Textarea
+              label={t('contacts.publicKeyLabel')}
+              description={t('contacts.publicKeyHint')}
+              placeholder="npub1..."
               value={npub}
               onChange={(e) => setNpub(e.target.value)}
-              placeholder="npub1..."
-              className="input-field h-24 resize-none font-mono text-sm"
+              minRows={3}
               autoComplete="off"
               spellCheck={false}
+              styles={{ input: { fontFamily: 'monospace', fontSize: '0.875rem' } }}
             />
-            <p className="mt-1 text-xs text-theme-muted">
-              {t('contacts.publicKeyHint')}
-            </p>
-          </div>
 
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
-              {t('contacts.nameLabel')}
-            </label>
-            <input
-              id="name"
-              type="text"
+            <TextInput
+              label={t('contacts.nameLabel')}
+              description={t('contacts.nameHint')}
+              placeholder={t('contacts.displayNamePlaceholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={t('contacts.displayNamePlaceholder')}
-              className="input-field"
             />
-            <p className="mt-1 text-xs text-theme-muted">
-              {t('contacts.nameHint')}
-            </p>
-          </div>
 
-          {error && (
-            <div className="bg-red-900/20 border border-red-600/30 rounded-lg p-3">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
+            {error && (
+              <Alert color="red" icon={<IconAlertCircle size={16} />}>
+                {error}
+              </Alert>
+            )}
 
-          <button
-            type="submit"
-            disabled={!npub.trim()}
-            className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {t('contacts.addContact')}
-          </button>
-        </form>
+            <Button
+              type="submit"
+              fullWidth
+              color="cyan"
+              disabled={!npub.trim()}
+            >
+              {t('contacts.addContact')}
+            </Button>
+          </Stack>
+        </Box>
       ) : (
-        /* QR Scanner */
-        <div className="flex-1 px-4 py-6">
-          <p className="text-theme-muted text-sm text-center mb-4">
+        <Box p="md" style={{ flex: 1 }}>
+          <Text c="dimmed" size="sm" ta="center" mb="md">
             {t('contacts.scanQRHint')}
-          </p>
+          </Text>
 
           {scanError && (
-            <div className="bg-red-900/20 border border-red-600/30 rounded-lg p-3 mb-4">
-              <p className="text-red-400 text-sm text-center">{scanError}</p>
-            </div>
+            <Alert color="red" icon={<IconAlertCircle size={16} />} mb="md">
+              {scanError}
+            </Alert>
           )}
 
           <QRCodeScanner
             onScan={handleScan}
             onCancel={() => setMode('manual')}
           />
-        </div>
+        </Box>
       )}
-    </div>
+    </Stack>
   )
 }

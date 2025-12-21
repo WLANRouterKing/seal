@@ -16,11 +16,11 @@ export const DEFAULT_RELAYS = [
   'wss://nostr.fmt.wiz.biz'
 ]
 
-// Number of relays to use per session (randomly selected from pool)
-export const RELAYS_PER_SESSION = 5
+// Minimum number of relays to use per session (randomly selected from pool)
+export const MIN_RELAYS_PER_SESSION = 5
 
-// Relay rotation interval in milliseconds (10 minutes)
-export const RELAY_ROTATION_INTERVAL = 10 * 60 * 1000
+// Maximum percentage of relays to use (to ensure not all relays are used every time)
+export const MAX_RELAY_PERCENTAGE = 0.8
 
 export const DB_NAME = 'nostr-chat-db'
 export const DB_VERSION = 2

@@ -1,12 +1,17 @@
 stages:
   - test
   - build
+  - build_android
   - deploy
+  - release
   - changelog
 
 variables:
   DEPLOY_PATH: /home/$DEPLOY_USER/web/$DEPLOY_DOMAIN/public_html
   GIT_DEPTH: 0  # Fetch all history and tags for version detection
+  ANDROID_COMPILE_SDK: "36"
+  ANDROID_BUILD_TOOLS: "35.0.0"
+  ANDROID_SDK_TOOLS: "11076708"
 
 test:
   stage: test
@@ -65,6 +70,68 @@ deploy:
   environment:
     name: production
     url: https://$DEPLOY_DOMAIN
+
+build_apk:
+  stage: build_android
+  image: ubuntu:24.04
+  needs:
+    - job: build
+      artifacts: true
+  before_script:
+    - apt-get update -qy
+    - apt-get install -y openjdk-21-jdk wget unzip nodejs npm
+    - export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+    - export ANDROID_HOME="${PWD}/android-sdk"
+    - export PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
+    # Install Android SDK
+    - mkdir -p ${ANDROID_HOME}/cmdline-tools
+    - wget -q https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_SDK_TOOLS}_latest.zip -O android-sdk.zip
+    - unzip -q android-sdk.zip -d ${ANDROID_HOME}/cmdline-tools
+    - mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest
+    - yes | sdkmanager --licenses || true
+    - sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "build-tools;${ANDROID_BUILD_TOOLS}"
+    # Setup keystore from CI/CD variables
+    - echo "${KEYSTORE_FILE}" | base64 -d > android/seal-release.keystore
+    - echo "storePassword=${KEYSTORE_PASSWORD}" > android/keystore.properties
+    - echo "keyPassword=${KEYSTORE_PASSWORD}" >> android/keystore.properties
+    - echo "keyAlias=seal" >> android/keystore.properties
+    - echo "storeFile=../seal-release.keystore" >> android/keystore.properties
+    # Sync Capacitor with pre-built dist
+    - npm ci
+    - npx cap sync android
+  script:
+    - cd android
+    - chmod +x ./gradlew
+    - ./gradlew assembleRelease
+  artifacts:
+    paths:
+      - android/app/build/outputs/apk/release/app-release.apk
+    expire_in: 1 year
+  only:
+    - master
+
+create_release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - job: build_apk
+      artifacts: true
+  before_script:
+    - apk add --no-cache git
+  script:
+    - LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+    - echo "Creating release for tag ${LATEST_TAG}"
+  release:
+    tag_name: $LATEST_TAG
+    name: "Release $LATEST_TAG"
+    description: "Automated release from CI/CD pipeline"
+    assets:
+      links:
+        - name: "Seal-Android.apk"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_BRANCH}/raw/android/app/build/outputs/apk/release/app-release.apk?job=build_apk"
+          link_type: package
+  only:
+    - master
 
 changelog:
   stage: changelog

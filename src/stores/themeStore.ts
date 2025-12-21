@@ -47,6 +47,9 @@ function applyTheme(theme: Theme) {
   root.classList.remove('dark', 'light')
   root.classList.add(effectiveTheme)
 
+  // Set data-mantine-color-scheme for Mantine
+  root.setAttribute('data-mantine-color-scheme', effectiveTheme)
+
   // Update meta theme-color for mobile browsers
   const metaThemeColor = document.querySelector('meta[name="theme-color"]')
   if (metaThemeColor) {

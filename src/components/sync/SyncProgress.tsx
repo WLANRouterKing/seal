@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Stack, Text, RingProgress, Progress, Center } from '@mantine/core'
 
 interface SyncProgressProps {
   current: number
@@ -11,60 +12,36 @@ export function SyncProgress({ current, total, isSending }: SyncProgressProps) {
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="w-20 h-20 relative">
-        {/* Circular progress */}
-        <svg className="w-full h-full transform -rotate-90">
-          <circle
-            cx="40"
-            cy="40"
-            r="36"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="4"
-            className="text-theme-border"
-          />
-          <circle
-            cx="40"
-            cy="40"
-            r="36"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="4"
-            strokeLinecap="round"
-            className="text-primary-500 transition-all duration-300"
-            strokeDasharray={`${2 * Math.PI * 36}`}
-            strokeDashoffset={`${2 * Math.PI * 36 * (1 - percentage / 100)}`}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-semibold">{percentage}%</span>
-        </div>
-      </div>
+    <Stack align="center" gap="lg">
+      <RingProgress
+        size={120}
+        thickness={8}
+        roundCaps
+        sections={[{ value: percentage, color: 'cyan' }]}
+        label={
+          <Center>
+            <Text size="lg" fw={600}>{percentage}%</Text>
+          </Center>
+        }
+      />
 
-      <div className="text-center">
-        <p className="text-lg font-medium">
+      <Stack gap={4} align="center">
+        <Text size="lg" fw={500}>
           {isSending
             ? (t('sync.sending') || 'Sending...')
             : (t('sync.receiving') || 'Receiving...')
           }
-        </p>
-        <p className="text-theme-text-secondary text-sm">
+        </Text>
+        <Text c="dimmed" size="sm">
           {current} / {total} {t('sync.chunks') || 'chunks'}
-        </p>
-      </div>
+        </Text>
+      </Stack>
 
-      {/* Linear progress bar */}
-      <div className="w-full max-w-xs h-2 bg-theme-border rounded-full overflow-hidden">
-        <div
-          className="h-full bg-primary-500 transition-all duration-300"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
+      <Progress value={percentage} color="cyan" w="100%" maw={300} size="sm" radius="xl" />
 
-      <p className="text-theme-text-secondary text-sm">
+      <Text c="dimmed" size="sm">
         {t('sync.doNotClose') || 'Do not close this screen'}
-      </p>
-    </div>
+      </Text>
+    </Stack>
   )
 }

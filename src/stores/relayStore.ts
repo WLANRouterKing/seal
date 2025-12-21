@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Relay } from '../types'
-import { DEFAULT_RELAYS, RELAYS_PER_SESSION, RELAY_ROTATION_INTERVAL, NIP17_KIND } from '../utils/constants'
+import { DEFAULT_RELAYS, MIN_RELAYS_PER_SESSION, MAX_RELAY_PERCENTAGE, NIP17_KIND } from '../utils/constants'
 import { relayPool } from '../services/relay'
 import { getAllRelays, saveRelay, deleteRelay as deleteRelayFromDB } from '../services/db'
 import { parseDMRelayListEvent } from '../services/crypto'
@@ -12,14 +12,12 @@ const DM_RELAY_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 interface RelayState {
   relays: Relay[]
   allRelayUrls: string[] // Full pool of available relays
-  activeRelayUrls: string[] // Currently selected subset
+  activeRelayUrls: string[] // Currently selected subset for this session
   isConnecting: boolean
-  rotationTimer: ReturnType<typeof setInterval> | null
 
   // Actions
   initialize: () => Promise<void>
   connectToRelays: (urls?: string[]) => Promise<void>
-  rotateRelays: () => Promise<void>
   addRelay: (url: string) => Promise<void>
   removeRelay: (url: string) => Promise<void>
   disconnect: () => void
@@ -36,10 +34,30 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
-// Select random subset of relays
-function selectRandomRelays(urls: string[], count: number): string[] {
+/**
+ * Select a random number of relays for this session.
+ * - Minimum: MIN_RELAYS_PER_SESSION (5)
+ * - Maximum: MAX_RELAY_PERCENTAGE (80%) of the pool
+ * - Never uses all relays to ensure privacy through randomization
+ */
+function selectSessionRelays(urls: string[]): string[] {
+  if (urls.length <= MIN_RELAYS_PER_SESSION) {
+    // If pool is small, use all available
+    return shuffleArray(urls)
+  }
+
+  const maxRelays = Math.max(
+    MIN_RELAYS_PER_SESSION,
+    Math.floor(urls.length * MAX_RELAY_PERCENTAGE)
+  )
+
+  // Random count between MIN and MAX
+  const count = MIN_RELAYS_PER_SESSION + Math.floor(
+    Math.random() * (maxRelays - MIN_RELAYS_PER_SESSION + 1)
+  )
+
   const shuffled = shuffleArray(urls)
-  return shuffled.slice(0, Math.min(count, urls.length))
+  return shuffled.slice(0, count)
 }
 
 export const useRelayStore = create<RelayState>((set, get) => ({
@@ -47,7 +65,6 @@ export const useRelayStore = create<RelayState>((set, get) => ({
   allRelayUrls: [],
   activeRelayUrls: [],
   isConnecting: false,
-  rotationTimer: null,
 
   initialize: async () => {
     // Load saved relays from DB
@@ -70,16 +87,13 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       set({ relays })
     })
 
-    // Select random subset and connect
-    const selectedUrls = selectRandomRelays(allUrls, RELAYS_PER_SESSION)
+    // Select random subset for this session (at least 5, but not all)
+    // This selection is done once per session - no rotation during active use
+    const selectedUrls = selectSessionRelays(allUrls)
+    console.log(`[Relay] Session started with ${selectedUrls.length}/${allUrls.length} relays`)
+
     set({ activeRelayUrls: selectedUrls })
     await get().connectToRelays(selectedUrls)
-
-    // Set up rotation timer
-    const timer = setInterval(() => {
-      get().rotateRelays()
-    }, RELAY_ROTATION_INTERVAL)
-    set({ rotationTimer: timer })
   },
 
   connectToRelays: async (urls?: string[]) => {
@@ -92,73 +106,6 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       relays: relayPool.getStatus(),
       isConnecting: false
     })
-  },
-
-  rotateRelays: async () => {
-    const { allRelayUrls, activeRelayUrls } = get()
-
-    // Select new random subset, trying to pick different relays
-    let newSelection = selectRandomRelays(allRelayUrls, RELAYS_PER_SESSION)
-
-    // If we have enough relays, try to get at least some different ones
-    if (allRelayUrls.length > RELAYS_PER_SESSION) {
-      const notCurrentlyActive = allRelayUrls.filter(url => !activeRelayUrls.includes(url))
-      const keepCount = Math.floor(RELAYS_PER_SESSION / 2) // Keep ~half of current
-      const newCount = RELAYS_PER_SESSION - keepCount
-
-      const toKeep = selectRandomRelays(activeRelayUrls, keepCount)
-      const toAdd = selectRandomRelays(notCurrentlyActive, newCount)
-      newSelection = [...toKeep, ...toAdd]
-    }
-
-    // FIRST: Connect to new relays before disconnecting old ones
-    const toConnect = newSelection.filter(url => !activeRelayUrls.includes(url))
-    const connectionResults = await Promise.all(
-      toConnect.map(async url => {
-        const success = await relayPool.connect(url)
-        return { url, success }
-      })
-    )
-
-    // Check how many new connections succeeded
-    const successfulNewConnections = connectionResults.filter(r => r.success).map(r => r.url)
-    const failedConnections = connectionResults.filter(r => !r.success).map(r => r.url)
-
-    // Only proceed if we have at least some connected relays
-    const currentlyConnected = relayPool.getConnectedUrls()
-    const willBeConnected = [
-      ...currentlyConnected.filter(url => newSelection.includes(url)),
-      ...successfulNewConnections
-    ]
-
-    if (willBeConnected.length === 0) {
-      // Don't rotate if we'd end up with no connections - keep current relays
-      console.warn('[Relay] Rotation aborted - would result in no connections')
-      return
-    }
-
-    // Remove failed connections from selection, keep some old relays instead
-    let finalSelection = newSelection.filter(url => !failedConnections.includes(url))
-
-    // If we lost relays due to failures, try to keep more current ones
-    if (finalSelection.length < RELAYS_PER_SESSION) {
-      const additionalKeep = activeRelayUrls
-        .filter(url => !finalSelection.includes(url) && currentlyConnected.includes(url))
-        .slice(0, RELAYS_PER_SESSION - finalSelection.length)
-      finalSelection = [...finalSelection, ...additionalKeep]
-    }
-
-    // NOW disconnect from relays no longer in final selection
-    const toDisconnect = activeRelayUrls.filter(url => !finalSelection.includes(url))
-    toDisconnect.forEach(url => relayPool.disconnect(url))
-
-    set({
-      activeRelayUrls: finalSelection,
-      relays: relayPool.getStatus()
-    })
-
-    console.log('[Relay] Rotated relays:', finalSelection,
-      failedConnections.length > 0 ? `(${failedConnections.length} failed)` : '')
   },
 
   addRelay: async (url: string) => {
@@ -178,7 +125,7 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     await saveRelay({ url: normalizedUrl, read: true, write: true })
     set({ allRelayUrls: [...allRelayUrls, normalizedUrl] })
 
-    // Connect to new relay immediately
+    // Connect to new relay immediately (it becomes part of active session)
     await relayPool.connect(normalizedUrl)
     set({
       relays: relayPool.getStatus(),
@@ -199,12 +146,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
   },
 
   disconnect: () => {
-    const { rotationTimer } = get()
-    if (rotationTimer) {
-      clearInterval(rotationTimer)
-    }
     relayPool.disconnectAll()
-    set({ relays: [], rotationTimer: null })
+    set({ relays: [] })
   },
 
   // Fetch DM relay preferences for a pubkey (Kind 10050)

@@ -1,5 +1,30 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  Stack,
+  Group,
+  Text,
+  Paper,
+  ActionIcon,
+  Box,
+  ScrollArea,
+  UnstyledButton,
+  ThemeIcon,
+  Alert,
+  Button,
+  PasswordInput,
+  Anchor,
+} from '@mantine/core'
+import {
+  IconArrowLeft,
+  IconLock,
+  IconLockOpen,
+  IconShield,
+  IconWorld,
+  IconExternalLink,
+  IconAlertTriangle,
+  IconInfoCircle,
+} from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 
 interface SecuritySettingsProps {
@@ -12,159 +37,157 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
   const [showSetPassword, setShowSetPassword] = useState(false)
   const [showRemovePassword, setShowRemovePassword] = useState(false)
 
-  return (
-    <div className="flex flex-col h-full bg-theme-bg">
-      {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 bg-theme-surface border-b border-theme">
-        <button
-          onClick={onBack}
-          className="p-1 hover:bg-theme-surface rounded-lg transition-colors"
-        >
-          <svg className="w-6 h-6 text-theme" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-lg font-semibold text-theme">{t('securitySettings.title')}</h1>
-      </header>
-
-      {showSetPassword && (
+  if (showSetPassword) {
+    return (
+      <Stack h="100%" gap={0}>
+        <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+          <Group gap="sm">
+            <ActionIcon variant="subtle" onClick={() => setShowSetPassword(false)}>
+              <IconArrowLeft size={24} />
+            </ActionIcon>
+            <Text fw={500} size="lg">{t('securitySettings.title')}</Text>
+          </Group>
+        </Paper>
         <SetPasswordForm
           onSuccess={() => setShowSetPassword(false)}
           onCancel={() => setShowSetPassword(false)}
         />
-      )}
+      </Stack>
+    )
+  }
 
-      {showRemovePassword && (
+  if (showRemovePassword) {
+    return (
+      <Stack h="100%" gap={0}>
+        <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+          <Group gap="sm">
+            <ActionIcon variant="subtle" onClick={() => setShowRemovePassword(false)}>
+              <IconArrowLeft size={24} />
+            </ActionIcon>
+            <Text fw={500} size="lg">{t('securitySettings.title')}</Text>
+          </Group>
+        </Paper>
         <RemovePasswordForm
           onSuccess={() => setShowRemovePassword(false)}
           onCancel={() => setShowRemovePassword(false)}
         />
-      )}
+      </Stack>
+    )
+  }
 
-      {!showSetPassword && !showRemovePassword && (
-        <div className="flex-1 overflow-y-auto">
-          <div className="py-4">
-            <h3 className="px-4 pb-2 text-xs font-medium text-theme-muted uppercase tracking-wider">
-              {t('securitySettings.passwordProtection')}
-            </h3>
+  return (
+    <Stack h="100%" gap={0}>
+      {/* Header */}
+      <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+        <Group gap="sm">
+          <ActionIcon variant="subtle" onClick={onBack}>
+            <IconArrowLeft size={24} />
+          </ActionIcon>
+          <Text fw={500} size="lg">{t('securitySettings.title')}</Text>
+        </Group>
+      </Paper>
 
-            {!hasPassword ? (
-              <button
-                onClick={() => setShowSetPassword(true)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-theme-surface transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-theme font-medium">{t('securitySettings.setPassword')}</p>
-                    <p className="text-xs text-theme-muted">{t('securitySettings.setPasswordHint')}</p>
-                  </div>
-                </div>
-                <svg className="w-5 h-5 text-theme-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            ) : (
-              <>
-                <div className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-theme font-medium">{t('securitySettings.passwordEnabled')}</p>
-                      <p className="text-xs text-green-500">{t('securitySettings.keysProtected')}</p>
-                    </div>
-                  </div>
-                </div>
+      <ScrollArea style={{ flex: 1 }}>
+        <Box py="md">
+          <Text size="xs" fw={500} c="dimmed" tt="uppercase" px="md" pb="xs">
+            {t('securitySettings.passwordProtection')}
+          </Text>
 
-                <button
-                  onClick={lock}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-theme-surface transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-theme font-medium">{t('securitySettings.lockNow')}</p>
-                    <p className="text-xs text-theme-muted">{t('securitySettings.lockNowHint')}</p>
-                  </div>
-                </button>
+          {!hasPassword ? (
+            <UnstyledButton w="100%" onClick={() => setShowSetPassword(true)} py="sm" px="md">
+              <Group justify="space-between">
+                <Group gap="sm">
+                  <ThemeIcon variant="light" color="green" size={40} radius="md">
+                    <IconLock size={20} />
+                  </ThemeIcon>
+                  <Box>
+                    <Text fw={500}>{t('securitySettings.setPassword')}</Text>
+                    <Text size="xs" c="dimmed">{t('securitySettings.setPasswordHint')}</Text>
+                  </Box>
+                </Group>
+              </Group>
+            </UnstyledButton>
+          ) : (
+            <Stack gap={0}>
+              <Box px="md" py="sm">
+                <Group gap="sm">
+                  <ThemeIcon variant="light" color="green" size={40} radius="md">
+                    <IconShield size={20} />
+                  </ThemeIcon>
+                  <Box>
+                    <Text fw={500}>{t('securitySettings.passwordEnabled')}</Text>
+                    <Text size="xs" c="green">{t('securitySettings.keysProtected')}</Text>
+                  </Box>
+                </Group>
+              </Box>
 
-                <button
-                  onClick={() => setShowRemovePassword(true)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-theme-surface transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-red-400 font-medium">{t('securitySettings.removePassword')}</p>
-                    <p className="text-xs text-theme-muted">{t('securitySettings.removePasswordHint')}</p>
-                  </div>
-                </button>
-              </>
-            )}
-          </div>
+              <UnstyledButton w="100%" onClick={lock} py="sm" px="md">
+                <Group gap="sm">
+                  <ThemeIcon variant="light" color="cyan" size={40} radius="md">
+                    <IconLock size={20} />
+                  </ThemeIcon>
+                  <Box>
+                    <Text fw={500}>{t('securitySettings.lockNow')}</Text>
+                    <Text size="xs" c="dimmed">{t('securitySettings.lockNowHint')}</Text>
+                  </Box>
+                </Group>
+              </UnstyledButton>
 
-          {/* Tor Browser Recommendation */}
-          <div className="py-4">
-            <h3 className="px-4 pb-2 text-xs font-medium text-theme-muted uppercase tracking-wider">
-              {t('securitySettings.networkPrivacy')}
-            </h3>
-            <div className="px-4">
-              <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-purple-400 text-sm font-medium mb-1">{t('securitySettings.torRecommended')}</p>
-                    <p className="text-theme-secondary text-xs">
-                      {t('securitySettings.torHint')}
-                    </p>
-                    <a
-                      href="https://www.torproject.org/download/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-purple-400 text-xs mt-2 hover:underline"
-                    >
-                      {t('securitySettings.downloadTor')}
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+              <UnstyledButton w="100%" onClick={() => setShowRemovePassword(true)} py="sm" px="md">
+                <Group gap="sm">
+                  <ThemeIcon variant="light" color="red" size={40} radius="md">
+                    <IconLockOpen size={20} />
+                  </ThemeIcon>
+                  <Box>
+                    <Text fw={500} c="red">{t('securitySettings.removePassword')}</Text>
+                    <Text size="xs" c="dimmed">{t('securitySettings.removePasswordHint')}</Text>
+                  </Box>
+                </Group>
+              </UnstyledButton>
+            </Stack>
+          )}
+        </Box>
 
-          <div className="px-4 py-4">
-            <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-              <p className="text-yellow-500 text-sm font-medium mb-1">{t('common.important')}</p>
-              <p className="text-theme-secondary text-xs">
-                {hasPassword
-                  ? t('securitySettings.importantWithPassword')
-                  : t('securitySettings.importantWithoutPassword')}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        {/* Tor Recommendation */}
+        <Box py="md" px="md">
+          <Text size="xs" fw={500} c="dimmed" tt="uppercase" pb="xs">
+            {t('securitySettings.networkPrivacy')}
+          </Text>
+          <Alert
+            color="violet"
+            icon={<IconWorld size={16} />}
+            title={t('securitySettings.torRecommended')}
+          >
+            <Text size="xs" mb="xs">{t('securitySettings.torHint')}</Text>
+            <Anchor
+              href="https://www.torproject.org/download/"
+              target="_blank"
+              size="xs"
+            >
+              <Group gap={4}>
+                {t('securitySettings.downloadTor')}
+                <IconExternalLink size={12} />
+              </Group>
+            </Anchor>
+          </Alert>
+        </Box>
+
+        {/* Info Alert */}
+        <Box px="md" pb="md">
+          <Alert
+            color="yellow"
+            icon={<IconInfoCircle size={16} />}
+            title={t('common.important')}
+          >
+            <Text size="xs">
+              {hasPassword
+                ? t('securitySettings.importantWithPassword')
+                : t('securitySettings.importantWithoutPassword')}
+            </Text>
+          </Alert>
+        </Box>
+      </ScrollArea>
+    </Stack>
   )
 }
 
@@ -208,61 +231,49 @@ function SetPasswordForm({
   }
 
   return (
-    <div className="flex-1 px-4 py-6">
-      <h2 className="text-xl font-semibold text-theme mb-2">{t('securitySettings.createPasswordTitle')}</h2>
-      <p className="text-theme-secondary text-sm mb-6">
-        {t('securitySettings.createPasswordHint')}
-      </p>
+    <Box component="form" onSubmit={handleSubmit} p="md" style={{ flex: 1 }}>
+      <Text size="xl" fw={600} mb="xs">{t('securitySettings.createPasswordTitle')}</Text>
+      <Text size="sm" c="dimmed" mb="lg">{t('securitySettings.createPasswordHint')}</Text>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-theme-secondary mb-2">
-            {t('securitySettings.passwordLabel')}
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPasswordValue(e.target.value)}
-            className="input-field"
-            placeholder={t('securitySettings.passwordPlaceholder')}
-            autoComplete="new-password"
-          />
-        </div>
+      <Stack gap="md">
+        <PasswordInput
+          label={t('securitySettings.passwordLabel')}
+          placeholder={t('securitySettings.passwordPlaceholder')}
+          value={password}
+          onChange={(e) => setPasswordValue(e.target.value)}
+          autoComplete="new-password"
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-theme-secondary mb-2">
-            {t('securitySettings.confirmPasswordLabel')}
-          </label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="input-field"
-            placeholder={t('securitySettings.confirmPasswordPlaceholder')}
-            autoComplete="new-password"
-          />
-        </div>
+        <PasswordInput
+          label={t('securitySettings.confirmPasswordLabel')}
+          placeholder={t('securitySettings.confirmPasswordPlaceholder')}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          autoComplete="new-password"
+        />
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && (
+          <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+            {error}
+          </Alert>
+        )}
 
-        <div className="flex gap-3 pt-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn-secondary flex-1"
-          >
+        <Group mt="md">
+          <Button variant="default" onClick={onCancel} style={{ flex: 1 }}>
             {t('common.cancel')}
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            disabled={isLoading || !password || !confirmPassword}
-            className="btn-primary flex-1 disabled:opacity-50"
+            color="cyan"
+            loading={isLoading}
+            disabled={!password || !confirmPassword}
+            style={{ flex: 1 }}
           >
-            {isLoading ? t('securitySettings.setting') : t('securitySettings.setPasswordButton')}
-          </button>
-        </div>
-      </form>
-    </div>
+            {t('securitySettings.setPasswordButton')}
+          </Button>
+        </Group>
+      </Stack>
+    </Box>
   )
 }
 
@@ -295,46 +306,40 @@ function RemovePasswordForm({
   }
 
   return (
-    <div className="flex-1 px-4 py-6">
-      <h2 className="text-xl font-semibold text-theme mb-2">{t('securitySettings.removePasswordTitle')}</h2>
-      <p className="text-theme-secondary text-sm mb-6">
-        {t('securitySettings.removePasswordHint2')}
-      </p>
+    <Box component="form" onSubmit={handleSubmit} p="md" style={{ flex: 1 }}>
+      <Text size="xl" fw={600} mb="xs">{t('securitySettings.removePasswordTitle')}</Text>
+      <Text size="sm" c="dimmed" mb="lg">{t('securitySettings.removePasswordHint2')}</Text>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-theme-secondary mb-2">
-            {t('securitySettings.currentPasswordLabel')}
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPasswordValue(e.target.value)}
-            className="input-field"
-            placeholder={t('securitySettings.currentPasswordPlaceholder')}
-            autoComplete="current-password"
-          />
-        </div>
+      <Stack gap="md">
+        <PasswordInput
+          label={t('securitySettings.currentPasswordLabel')}
+          placeholder={t('securitySettings.currentPasswordPlaceholder')}
+          value={password}
+          onChange={(e) => setPasswordValue(e.target.value)}
+          autoComplete="current-password"
+        />
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && (
+          <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+            {error}
+          </Alert>
+        )}
 
-        <div className="flex gap-3 pt-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn-secondary flex-1"
-          >
+        <Group mt="md">
+          <Button variant="default" onClick={onCancel} style={{ flex: 1 }}>
             {t('common.cancel')}
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            disabled={isLoading || !password}
-            className="btn-primary flex-1 disabled:opacity-50 bg-red-500 hover:bg-red-600"
+            color="red"
+            loading={isLoading}
+            disabled={!password}
+            style={{ flex: 1 }}
           >
-            {isLoading ? t('securitySettings.removing') : t('securitySettings.removePasswordButton')}
-          </button>
-        </div>
-      </form>
-    </div>
+            {t('securitySettings.removePasswordButton')}
+          </Button>
+        </Group>
+      </Stack>
+    </Box>
   )
 }

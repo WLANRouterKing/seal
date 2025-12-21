@@ -2,6 +2,19 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Html5Qrcode } from 'html5-qrcode'
+import {
+  Stack,
+  Center,
+  Text,
+  Button,
+  ThemeIcon,
+  Box,
+  Textarea,
+  Alert,
+  SegmentedControl,
+  Loader,
+} from '@mantine/core'
+import { IconMessageCircle, IconArrowLeft, IconAlertTriangle } from '@tabler/icons-react'
 import { useAuthStore } from '../stores/authStore'
 import KeyGeneration from '../components/onboarding/KeyGeneration'
 import BackupPhrase from '../components/onboarding/BackupPhrase'
@@ -34,82 +47,71 @@ export default function Onboarding() {
     navigate('/')
   }
 
+  if (step === 'generate') {
+    return <KeyGeneration isLoading={isLoading} />
+  }
+
+  if (step === 'backup') {
+    return <BackupPhrase nsec={generatedNsec} onComplete={handleComplete} />
+  }
+
+  if (step === 'import') {
+    return (
+      <Stack h="100vh" gap={0} p="md">
+        <Button
+          variant="subtle"
+          leftSection={<IconArrowLeft size={20} />}
+          onClick={() => setStep('welcome')}
+          mb="lg"
+          style={{ alignSelf: 'flex-start' }}
+        >
+          {t('common.back')}
+        </Button>
+
+        <Text size="xl" fw={700} mb="xs">{t('onboarding.importTitle')}</Text>
+        <Text c="dimmed" mb="lg">{t('onboarding.importSubtitle')}</Text>
+
+        <ImportForm onImport={handleImport} isLoading={isLoading} error={error} />
+      </Stack>
+    )
+  }
+
   return (
-    <div className="min-h-full flex flex-col bg-theme-bg">
-      {step === 'welcome' && (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-          <div className="w-20 h-20 bg-primary-500 rounded-full flex items-center justify-center mb-8">
-            <svg className="w-10 h-10 text-theme-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-          </div>
+    <Center h="100vh" p="md">
+      <Stack align="center" gap="lg" maw={320}>
+        <ThemeIcon size={80} radius="xl" color="cyan">
+          <IconMessageCircle size={40} />
+        </ThemeIcon>
 
-          <h1 className="text-3xl font-bold text-theme-text mb-4">{t('onboarding.title')}</h1>
-          <p className="text-theme-muted text-center mb-12 max-w-xs">
-            {t('onboarding.subtitle')}
-          </p>
+        <Text size="xl" fw={700} ta="center">{t('onboarding.title')}</Text>
+        <Text c="dimmed" ta="center">{t('onboarding.subtitle')}</Text>
 
-          <div className="w-full max-w-xs space-y-4">
-            <button
-              onClick={handleGenerate}
-              disabled={isLoading}
-              className="btn-primary w-full py-3 text-lg"
-            >
-              {isLoading ? t('onboarding.creating') : t('onboarding.createAccount')}
-            </button>
-
-            <button
-              onClick={() => setStep('import')}
-              className="btn-secondary w-full py-3"
-            >
-              {t('onboarding.importKey')}
-            </button>
-          </div>
-
-          <p className="text-xs text-theme-muted mt-8 text-center max-w-xs">
-            {t('onboarding.privacyNote')}
-          </p>
-        </div>
-      )}
-
-      {step === 'generate' && (
-        <KeyGeneration isLoading={isLoading} />
-      )}
-
-      {step === 'import' && (
-        <div className="flex-1 flex flex-col px-6 py-8">
-          <button
-            onClick={() => setStep('welcome')}
-            className="flex items-center text-theme-muted hover:text-theme-text mb-8"
+        <Stack w="100%" gap="sm" mt="md">
+          <Button
+            size="lg"
+            color="cyan"
+            onClick={handleGenerate}
+            loading={isLoading}
+            fullWidth
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            {t('common.back')}
-          </button>
+            {t('onboarding.createAccount')}
+          </Button>
 
-          <h2 className="text-2xl font-bold text-theme-text mb-2">{t('onboarding.importTitle')}</h2>
-          <p className="text-theme-muted mb-8">
-            {t('onboarding.importSubtitle')}
-          </p>
+          <Button
+            size="lg"
+            variant="default"
+            onClick={() => setStep('import')}
+            fullWidth
+          >
+            {t('onboarding.importKey')}
+          </Button>
+        </Stack>
 
-          <ImportForm
-            onImport={handleImport}
-            isLoading={isLoading}
-            error={error}
-          />
-        </div>
-      )}
-
-      {step === 'backup' && (
-        <BackupPhrase nsec={generatedNsec} onComplete={handleComplete} />
-      )}
-    </div>
+        <Text size="xs" c="dimmed" ta="center" mt="md">
+          {t('onboarding.privacyNote')}
+        </Text>
+      </Stack>
+    </Center>
   )
 }
 
@@ -124,7 +126,7 @@ function ImportForm({
 }) {
   const { t } = useTranslation()
   const [nsec, setNsec] = useState('')
-  const [mode, setMode] = useState<'text' | 'qr'>('text')
+  const [mode, setMode] = useState<string>('text')
   const [scanError, setScanError] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -135,11 +137,9 @@ function ImportForm({
   }
 
   const handleQRScan = (data: string) => {
-    // Check if it's a valid nsec
     if (data.startsWith('nsec1')) {
       setNsec(data)
       setMode('text')
-      // Auto-submit after successful scan
       onImport(data)
     } else {
       setScanError(t('onboarding.invalidQR') || 'Invalid QR code - not an nsec key')
@@ -147,89 +147,76 @@ function ImportForm({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Mode toggle */}
-      <div className="flex gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => setMode('text')}
-          className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-            mode === 'text'
-              ? 'bg-primary-500 text-white'
-              : 'bg-theme-surface text-theme-text hover:bg-theme-hover'
-          }`}
-        >
-          <svg className="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          <span className="text-sm">{t('onboarding.pasteKey') || 'Paste Key'}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => { setMode('qr'); setScanError('') }}
-          className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-            mode === 'qr'
-              ? 'bg-primary-500 text-white'
-              : 'bg-theme-surface text-theme-text hover:bg-theme-hover'
-          }`}
-        >
-          <svg className="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-          </svg>
-          <span className="text-sm">{t('onboarding.scanQR') || 'Scan QR'}</span>
-        </button>
-      </div>
+    <Stack gap="md">
+      <SegmentedControl
+        fullWidth
+        value={mode}
+        onChange={(value) => {
+          setMode(value)
+          setScanError('')
+        }}
+        data={[
+          { label: t('onboarding.pasteKey') || 'Paste Key', value: 'text' },
+          { label: t('onboarding.scanQR') || 'Scan QR', value: 'qr' },
+        ]}
+      />
 
       {mode === 'text' && (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="nsec" className="block text-sm font-medium text-gray-300 mb-2">
-              {t('onboarding.privateKeyLabel')}
-            </label>
-            <textarea
-              id="nsec"
+        <Box component="form" onSubmit={handleSubmit}>
+          <Stack gap="md">
+            <Textarea
+              label={t('onboarding.privateKeyLabel')}
+              placeholder="nsec1..."
               value={nsec}
               onChange={(e) => setNsec(e.target.value)}
-              placeholder="nsec1..."
-              className="input-field h-24 resize-none font-mono text-sm"
+              minRows={3}
               autoComplete="off"
               spellCheck={false}
+              styles={{ input: { fontFamily: 'monospace', fontSize: '0.875rem' } }}
             />
-          </div>
 
-          {error && (
-            <p className="text-red-400 text-sm">{error}</p>
-          )}
+            {error && (
+              <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+                {error}
+              </Alert>
+            )}
 
-          <button
-            type="submit"
-            disabled={!nsec.trim() || isLoading}
-            className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? t('onboarding.importing') : t('onboarding.importButton')}
-          </button>
+            <Button
+              type="submit"
+              color="cyan"
+              fullWidth
+              disabled={!nsec.trim()}
+              loading={isLoading}
+            >
+              {t('onboarding.importButton')}
+            </Button>
 
-          <p className="text-xs text-theme-muted text-center">
-            {t('onboarding.importWarning')}
-          </p>
-        </form>
+            <Text size="xs" c="dimmed" ta="center">
+              {t('onboarding.importWarning')}
+            </Text>
+          </Stack>
+        </Box>
       )}
 
       {mode === 'qr' && (
-        <div className="space-y-4">
+        <Stack gap="md">
           <KeyQRScanner onScan={handleQRScan} />
           {scanError && (
-            <p className="text-red-400 text-sm text-center">{scanError}</p>
+            <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+              {scanError}
+            </Alert>
           )}
           {isLoading && (
-            <p className="text-theme-muted text-sm text-center">{t('onboarding.importing')}</p>
+            <Text c="dimmed" size="sm" ta="center">{t('onboarding.importing')}</Text>
           )}
           {error && (
-            <p className="text-red-400 text-sm text-center">{error}</p>
+            <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+              {error}
+            </Alert>
           )}
-        </div>
+        </Stack>
       )}
-    </div>
+    </Stack>
   )
 }
 
@@ -293,35 +280,32 @@ function KeyQRScanner({ onScan }: { onScan: (data: string) => void }) {
   }, [onScan, t])
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative w-full max-w-[280px] aspect-square bg-black rounded-xl overflow-hidden">
-        <div id="key-qr-reader" className="w-full h-full" />
+    <Stack align="center" gap="md">
+      <Box
+        pos="relative"
+        w={280}
+        h={280}
+        bg="black"
+        style={{ borderRadius: 'var(--mantine-radius-lg)', overflow: 'hidden' }}
+      >
+        <div id="key-qr-reader" style={{ width: '100%', height: '100%' }} />
 
         {isStarting && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-white border-t-transparent" />
-          </div>
+          <Center pos="absolute" style={{ inset: 0 }} bg="rgba(0,0,0,0.8)">
+            <Loader color="white" />
+          </Center>
         )}
-
-        {!isStarting && !error && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-white/80 rounded-tl-lg" />
-            <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-white/80 rounded-tr-lg" />
-            <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-white/80 rounded-bl-lg" />
-            <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-white/80 rounded-br-lg" />
-          </div>
-        )}
-      </div>
+      </Box>
 
       {error && (
-        <div className="text-red-500 text-center p-4 bg-red-500/10 rounded-lg">
+        <Alert color="red" icon={<IconAlertTriangle size={16} />}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      <p className="text-xs text-theme-muted text-center">
+      <Text size="xs" c="dimmed" ta="center">
         {t('onboarding.scanKeyQR') || 'Point camera at the QR code showing your private key'}
-      </p>
-    </div>
+      </Text>
+    </Stack>
   )
 }

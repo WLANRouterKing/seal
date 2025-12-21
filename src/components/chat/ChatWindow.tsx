@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Stack, Group, Text, Avatar, ActionIcon, Box, Paper, ScrollArea, Center } from '@mantine/core'
+import { IconArrowLeft } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useMessageStore } from '../../stores/messageStore'
 import type { Contact } from '../../types'
@@ -41,54 +43,52 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
   }
 
   return (
-    <div className="flex flex-col h-full bg-theme-bg">
+    <Stack h="100%" gap={0}>
       {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 bg-theme-surface border-b border-theme-border">
-        <button
-          onClick={onBack}
-          className="p-1 hover:bg-theme-hover rounded-lg transition-colors"
-        >
-          <svg className="w-6 h-6 text-theme-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+      <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+        <Group gap="sm">
+          <ActionIcon variant="subtle" onClick={onBack}>
+            <IconArrowLeft size={24} />
+          </ActionIcon>
 
-        <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center overflow-hidden">
-          {contact?.picture ? (
-            <img src={contact.picture} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-primary-500 font-semibold">
-              {displayName.charAt(0).toUpperCase()}
-            </span>
-          )}
-        </div>
+          <Avatar src={contact?.picture} size={40} radius="xl" color="cyan">
+            {displayName.charAt(0).toUpperCase()}
+          </Avatar>
 
-        <div className="flex-1 min-w-0">
-          <h2 className="font-medium text-theme-text truncate">{displayName}</h2>
-          {contact?.nip05 && (
-            <p className="text-xs text-theme-muted truncate">{contact.nip05}</p>
-          )}
-        </div>
-      </header>
+          <Box style={{ flex: 1, minWidth: 0 }}>
+            <Text fw={500} truncate>{displayName}</Text>
+            {contact?.nip05 && (
+              <Text size="xs" c="dimmed" truncate>{contact.nip05}</Text>
+            )}
+          </Box>
+        </Group>
+      </Paper>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide">
+      <ScrollArea style={{ flex: 1 }} px="md" py="md">
         {messages.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center h-full">
-            <p className="text-theme-muted text-sm">
+          <Center h="100%">
+            <Text c="dimmed" size="sm">
               {t('chat.startConversation')}
-            </p>
-          </div>
+            </Text>
+          </Center>
         ) : (
-          messages.map((message) => (
-            <MessageBubble key={message.id} message={message} contactPubkey={contactPubkey} onDelete={handleDelete} />
-          ))
+          <Stack gap="xs">
+            {messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                contactPubkey={contactPubkey}
+                onDelete={handleDelete}
+              />
+            ))}
+            <div ref={messagesEndRef} />
+          </Stack>
         )}
-        <div ref={messagesEndRef} />
-      </div>
+      </ScrollArea>
 
       {/* Input */}
       <MessageInput onSend={handleSend} onSendFile={handleSendFile} />
-    </div>
+    </Stack>
   )
 }

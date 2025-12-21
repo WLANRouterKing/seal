@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Stack, Text, Box, Alert, Button, Loader, Center } from '@mantine/core'
+import { IconAlertTriangle } from '@tabler/icons-react'
 import { Html5Qrcode } from 'html5-qrcode'
 
 interface QRCodeScannerProps {
@@ -36,16 +38,13 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
             if (hasScanned.current) return
             hasScanned.current = true
 
-            // Stop scanner before calling onScan
             scanner.stop().then(() => {
               if (mounted) {
                 onScan(decodedText)
               }
             }).catch(console.error)
           },
-          () => {
-            // Ignore scan failures (no QR code in view)
-          }
+          () => {}
         )
 
         if (mounted) {
@@ -78,44 +77,33 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <p className="text-theme-text-secondary text-center">
-        {t('sync.scanning')}
-      </p>
+    <Stack align="center" gap="md">
+      <Text c="dimmed" ta="center">{t('sync.scanning')}</Text>
 
-      <div
+      <Box
         ref={containerRef}
-        className="relative w-full max-w-[300px] aspect-square bg-black rounded-xl overflow-hidden"
+        pos="relative"
+        w={300}
+        h={300}
+        bg="black"
+        style={{ borderRadius: 'var(--mantine-radius-lg)', overflow: 'hidden' }}
       >
-        <div id="qr-reader" className="w-full h-full" />
+        <div id="qr-reader" style={{ width: '100%', height: '100%' }} />
 
         {isStarting && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-white border-t-transparent" />
-          </div>
+          <Center pos="absolute" style={{ inset: 0 }} bg="rgba(0,0,0,0.8)">
+            <Loader color="white" />
+          </Center>
         )}
-
-        {/* Scanning overlay */}
-        {!isStarting && !error && (
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Corner markers */}
-            <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-white/80 rounded-tl-lg" />
-            <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-white/80 rounded-tr-lg" />
-            <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-white/80 rounded-bl-lg" />
-            <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-white/80 rounded-br-lg" />
-          </div>
-        )}
-      </div>
+      </Box>
 
       {error && (
-        <div className="text-red-500 text-center p-4 bg-red-500/10 rounded-lg">
+        <Alert color="red" icon={<IconAlertTriangle size={16} />}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      <button onClick={handleCancel} className="btn-secondary">
-        {t('sync.cancel')}
-      </button>
-    </div>
+      <Button variant="default" onClick={handleCancel}>{t('sync.cancel')}</Button>
+    </Stack>
   )
 }

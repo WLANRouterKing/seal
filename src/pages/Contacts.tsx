@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Box, ActionIcon, Affix } from '@mantine/core'
+import { IconPlus } from '@tabler/icons-react'
 import { useContactStore } from '../stores/contactStore'
 import { useMessageStore } from '../stores/messageStore'
 import ContactList from '../components/contacts/ContactList'
@@ -37,22 +39,25 @@ export default function Contacts() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <Box h="100%" pos="relative">
       <ContactList
         contacts={contacts}
         onStartChat={handleStartChat}
         onRemoveContact={removeContact}
       />
 
-      {/* Floating Add Button */}
-      <button
-        onClick={() => setShowAddContact(true)}
-        className="absolute bottom-24 right-4 w-14 h-14 bg-primary-500 rounded-full flex items-center justify-center shadow-lg hover:bg-primary-600 transition-colors"
-      >
-        <svg className="w-6 h-6 text-theme-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-      </button>
-    </div>
+      <Affix position={{ bottom: 90, right: 16 }}>
+        <ActionIcon
+          variant="filled"
+          color="cyan"
+          size={56}
+          radius="xl"
+          onClick={() => setShowAddContact(true)}
+          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+        >
+          <IconPlus size={24} />
+        </ActionIcon>
+      </Affix>
+    </Box>
   )
 }
