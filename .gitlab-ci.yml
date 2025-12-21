@@ -124,10 +124,15 @@ create_release:
     - job: build_apk
       artifacts: true
   before_script:
-    - apk add --no-cache git
+    - apk add --no-cache git curl
   script:
     - LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
     - echo "Creating release for tag ${LATEST_TAG}"
+    # Delete existing release if it exists (allows overwriting)
+    - |
+      curl --request DELETE \
+        --header "PRIVATE-TOKEN: ${CI_PUSH_TOKEN}" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${LATEST_TAG}" || true
     - |
       release-cli create \
         --name "Release ${LATEST_TAG}" \
