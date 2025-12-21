@@ -25,6 +25,7 @@ import {
   IconChevronRight,
   IconCopy,
   IconCheck,
+  IconQrcode,
 } from '@tabler/icons-react'
 import { useAuthStore } from '../stores/authStore'
 import { useRelayStore } from '../stores/relayStore'
@@ -36,8 +37,9 @@ import ThemeSettings from '../components/settings/ThemeSettings'
 import SecuritySettings from '../components/settings/SecuritySettings'
 import LanguageSettings from '../components/settings/LanguageSettings'
 import { SyncModal } from '../components/sync/SyncModal'
+import MyQRCode from '../components/settings/MyQRCode'
 
-type SettingsView = 'main' | 'relays' | 'keys' | 'theme' | 'security' | 'language' | 'sync'
+type SettingsView = 'main' | 'relays' | 'keys' | 'theme' | 'security' | 'language' | 'sync' | 'myqr'
 
 export default function Settings() {
   const { t, i18n } = useTranslation()
@@ -54,6 +56,7 @@ export default function Settings() {
   if (view === 'security') return <SecuritySettings onBack={() => setView('main')} />
   if (view === 'language') return <LanguageSettings onBack={() => setView('main')} />
   if (view === 'sync') return <SyncModal onBack={() => setView('main')} />
+  if (view === 'myqr') return <MyQRCode onBack={() => setView('main')} />
 
   const themeLabel = theme === 'dark' ? t('settings.themeDark') : theme === 'light' ? t('settings.themeLight') : t('settings.themeSystem')
   const languageLabel = i18n.language === 'de' ? 'Deutsch' : 'English'
@@ -69,20 +72,27 @@ export default function Settings() {
             </Avatar>
             <Box style={{ flex: 1, minWidth: 0 }}>
               <Text fw={500} size="lg">{t('settings.yourProfile')}</Text>
-              <CopyButton value={keys?.npub || ''}>
-                {({ copied, copy }) => (
-                  <Group gap={4} style={{ cursor: 'pointer' }} onClick={copy}>
-                    <Text size="sm" c="dimmed" truncate style={{ maxWidth: 200 }}>
-                      {keys ? truncateKey(keys.npub, 12) : t('settings.notLoggedIn')}
-                    </Text>
-                    <Tooltip label={copied ? t('common.copied') : t('common.copy')}>
-                      <ActionIcon variant="subtle" size="sm" color={copied ? 'teal' : 'gray'}>
-                        {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                )}
-              </CopyButton>
+              <Group gap={4}>
+                <CopyButton value={keys?.npub || ''}>
+                  {({ copied, copy }) => (
+                    <Group gap={4} style={{ cursor: 'pointer' }} onClick={copy}>
+                      <Text size="sm" c="dimmed" truncate style={{ maxWidth: 180 }}>
+                        {keys ? truncateKey(keys.npub, 12) : t('settings.notLoggedIn')}
+                      </Text>
+                      <Tooltip label={copied ? t('common.copied') : t('common.copy')}>
+                        <ActionIcon variant="subtle" size="sm" color={copied ? 'teal' : 'gray'}>
+                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  )}
+                </CopyButton>
+                <Tooltip label={t('myQR.showQR')}>
+                  <ActionIcon variant="subtle" size="sm" color="cyan" onClick={() => setView('myqr')}>
+                    <IconQrcode size={14} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
             </Box>
           </Group>
         </Paper>

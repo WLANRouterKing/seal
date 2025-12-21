@@ -197,6 +197,12 @@
   "message": {
     "delete": "Delete"
   },
+  "myQR": {
+    "title": "My QR Code",
+    "hint": "Let others scan this code to add you as a contact",
+    "showQR": "Show QR Code",
+    "shareInfo": "This is your public key. Share it with anyone you want to chat with."
+  },
   "sync": {
     "title": "Device Sync",
     "description": "Transfer chats to another device",
