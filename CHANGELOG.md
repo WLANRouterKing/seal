@@ -12,6 +12,7 @@ Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
 ### Features
 
+- Containerize pwa with capacitor to have native api capabilities
 - Add Changelog.md
 - Feat encrypted file upload to nostr.build
 feat automatic changelog
@@ -20,6 +21,8 @@ feat automatic changelog
 
 ### Änderungen
 
+- Use node 22 in pipeline
+- Use node 22 in pipeline
 - Remove wrong changelog file
 - Merge remote-tracking branch 'origin/master'
 - Fix exclude coverage folder from git
