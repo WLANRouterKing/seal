@@ -1,6 +1,5 @@
-// Notifications Service with Capacitor Push Notifications support for Android
+// Notifications Service with Capacitor Local Notifications support for Android
 import { Capacitor } from '@capacitor/core'
-import { PushNotifications, type Token, type ActionPerformed, type PushNotificationSchema } from '@capacitor/push-notifications'
 import { LocalNotifications } from '@capacitor/local-notifications'
 
 type NotificationCallback = (data: { senderPubkey: string }) => void
@@ -46,53 +45,6 @@ class NotificationService {
       const localPermStatus = await LocalNotifications.requestPermissions()
       console.log('[Notifications] Local notification permission:', localPermStatus.display)
 
-      // Check push notification permission status
-      let permStatus = await PushNotifications.checkPermissions()
-      console.log('[Notifications] Push permission status:', permStatus.receive)
-
-      if (permStatus.receive === 'prompt') {
-        permStatus = await PushNotifications.requestPermissions()
-      }
-
-      if (permStatus.receive !== 'granted') {
-        console.warn('[Notifications] Push notifications not granted')
-        // Still allow local notifications
-      }
-
-      // Try to register for push notifications if granted
-      if (permStatus.receive === 'granted') {
-        await PushNotifications.register()
-
-        // Listen for registration success
-        PushNotifications.addListener('registration', (token: Token) => {
-          this.pushToken = token.value
-          console.log('[Notifications] Push registration success, token:', token.value)
-        })
-
-        // Listen for registration errors
-        PushNotifications.addListener('registrationError', (error) => {
-          console.error('[Notifications] Push registration error:', error)
-        })
-
-        // Listen for push notifications received while app is in foreground
-        PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-          console.log('[Notifications] Push received in foreground:', notification)
-          this.showLocalNotification(notification.title || 'New message', {
-            body: notification.body,
-            data: notification.data
-          })
-        })
-
-        // Listen for notification tap actions
-        PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
-          console.log('[Notifications] Push notification action:', action)
-          const data = action.notification.data
-          if (data?.senderPubkey && this.onNotificationTap) {
-            this.onNotificationTap({ senderPubkey: data.senderPubkey })
-          }
-        })
-      }
-
       // Listen for local notification taps
       LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
         console.log('[Notifications] Local notification action:', action)
@@ -113,8 +65,7 @@ class NotificationService {
   async requestPermission(): Promise<boolean> {
     if (this.isNativePlatform) {
       const localResult = await LocalNotifications.requestPermissions()
-      const pushResult = await PushNotifications.requestPermissions()
-      const granted = localResult.display === 'granted' || pushResult.receive === 'granted'
+      const granted = localResult.display === 'granted'
       if (granted) this.permission = 'granted'
       return granted
     }
@@ -235,36 +186,43 @@ class NotificationService {
     messagePreview: string,
     senderPubkey: string
   ): Promise<void> {
-    // Format preview - handle images
-    let preview = messagePreview
-    const hasImage = messagePreview.includes('[img:data:image/')
-    const textContent = messagePreview.replace(/\[img:data:image\/[^\]]+\]/g, '').trim()
-
-    if (hasImage && textContent) {
-      preview = `📷 ${textContent}`
-    } else if (hasImage) {
-      preview = '📷 Photo'
-    }
-
-    // Truncate if too long
-    if (preview.length > 100) {
-      preview = preview.substring(0, 100) + '...'
-    }
-
     console.log('[Notifications] Showing message notification:', {
       senderName,
-      preview,
       permission: this.permission,
       enabled: this.enabled,
       isNative: this.isNativePlatform,
       hasFocus: typeof document !== 'undefined' ? document.hasFocus() : false
     })
 
-    await this.showNotification(senderName, {
-      body: preview,
-      tag: `message-${senderPubkey}`,
-      data: { senderPubkey }
-    })
+    if (this.isNativePlatform) {
+      // On native: show simple notification without message content (privacy)
+      await this.showNotification('Seal', {
+        body: 'New encrypted message',
+        tag: `message-${senderPubkey}`,
+        data: { senderPubkey }
+      })
+    } else {
+      // On web: show full notification with sender and preview
+      let preview = messagePreview
+      const hasImage = messagePreview.includes('[img:data:image/')
+      const textContent = messagePreview.replace(/\[img:data:image\/[^\]]+\]/g, '').trim()
+
+      if (hasImage && textContent) {
+        preview = `📷 ${textContent}`
+      } else if (hasImage) {
+        preview = '📷 Photo'
+      }
+
+      if (preview.length > 100) {
+        preview = preview.substring(0, 100) + '...'
+      }
+
+      await this.showNotification(senderName, {
+        body: preview,
+        tag: `message-${senderPubkey}`,
+        data: { senderPubkey }
+      })
+    }
   }
 }
 

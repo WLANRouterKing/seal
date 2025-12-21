@@ -5,6 +5,7 @@ import { useRelayStore } from './stores/relayStore'
 import { useContactStore } from './stores/contactStore'
 import { useMessageStore } from './stores/messageStore'
 import { notificationService } from './services/notifications'
+import { backgroundService } from './services/backgroundService'
 import { useAutoLock } from './hooks/useAutoLock'
 import { useLockedNotifications } from './hooks/useLockedNotifications'
 import Layout from './components/Layout'
@@ -34,11 +35,12 @@ function App() {
     initAuth()
   }, [])
 
-  // Initialize relays and notifications when we have an account (even if locked)
+  // Initialize relays, notifications and background service when we have an account (even if locked)
   useEffect(() => {
     if (keys || (hasPassword && publicInfo)) {
       initRelays()
       notificationService.init()
+      backgroundService.start()
     }
   }, [keys, hasPassword, publicInfo])
 
