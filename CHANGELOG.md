@@ -6,12 +6,15 @@ Alle wichtigen Änderungen an diesem Projekt werden hier dokumentiert.
 
 ### Bug Fixes
 
+- Overwrite release via gitlab api if it exists
 - Pipeline conf for changelogs
 - Cliff config adjustments
 - Refactor translations
 
 ### Features
 
+- Use foreground service for push notifications
+- Use foreground service for push notifications
 - Containerize pwa with capacitor to have native api capabilities
 - Add Changelog.md
 - Feat encrypted file upload to nostr.build
@@ -21,6 +24,7 @@ feat automatic changelog
 
 ### Änderungen
 
+- Remove capacitor.config.ts and use foreground service without google play services for push notifications
 - Use node 22 in pipeline
 - Use node 22 in pipeline
 - Remove wrong changelog file
