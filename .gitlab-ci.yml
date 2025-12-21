@@ -128,15 +128,12 @@ create_release:
   script:
     - LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
     - echo "Creating release for tag ${LATEST_TAG}"
-  release:
-    tag_name: $LATEST_TAG
-    name: "Release $LATEST_TAG"
-    description: "Automated release from CI/CD pipeline"
-    assets:
-      links:
-        - name: "Seal-Android.apk"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_BRANCH}/raw/android/app/build/outputs/apk/release/app-release.apk?job=build_apk"
-          link_type: package
+    - |
+      release-cli create \
+        --name "Release ${LATEST_TAG}" \
+        --description "Automated release from CI/CD pipeline" \
+        --tag-name "${LATEST_TAG}" \
+        --assets-link "{\"name\":\"Seal-Android.apk\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_BRANCH}/raw/android/app/build/outputs/apk/release/app-release.apk?job=build_apk\",\"link_type\":\"package\"}"
   only:
     - master
 
