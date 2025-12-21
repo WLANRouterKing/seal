@@ -128,17 +128,36 @@ create_release:
   script:
     - LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
     - echo "Creating release for tag ${LATEST_TAG}"
-    # Delete existing release if it exists (allows overwriting)
+    - APK_URL="${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_BRANCH}/raw/android/app/build/outputs/apk/release/app-release.apk?job=build_apk"
+    # Check if release exists and delete it
     - |
-      curl --request DELETE \
+      HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --header "PRIVATE-TOKEN: ${CI_PUSH_TOKEN}" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${LATEST_TAG}")
+      if [ "$HTTP_CODE" = "200" ]; then
+        echo "Release exists, deleting..."
+        curl --request DELETE \
+          --header "PRIVATE-TOKEN: ${CI_PUSH_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${LATEST_TAG}"
+        sleep 2
+      fi
+    # Create release using API directly (more reliable than release-cli for updates)
+    - |
+      curl --request POST \
         --header "PRIVATE-TOKEN: ${CI_PUSH_TOKEN}" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${LATEST_TAG}" || true
-    - |
-      release-cli create \
-        --name "Release ${LATEST_TAG}" \
-        --description "Automated release from CI/CD pipeline" \
-        --tag-name "${LATEST_TAG}" \
-        --assets-link "{\"name\":\"Seal-Android.apk\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_BRANCH}/raw/android/app/build/outputs/apk/release/app-release.apk?job=build_apk\",\"link_type\":\"package\"}"
+        --header "Content-Type: application/json" \
+        --data "{
+          \"tag_name\": \"${LATEST_TAG}\",
+          \"name\": \"Release ${LATEST_TAG}\",
+          \"description\": \"Automated release from CI/CD pipeline\",
+          \"assets\": {
+            \"links\": [{
+              \"name\": \"Seal-Android.apk\",
+              \"url\": \"${APK_URL}\",
+              \"link_type\": \"package\"
+            }]
+          }
+        }" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
   only:
     - master
 
