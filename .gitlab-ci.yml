@@ -165,8 +165,8 @@ create_release:
         }" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases")
       echo "API Response: ${RESPONSE}"
-      # Check if response contains error
-      if echo "${RESPONSE}" | grep -qE '"error"|"message"'; then
+      # Check if response contains error (error responses start with {"error" or {"message")
+      if echo "${RESPONSE}" | grep -qE '^\{"error"|^\{"message"'; then
         echo "ERROR: Release creation failed!"
         exit 1
       fi
