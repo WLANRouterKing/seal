@@ -19,8 +19,8 @@ const INCOMPATIBLE_RELAYS = [
     'wss://nostr.bitcoiner.social', // Requires web of trust
     'wss://offchain.pub',      // Often unavailable
     'wss://nostr.fmt.wiz.biz',  // Often unavailable
-    'wss://relay.nostr.bg',
-    'wss://relay.nostr.band'
+    'wss://relay.nostr.bg', // only for search, count and access to full index of events
+    'wss://relay.nostr.band' // only for search, count and access to full index of events
 ]
 
 interface RelayState {

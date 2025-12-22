@@ -3,12 +3,10 @@
 // nostr.bitcoiner.social (requires web of trust)
 export const DEFAULT_RELAYS = [
   'wss://relay.damus.io',
-  'wss://relay.nostr.band',
   'wss://relay.snort.social',
   'wss://nos.lol',
   'wss://relay.primal.net',
   'wss://nostr.mom',
-  'wss://relay.nostr.bg',
   'wss://nostr-pub.wellorder.net',
   'wss://nostr.oxtr.dev',
   'wss://relay.nostrplebs.com',
