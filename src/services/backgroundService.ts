@@ -1,13 +1,19 @@
 // Background Service for keeping relay connections alive
 import { Capacitor } from '@capacitor/core'
+import { App } from '@capacitor/app'
 import { ForegroundService } from '@capawesome-team/capacitor-android-foreground-service'
+import { relayPool } from './relay'
 
 class BackgroundService {
   private isRunning = false
+  private appStateListenerRegistered = false
 
   async start(): Promise<void> {
+    // Always register visibility listener for PWA/browser
+    this.registerVisibilityListener()
+
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
-      console.log('[BackgroundService] Not on Android, skipping')
+      console.log('[BackgroundService] Not on Android, skipping foreground service')
       return
     }
 
@@ -44,6 +50,9 @@ class BackgroundService {
         // Button click will bring app to foreground automatically
       })
 
+      // Register app state listener to reconnect relays on resume
+      this.registerAppStateListener()
+
     } catch (error) {
       console.error('[BackgroundService] Failed to start:', error)
     }
@@ -78,6 +87,45 @@ class BackgroundService {
 
   isServiceRunning(): boolean {
     return this.isRunning
+  }
+
+  private registerAppStateListener(): void {
+    if (this.appStateListenerRegistered) return
+
+    App.addListener('appStateChange', async ({ isActive }) => {
+      console.log(`[BackgroundService] App state changed: ${isActive ? 'foreground' : 'background'}`)
+
+      if (isActive) {
+        // App came to foreground - reconnect relays
+        console.log('[BackgroundService] Reconnecting relays...')
+        await relayPool.reconnectAll()
+      }
+    })
+
+    // Also handle resume event explicitly
+    App.addListener('resume', async () => {
+      console.log('[BackgroundService] App resumed, reconnecting relays...')
+      await relayPool.reconnectAll()
+    })
+
+    this.appStateListenerRegistered = true
+    console.log('[BackgroundService] App state listener registered')
+  }
+
+  private visibilityListenerRegistered = false
+
+  private registerVisibilityListener(): void {
+    if (this.visibilityListenerRegistered) return
+
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[BackgroundService] Page became visible, reconnecting relays...')
+        await relayPool.reconnectAll()
+      }
+    })
+
+    this.visibilityListenerRegistered = true
+    console.log('[BackgroundService] Visibility listener registered')
   }
 }
 

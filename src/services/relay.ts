@@ -87,6 +87,27 @@ class RelayPool {
     }
   }
 
+  async reconnectAll(): Promise<void> {
+    const urls = Array.from(this.connections.keys())
+    console.log(`[RelayPool] Reconnecting to ${urls.length} relays...`)
+
+    for (const url of urls) {
+      const conn = this.connections.get(url)
+      if (conn && conn.status !== 'connected') {
+        // Clear the old connection to force a fresh reconnect
+        if (conn.relay) {
+          try {
+            conn.relay.close()
+          } catch (e) {
+            // Ignore close errors
+          }
+        }
+        this.connections.delete(url)
+        await this.connect(url)
+      }
+    }
+  }
+
   subscribe(
     urls: string[],
     filters: Filter[],
