@@ -68,14 +68,16 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
 
     return () => {
       mounted = false
-      if (scannerRef.current) {
+      // Only stop if scanner is actually running
+      if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch(console.error)
       }
     }
   }, [onScan, t])
 
   const handleCancel = () => {
-    if (scannerRef.current) {
+    // Only stop if scanner is actually running
+    if (scannerRef.current?.isScanning) {
       scannerRef.current.stop().catch(console.error)
     }
     onCancel()

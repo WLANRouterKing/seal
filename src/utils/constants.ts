@@ -18,10 +18,7 @@ export const DEFAULT_RELAYS = [
 
 // Minimum number of relays to use per session (randomly selected from pool)
 export const MIN_RELAYS_PER_SESSION = 5
-
-// Maximum percentage of relays to use (to ensure not all relays are used every time)
-export const MAX_RELAY_PERCENTAGE = 0.8
-
+export const MAX_RELAYS_PER_SESSION = 10
 export const DB_NAME = 'nostr-chat-db'
 export const DB_VERSION = 2
 
