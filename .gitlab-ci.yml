@@ -130,20 +130,25 @@ create_release:
     - LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
     - echo "Creating release for tag ${LATEST_TAG}"
     - APK_URL="${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_BRANCH}/raw/android/app/build/outputs/apk/release/app-release.apk?job=build_apk"
-    # Check if release exists and delete it
+    # Check if release exists and delete it (URL-encode the tag name)
     - |
+      ENCODED_TAG=$(echo "${LATEST_TAG}" | sed 's/\./%2E/g; s/-/%2D/g')
+      echo "Checking for existing release: ${LATEST_TAG} (encoded: ${ENCODED_TAG})"
       HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --header "PRIVATE-TOKEN: ${CI_PUSH_TOKEN}" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${LATEST_TAG}")
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${ENCODED_TAG}")
+      echo "Existing release check: HTTP ${HTTP_CODE}"
       if [ "$HTTP_CODE" = "200" ]; then
         echo "Release exists, deleting..."
-        curl --request DELETE \
+        curl --silent --show-error --request DELETE \
           --header "PRIVATE-TOKEN: ${CI_PUSH_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${LATEST_TAG}"
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${ENCODED_TAG}"
         sleep 2
+        echo "Deleted existing release"
       fi
     # Create release using API directly (more reliable than release-cli for updates)
     - |
-      curl --request POST \
+      echo "APK URL: ${APK_URL}"
+      RESPONSE=$(curl --silent --show-error --request POST \
         --header "PRIVATE-TOKEN: ${CI_PUSH_TOKEN}" \
         --header "Content-Type: application/json" \
         --data "{
@@ -158,7 +163,13 @@ create_release:
             }]
           }
         }" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases")
+      echo "API Response: ${RESPONSE}"
+      # Check if response contains error
+      if echo "${RESPONSE}" | grep -q '"message"'; then
+        echo "Release creation may have failed!"
+        exit 1
+      fi
   only:
     - master
 
