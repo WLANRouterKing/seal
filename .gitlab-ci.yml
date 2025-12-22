@@ -74,6 +74,9 @@ deploy:
 build_apk:
   stage: build_android
   image: ubuntu:24.04
+  variables:
+    JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+    ANDROID_HOME: ${CI_PROJECT_DIR}/android-sdk
   needs:
     - job: build
       artifacts: true
@@ -87,8 +90,6 @@ build_apk:
     - apt-get update -qy
     - apt-get install -y nodejs
     - node --version
-    - export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-    - export ANDROID_HOME="${PWD}/android-sdk"
     - export PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
     # Install Android SDK
     - mkdir -p ${ANDROID_HOME}/cmdline-tools
