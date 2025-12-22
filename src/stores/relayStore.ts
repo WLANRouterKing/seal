@@ -18,7 +18,9 @@ const INCOMPATIBLE_RELAYS = [
     'wss://relay.mostr.pub',   // Mastodon bridge, filters events
     'wss://nostr.bitcoiner.social', // Requires web of trust
     'wss://offchain.pub',      // Often unavailable
-    'wss://nostr.fmt.wiz.biz'  // Often unavailable
+    'wss://nostr.fmt.wiz.biz',  // Often unavailable
+    'wss://relay.nostr.bg',
+    'wss://relay.nostr.band'
 ]
 
 interface RelayState {
@@ -47,28 +49,22 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     isConnecting: false,
 
     initialize: async () => {
-        // Load saved relays from DB
-        const savedRelays = await getAllRelays()
+        // Load user-added relays from DB (defaults come from code, not DB)
+        const userRelays = await getAllRelays()
 
-        // Remove incompatible relays from saved list
-        const incompatibleSaved = savedRelays.filter(r => INCOMPATIBLE_RELAYS.includes(r.url))
+        // Remove incompatible relays from user's saved list
+        const incompatibleSaved = userRelays.filter(r => INCOMPATIBLE_RELAYS.includes(r.url))
         if (incompatibleSaved.length > 0) {
-            console.log(`[Relay] Removing ${incompatibleSaved.length} incompatible relays:`, incompatibleSaved.map(r => r.url))
             await Promise.all(incompatibleSaved.map(r => deleteRelayFromDB(r.url)))
         }
 
-        // Get remaining relays after cleanup
-        const cleanedRelays = savedRelays.filter(r => !INCOMPATIBLE_RELAYS.includes(r.url))
-        const allUrls = cleanedRelays.length > 0
-            ? cleanedRelays.map(r => r.url)
-            : DEFAULT_RELAYS
+        // Clean user relays
+        const cleanedUserRelays = userRelays
+            .filter(r => !INCOMPATIBLE_RELAYS.includes(r.url))
+            .map(r => r.url)
 
-        // Save default relays if none exist (or all were removed)
-        if (cleanedRelays.length === 0) {
-            await Promise.all(
-                DEFAULT_RELAYS.map(url => saveRelay({url, read: true, write: true}))
-            )
-        }
+        // Merge: DEFAULT_RELAYS + user-added relays (deduplicated)
+        const allUrls = [...new Set([...DEFAULT_RELAYS, ...cleanedUserRelays])]
 
         set({allRelayUrls: allUrls})
 
@@ -104,13 +100,13 @@ export const useRelayStore = create<RelayState>((set, get) => ({
             throw new Error('Invalid relay URL')
         }
 
-        // Check if already exists
+        // Check if already exists (in defaults or user-added)
         const {allRelayUrls} = get()
-        if (allRelayUrls.includes(normalizedUrl)) {
+        if (allRelayUrls.includes(normalizedUrl) || DEFAULT_RELAYS.includes(normalizedUrl)) {
             throw new Error('Relay already exists')
         }
 
-        // Save to DB and add to pool
+        // Save user-added relay to DB
         await saveRelay({url: normalizedUrl, read: true, write: true})
         set({allRelayUrls: [...allRelayUrls, normalizedUrl]})
 
@@ -123,6 +119,11 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     },
 
     removeRelay: async (url: string) => {
+        // Don't allow removing default relays
+        if (DEFAULT_RELAYS.includes(url)) {
+            throw new Error('Cannot remove default relay')
+        }
+
         relayPool.disconnect(url)
         await deleteRelayFromDB(url)
 
