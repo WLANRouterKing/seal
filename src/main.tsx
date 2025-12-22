@@ -9,6 +9,7 @@ import '@mantine/notifications/styles.css'
 import './index.css'
 import './i18n'
 import { useThemeStore } from './stores/themeStore'
+import { registerSW } from 'virtual:pwa-register'
 
 const theme = createTheme({
   primaryColor: 'cyan',
@@ -31,14 +32,24 @@ const theme = createTheme({
   cursorType: 'pointer',
 })
 
-// Register service worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((error) => {
-      console.log('SW registration failed:', error)
-    })
-  })
-}
+// Register service worker with auto-update
+const updateSW = registerSW({
+  onNeedRefresh() {
+    // Auto-update when new content is available
+    updateSW(true)
+  },
+  onOfflineReady() {
+    console.log('App ready to work offline')
+  },
+  onRegisteredSW(_swUrl, registration) {
+    // Check for updates every hour
+    if (registration) {
+      setInterval(() => {
+        registration.update()
+      }, 60 * 60 * 1000)
+    }
+  }
+})
 
 function Root() {
   const effectiveTheme = useThemeStore(state => state.getEffectiveTheme())
