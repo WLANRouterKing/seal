@@ -14,6 +14,15 @@ import {parseDMRelayListEvent} from '../services/crypto'
 const dmRelayCache = new Map<string, { relays: string[]; timestamp: number }>()
 const DM_RELAY_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
+// Relays that don't support NIP-17 (kind 1059) - should be removed from user's list
+const INCOMPATIBLE_RELAYS = [
+    'wss://purplepag.es',      // Profile data only, rejects kind 1059
+    'wss://relay.mostr.pub',   // Mastodon bridge, filters events
+    'wss://nostr.bitcoiner.social', // Requires web of trust
+    'wss://offchain.pub',      // Often unavailable
+    'wss://nostr.fmt.wiz.biz'  // Often unavailable
+]
+
 interface RelayState {
     relays: Relay[]
     allRelayUrls: string[] // Full pool of available relays
@@ -67,12 +76,22 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     initialize: async () => {
         // Load saved relays from DB
         const savedRelays = await getAllRelays()
-        const allUrls = savedRelays.length > 0
-            ? savedRelays.map(r => r.url)
+
+        // Remove incompatible relays from saved list
+        const incompatibleSaved = savedRelays.filter(r => INCOMPATIBLE_RELAYS.includes(r.url))
+        if (incompatibleSaved.length > 0) {
+            console.log(`[Relay] Removing ${incompatibleSaved.length} incompatible relays:`, incompatibleSaved.map(r => r.url))
+            await Promise.all(incompatibleSaved.map(r => deleteRelayFromDB(r.url)))
+        }
+
+        // Get remaining relays after cleanup
+        const cleanedRelays = savedRelays.filter(r => !INCOMPATIBLE_RELAYS.includes(r.url))
+        const allUrls = cleanedRelays.length > 0
+            ? cleanedRelays.map(r => r.url)
             : DEFAULT_RELAYS
 
-        // Save default relays if none exist
-        if (savedRelays.length === 0) {
+        // Save default relays if none exist (or all were removed)
+        if (cleanedRelays.length === 0) {
             await Promise.all(
                 DEFAULT_RELAYS.map(url => saveRelay({url, read: true, write: true}))
             )

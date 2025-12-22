@@ -1,19 +1,19 @@
+// Default relays that support NIP-17 (kind 1059 gift wrap) for private DMs
+// Removed: purplepag.es (profile data only), relay.mostr.pub (Mastodon bridge),
+// nostr.bitcoiner.social (requires web of trust)
 export const DEFAULT_RELAYS = [
   'wss://relay.damus.io',
   'wss://relay.nostr.band',
   'wss://relay.snort.social',
   'wss://nos.lol',
-  'wss://purplepag.es',
   'wss://relay.primal.net',
-  'wss://relay.nostr.bg',
   'wss://nostr.mom',
-  'wss://relay.mostr.pub',
+  'wss://relay.nostr.bg',
   'wss://nostr-pub.wellorder.net',
   'wss://nostr.oxtr.dev',
-  'wss://offchain.pub',
-  'wss://nostr.bitcoiner.social',
   'wss://relay.nostrplebs.com',
-  'wss://nostr.fmt.wiz.biz'
+  'wss://nostr.wine',
+  'wss://relay.noswhere.com'
 ]
 
 // Minimum number of relays to use per session (randomly selected from pool)
