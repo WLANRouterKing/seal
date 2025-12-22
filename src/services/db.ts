@@ -73,6 +73,11 @@ export async function getDB(): Promise<IDBPDatabase<NostrChatDB>> {
         if (oldVersion < 2) {
           db.createObjectStore(STORES.DELETED_MESSAGES, { keyPath: 'id' })
         }
+
+        if(oldVersion < 3) {
+            db.deleteObjectStore(STORES.RELAYS)
+            db.createObjectStore(STORES.RELAYS, { keyPath: 'url' })
+        }
       }
     })
   }

@@ -17,7 +17,7 @@ export const DEFAULT_RELAYS = [
 ]
 
 export const DB_NAME = 'nostr-chat-db'
-export const DB_VERSION = 2
+export const DB_VERSION = 3
 
 export const STORES = {
   KEYS: 'keys',
