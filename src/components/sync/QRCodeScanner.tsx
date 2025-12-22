@@ -24,7 +24,12 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
       if (!containerRef.current || hasScanned.current) return
 
       try {
-        const scanner = new Html5Qrcode('qr-reader')
+        // Disable native BarcodeDetector API to avoid Google Play Services dependency
+        // This forces the library to use the JavaScript-based ZXing decoder
+        const scanner = new Html5Qrcode('qr-reader', {
+          useBarCodeDetectorIfSupported: false,
+          verbose: false
+        })
         scannerRef.current = scanner
 
         await scanner.start(

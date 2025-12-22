@@ -15,6 +15,20 @@
     <!-- Referrer Policy (wichtig für Privacy bei einer Messaging-App) -->
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>Seal</title>
+    <script>
+        // Disable native BarcodeDetector to prevent WebView from initializing
+        // Google Play Services Shape Detection API (causes crash without GMS)
+        // Delete it so 'BarcodeDetector' in window returns false
+        (function() {
+            try { delete window.BarcodeDetector; } catch(e) {}
+            try {
+                Object.defineProperty(window, 'BarcodeDetector', {
+                    get: function() { return undefined; },
+                    configurable: false
+                });
+            } catch(e) {}
+        })();
+    </script>
 </head>
 <body>
 <div id="root"></div>
