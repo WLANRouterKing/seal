@@ -166,10 +166,11 @@ create_release:
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases")
       echo "API Response: ${RESPONSE}"
       # Check if response contains error
-      if echo "${RESPONSE}" | grep -q '"message"'; then
-        echo "Release creation may have failed!"
+      if echo "${RESPONSE}" | grep -qE '"error"|"message"'; then
+        echo "ERROR: Release creation failed!"
         exit 1
       fi
+      echo "Release created successfully!"
   only:
     - master
 
