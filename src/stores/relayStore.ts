@@ -2,9 +2,7 @@ import {create} from 'zustand'
 import type {Relay} from '../types'
 import {
     DEFAULT_RELAYS,
-    MIN_RELAYS_PER_SESSION,
-    NIP17_KIND,
-    MAX_RELAYS_PER_SESSION
+    NIP17_KIND
 } from '../utils/constants'
 import {relayPool} from '../services/relay'
 import {getAllRelays, saveRelay, deleteRelay as deleteRelayFromDB} from '../services/db'
@@ -38,34 +36,9 @@ interface RelayState {
     getDMRelays: (pubkey: string) => Promise<string[]>
 }
 
-// Fisher-Yates shuffle
-function shuffleArray<T>(array: T[]): T[] {
-    const shuffled = [...array]
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-    }
-    return shuffled
-}
-
-/**
- * Select a random number of relays for this session.
- * - Minimum: MIN_RELAYS_PER_SESSION (5)
- * - Maximum: MAX_RELAY_PERCENTAGE (80%) of the pool
- * - Never uses all relays to ensure privacy through randomization
- */
-function selectSessionRelays(urls: string[]): string[] {
-    if (urls.length <= MIN_RELAYS_PER_SESSION) {
-        // If pool is small, use all available
-        return shuffleArray(urls)
-    }
-
-    // Random count between MIN and MAX
-    const count = Math.floor(Math.random() * (MAX_RELAYS_PER_SESSION - MIN_RELAYS_PER_SESSION + 1) + MIN_RELAYS_PER_SESSION);
-
-    const shuffled = shuffleArray(urls)
-    return shuffled.slice(0, count)
-}
+// Note: We intentionally connect to ALL configured relays (no random subset)
+// This provides better anonymity through "crowd anonymity" - all users look the same
+// Random relay selection would create a unique fingerprint per user/session
 
 export const useRelayStore = create<RelayState>((set, get) => ({
     relays: [],
@@ -104,13 +77,12 @@ export const useRelayStore = create<RelayState>((set, get) => ({
             set({relays})
         })
 
-        // Select random subset for this session (at least 5, but not all)
-        // This selection is done once per session - no rotation during active use
-        const selectedUrls = selectSessionRelays(allUrls)
-        console.log(`[Relay] Session started with ${selectedUrls.length}/${allUrls.length} relays`)
+        // Connect to ALL relays for better crowd anonymity
+        // (random subset would create unique fingerprint per user)
+        console.log(`[Relay] Connecting to all ${allUrls.length} relays`)
 
-        set({activeRelayUrls: selectedUrls})
-        await get().connectToRelays(selectedUrls)
+        set({activeRelayUrls: allUrls})
+        await get().connectToRelays(allUrls)
     },
 
     connectToRelays: async (urls?: string[]) => {

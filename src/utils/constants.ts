@@ -16,9 +16,6 @@ export const DEFAULT_RELAYS = [
   'wss://relay.noswhere.com'
 ]
 
-// Minimum number of relays to use per session (randomly selected from pool)
-export const MIN_RELAYS_PER_SESSION = 5
-export const MAX_RELAYS_PER_SESSION = 10
 export const DB_NAME = 'nostr-chat-db'
 export const DB_VERSION = 2
 
