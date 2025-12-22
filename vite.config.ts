@@ -26,9 +26,15 @@ function getVersion(): string {
     }
 }
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 export default defineConfig({
     define: {
         __APP_VERSION__: JSON.stringify(getVersion())
+    },
+    esbuild: {
+        // Remove console.log and debugger in production builds
+        drop: isProduction ? ['console', 'debugger'] : []
     },
     plugins: [
         react(),
