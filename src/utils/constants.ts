@@ -1,6 +1,7 @@
 // Default relays that support NIP-17 (kind 1059 gift wrap) for private DMs
 // Removed: purplepag.es (profile data only), relay.mostr.pub (Mastodon bridge),
-// nostr.bitcoiner.social (requires web of trust)
+// nostr.bitcoiner.social (requires web of trust), relay.nostrplebs.com (requires NIP-05),
+// nostr.wine (requires paid registration)
 export const DEFAULT_RELAYS = [
   'wss://relay.damus.io',
   'wss://relay.snort.social',
@@ -9,13 +10,11 @@ export const DEFAULT_RELAYS = [
   'wss://nostr.mom',
   'wss://nostr-pub.wellorder.net',
   'wss://nostr.oxtr.dev',
-  'wss://relay.nostrplebs.com',
-  'wss://nostr.wine',
   'wss://relay.noswhere.com'
 ]
 
 export const DB_NAME = 'nostr-chat-db'
-export const DB_VERSION = 3
+export const DB_VERSION = 4 // v4: Messages store encryptedEvent instead of plaintext content
 
 export const STORES = {
   KEYS: 'keys',

@@ -31,6 +31,7 @@ interface GiftWrap extends Event {
 interface RumorOptions {
   replyTo?: string  // Event ID to reply to
   subject?: string  // Conversation subject
+  expiration?: number  // NIP-40: Unix timestamp when message expires
 }
 
 function createRumor(
@@ -49,6 +50,11 @@ function createRumor(
   // Add subject tag for conversation title
   if (options?.subject) {
     tags.push(['subject', options.subject])
+  }
+
+  // NIP-40: Add expiration tag for disappearing messages
+  if (options?.expiration) {
+    tags.push(['expiration', options.expiration.toString()])
   }
 
   return {
@@ -127,10 +133,18 @@ export async function createGiftWrap(
   return finalizeEvent(giftWrapEvent, wrapperPrivateKeyBytes) as GiftWrap
 }
 
+export interface UnwrappedMessage {
+  content: string
+  senderPubkey: string
+  createdAt: number
+  replyTo?: string
+  expiration?: number  // NIP-40: Unix timestamp when message expires
+}
+
 export async function unwrapGiftWrap(
   giftWrap: GiftWrap,
   recipientPrivateKey: string
-): Promise<{ content: string; senderPubkey: string; createdAt: number; replyTo?: string } | null> {
+): Promise<UnwrappedMessage | null> {
   try {
     const recipientPrivateKeyBytes = hexToBytes(recipientPrivateKey)
 
@@ -161,11 +175,41 @@ export async function unwrapGiftWrap(
     const replyTag = rumor.tags?.find(tag => tag[0] === 'e')
     const replyTo = replyTag ? replyTag[1] : undefined
 
+    // 5. Extract expiration tag (NIP-40)
+    const expirationTag = rumor.tags?.find(tag => tag[0] === 'expiration')
+    const expiration = expirationTag ? parseInt(expirationTag[1], 10) : undefined
+
+    // 6. Handle Kind 15 file messages - extract file metadata from tags
+    let content = rumor.content
+    if (rumor.kind === NIP17_KIND.FILE_MESSAGE) {
+      const getTag = (name: string): string | undefined => {
+        const tag = rumor.tags?.find(t => t[0] === name)
+        return tag ? tag[1] : undefined
+      }
+
+      const url = getTag('url')
+      const mimeType = getTag('file-type')
+
+      if (url && mimeType) {
+        const fileData = JSON.stringify({
+          url,
+          mimeType,
+          encrypted: true
+        })
+
+        // Format: caption + file metadata (matching sent format)
+        content = rumor.content
+          ? `${rumor.content}\n[file:${fileData}]`
+          : `[file:${fileData}]`
+      }
+    }
+
     return {
-      content: rumor.content,
+      content,
       senderPubkey: rumor.pubkey,
       createdAt: rumor.created_at,
-      replyTo
+      replyTo,
+      expiration
     }
   } catch (error) {
     console.error('Failed to unwrap gift wrap:', error)
@@ -177,13 +221,14 @@ export async function unwrapGiftWrap(
 export async function createSelfGiftWrap(
   content: string,
   recipientPubkey: string,
-  senderPrivateKey: string
+  senderPrivateKey: string,
+  options?: GiftWrapOptions
 ): Promise<GiftWrap> {
   const senderPrivateKeyBytes = hexToBytes(senderPrivateKey)
   const senderPubkey = getPublicKey(senderPrivateKeyBytes)
 
   // Same as regular gift wrap but recipient is self
-  const rumor = createRumor(content, recipientPubkey, senderPubkey)
+  const rumor = createRumor(content, recipientPubkey, senderPubkey, options)
 
   const sealConversationKey = nip44.v2.utils.getConversationKey(
     senderPrivateKeyBytes,
@@ -296,6 +341,11 @@ export function createFileRumor(
 
   if (options?.replyTo) {
     tags.push(['e', options.replyTo, '', 'reply'])
+  }
+
+  // NIP-40: Add expiration tag for disappearing messages
+  if (options?.expiration) {
+    tags.push(['expiration', options.expiration.toString()])
   }
 
   return {

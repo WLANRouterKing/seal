@@ -1,6 +1,7 @@
 // File upload service for NIP-17 Kind 15 file messages
-// Uses nostr.build with NIP-98 authentication
-// Files are encrypted with NIP-44 before upload for privacy
+// Uses nostr.build with NIP-98 authentication via nostrify
+// Files are encrypted with AES-GCM (hybrid encryption) for unlimited file sizes
+// The AES key is encrypted with NIP-44 and prepended to the file
 
 import { nip44, finalizeEvent } from 'nostr-tools'
 import { hexToBytes } from '@noble/hashes/utils'
@@ -34,47 +35,104 @@ function getImageDimensions(file: File): Promise<{ width: number; height: number
   })
 }
 
-// Encrypt file content with NIP-44
-function encryptFileData(
+// Hybrid encryption: AES-GCM for file data, NIP-44 for the AES key
+// Format: [4 bytes key length][NIP-44 encrypted key][12 bytes IV][AES-GCM encrypted data]
+async function encryptFileData(
   fileData: ArrayBuffer,
   senderPrivateKey: string,
   recipientPubkey: string
-): string {
+): Promise<ArrayBuffer> {
+  // Generate random AES-256 key
+  const aesKey = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt']
+  )
+
+  // Export the raw key bytes
+  const rawKey = await crypto.subtle.exportKey('raw', aesKey)
+
+  // Generate random IV (12 bytes for AES-GCM)
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+
+  // Encrypt file data with AES-GCM
+  const encryptedData = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    aesKey,
+    fileData
+  )
+
+  // Encrypt the AES key with NIP-44
   const senderPrivateKeyBytes = hexToBytes(senderPrivateKey)
   const conversationKey = nip44.v2.utils.getConversationKey(
     senderPrivateKeyBytes,
     recipientPubkey
   )
 
-  // Convert ArrayBuffer to base64 for encryption
-  const base64Data = btoa(
-    new Uint8Array(fileData).reduce((data, byte) => data + String.fromCharCode(byte), '')
-  )
+  // Convert raw key to base64 for NIP-44 encryption
+  const keyBase64 = btoa(String.fromCharCode(...new Uint8Array(rawKey)))
+  const encryptedKey = nip44.v2.encrypt(keyBase64, conversationKey)
+  const encryptedKeyBytes = new TextEncoder().encode(encryptedKey)
 
-  return nip44.v2.encrypt(base64Data, conversationKey)
+  // Build final format: [4 bytes key length][encrypted key][12 bytes IV][encrypted data]
+  const keyLengthBytes = new Uint8Array(4)
+  new DataView(keyLengthBytes.buffer).setUint32(0, encryptedKeyBytes.length, false)
+
+  const result = new Uint8Array(
+    4 + encryptedKeyBytes.length + 12 + encryptedData.byteLength
+  )
+  result.set(keyLengthBytes, 0)
+  result.set(encryptedKeyBytes, 4)
+  result.set(iv, 4 + encryptedKeyBytes.length)
+  result.set(new Uint8Array(encryptedData), 4 + encryptedKeyBytes.length + 12)
+
+  return result.buffer
 }
 
-// Decrypt file content with NIP-44
-export function decryptFileData(
-  encryptedData: string,
+// Decrypt file content (hybrid decryption)
+export async function decryptFileData(
+  encryptedData: ArrayBuffer,
   recipientPrivateKey: string,
   senderPubkey: string
-): ArrayBuffer {
+): Promise<ArrayBuffer> {
+  const data = new Uint8Array(encryptedData)
+
+  // Read key length
+  const keyLength = new DataView(data.buffer).getUint32(0, false)
+
+  // Extract encrypted key
+  const encryptedKeyBytes = data.slice(4, 4 + keyLength)
+  const encryptedKey = new TextDecoder().decode(encryptedKeyBytes)
+
+  // Extract IV and encrypted data
+  const iv = data.slice(4 + keyLength, 4 + keyLength + 12)
+  const encryptedFileData = data.slice(4 + keyLength + 12)
+
+  // Decrypt the AES key with NIP-44
   const recipientPrivateKeyBytes = hexToBytes(recipientPrivateKey)
   const conversationKey = nip44.v2.utils.getConversationKey(
     recipientPrivateKeyBytes,
     senderPubkey
   )
 
-  const base64Data = nip44.v2.decrypt(encryptedData, conversationKey)
+  const keyBase64 = nip44.v2.decrypt(encryptedKey, conversationKey)
+  const rawKey = Uint8Array.from(atob(keyBase64), c => c.charCodeAt(0))
 
-  // Convert base64 back to ArrayBuffer
-  const binaryString = atob(base64Data)
-  const bytes = new Uint8Array(binaryString.length)
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i)
-  }
-  return bytes.buffer
+  // Import the AES key
+  const aesKey = await crypto.subtle.importKey(
+    'raw',
+    rawKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  )
+
+  // Decrypt the file data
+  return await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    aesKey,
+    encryptedFileData
+  )
 }
 
 // Download and decrypt a file from URL
@@ -89,8 +147,8 @@ export async function downloadAndDecryptFile(
     throw new Error(`Failed to download file: ${response.status}`)
   }
 
-  const encryptedText = await response.text()
-  const decryptedData = decryptFileData(encryptedText, recipientPrivateKey, senderPubkey)
+  const encryptedBuffer = await response.arrayBuffer()
+  const decryptedData = await decryptFileData(encryptedBuffer, recipientPrivateKey, senderPubkey)
 
   return new Blob([decryptedData], { type: mimeType })
 }
@@ -106,75 +164,208 @@ export async function getDecryptedFileUrl(
   return URL.createObjectURL(blob)
 }
 
-// Create NIP-98 authorization header for authenticated uploads
-function createNip98AuthHeader(
+// Create NIP-98 authorization header
+async function createNip98Auth(
   url: string,
   method: string,
-  privateKey: string,
-  payloadHash?: string
-): string {
-  const now = Math.floor(Date.now() / 1000)
-
-  const tags: string[][] = [
-    ['u', url],
-    ['method', method]
-  ]
-
-  if (payloadHash) {
-    tags.push(['payload', payloadHash])
-  }
-
+  privateKey: string
+): Promise<string> {
   const event = finalizeEvent({
     kind: 27235,
-    created_at: now,
-    tags,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ['u', url],
+      ['method', method]
+    ],
     content: ''
+  }, hexToBytes(privateKey))
+
+  // Base64 encode the event JSON
+  const eventJson = JSON.stringify(event)
+  const base64 = btoa(eventJson)
+  return `Nostr ${base64}`
+}
+
+// NIP-96 file upload endpoints
+const NIP96_ENDPOINTS = [
+  {
+    name: 'nostr.build',
+    url: 'https://nostr.build/api/v2/nip96/upload',
+    supportsNoTransform: true
+  },
+  {
+    name: 'nostrcheck.me',
+    url: 'https://nostrcheck.me/api/v2/media',
+    supportsNoTransform: true
+  }
+]
+
+// Blossom (BUD-01) endpoints - pure blob storage, no processing
+const BLOSSOM_ENDPOINTS = [
+  'https://blossom.primal.net',
+  'https://cdn.satellite.earth'
+]
+
+// Create Blossom authorization event (BUD-02)
+async function createBlossomAuth(
+  privateKey: string,
+  fileHash: string,
+  fileSize: number
+): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const expiration = now + 60 // 1 minute expiry
+
+  const event = finalizeEvent({
+    kind: 24242,
+    created_at: now,
+    tags: [
+      ['t', 'upload'],
+      ['x', fileHash],
+      ['size', fileSize.toString()],
+      ['expiration', expiration.toString()]
+    ],
+    content: 'Upload encrypted file'
   }, hexToBytes(privateKey))
 
   return `Nostr ${btoa(JSON.stringify(event))}`
 }
 
-// Upload encrypted file to nostr.build with NIP-98 authentication
-async function uploadEncryptedToNostrBuild(
-  encryptedData: string,
-  privateKey: string
+// Upload to Blossom server (BUD-01) - pure blob storage, no processing
+async function uploadToBlossom(
+  encryptedData: ArrayBuffer,
+  privateKey: string,
+  mimeType: string
+): Promise<string | null> {
+  // Calculate SHA-256 hash of encrypted data
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encryptedData)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
+  const blob = new Blob([encryptedData], { type: mimeType })
+
+  for (const server of BLOSSOM_ENDPOINTS) {
+    try {
+      console.log(`[Blossom] Trying ${server}...`)
+
+      const authHeader = await createBlossomAuth(privateKey, fileHash, encryptedData.byteLength)
+
+      const response = await fetch(`${server}/upload`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': mimeType
+        },
+        body: blob
+      })
+
+      if (!response.ok) {
+        const text = await response.text()
+        console.error(`[Blossom] ${server} error:`, response.status, text)
+        continue
+      }
+
+      const result = await response.json()
+      console.log(`[Blossom] ${server} response:`, result)
+
+      if (result.url) {
+        console.log(`[Blossom] Success via ${server}`)
+        return result.url
+      }
+    } catch (error) {
+      console.error(`[Blossom] ${server} failed:`, error)
+    }
+  }
+
+  return null
+}
+
+// Upload encrypted file with NIP-98 authentication (NIP-96 compliant)
+async function uploadToNip96(
+  encryptedData: ArrayBuffer,
+  privateKey: string,
+  originalMimeType: string
+): Promise<string | null> {
+  // Get file extension from mime type
+  const ext = originalMimeType.split('/')[1]?.split('+')[0] || 'bin'
+
+  // Create file - keep original mime type so servers accept it
+  const blob = new Blob([encryptedData], { type: originalMimeType })
+  const file = new File([blob], `encrypted.${ext}`, { type: originalMimeType })
+
+  // Try each endpoint until one works
+  for (const endpoint of NIP96_ENDPOINTS) {
+    try {
+      console.log(`[NIP-96] Trying ${endpoint.name}...`)
+
+      const formData = new FormData()
+      formData.append('file', file)
+
+      // NIP-96: Request no transformation to preserve encrypted content
+      if (endpoint.supportsNoTransform) {
+        formData.append('no_transform', 'true')
+      }
+
+      // NIP-96: Provide content type hint
+      formData.append('content_type', originalMimeType)
+
+      const authHeader = await createNip98Auth(endpoint.url, 'POST', privateKey)
+
+      const response = await fetch(endpoint.url, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader
+        },
+        body: formData
+      })
+
+      const result = await response.json()
+      console.log(`[NIP-96] ${endpoint.name} response:`, result)
+
+      // Handle different response formats
+      if (response.ok) {
+        // NIP-96 standard format
+        if (result.nip94_event?.tags) {
+          const urlTag = result.nip94_event.tags.find((t: string[]) => t[0] === 'url')
+          if (urlTag?.[1]) {
+            console.log(`[NIP-96] Success via ${endpoint.name}`)
+            return urlTag[1]
+          }
+        }
+        // nostr.build legacy format
+        if (result.status === 'success' && result.data?.[0]?.url) {
+          console.log(`[NIP-96] Success via ${endpoint.name}`)
+          return result.data[0].url
+        }
+      }
+
+      console.warn(`[NIP-96] ${endpoint.name}: ${result.message || 'Unknown error'}`)
+    } catch (error) {
+      console.error(`[NIP-96] ${endpoint.name} failed:`, error)
+    }
+  }
+
+  return null
+}
+
+// Upload encrypted file - tries Blossom first (blob storage), then NIP-96
+async function uploadEncryptedFile(
+  encryptedData: ArrayBuffer,
+  privateKey: string,
+  originalMimeType: string = 'application/octet-stream'
 ): Promise<string> {
-  // Create a text file with the encrypted content
-  const blob = new Blob([encryptedData], { type: 'text/plain' })
-  const file = new File([blob], 'encrypted.txt', { type: 'text/plain' })
-
-  const formData = new FormData()
-  formData.append('file', file)
-
-  const fileBuffer = await file.arrayBuffer()
-  const payloadHash = await calculateHash(fileBuffer)
-
-  const headers: HeadersInit = {
-    'Authorization': createNip98AuthHeader(
-      'https://nostr.build/api/v2/upload/files',
-      'POST',
-      privateKey,
-      payloadHash
-    )
+  // Try Blossom first - designed for blob storage without processing
+  const blossomUrl = await uploadToBlossom(encryptedData, privateKey, originalMimeType)
+  if (blossomUrl) {
+    return blossomUrl
   }
 
-  const response = await fetch('https://nostr.build/api/v2/upload/files', {
-    method: 'POST',
-    headers,
-    body: formData
-  })
-
-  if (!response.ok) {
-    throw new Error(`nostr.build upload failed: ${response.status} ${response.statusText}`)
+  // Fall back to NIP-96 with no_transform
+  const nip96Url = await uploadToNip96(encryptedData, privateKey, originalMimeType)
+  if (nip96Url) {
+    return nip96Url
   }
 
-  const result = await response.json()
-
-  if (result.status !== 'success' || !result.data?.[0]) {
-    throw new Error('nostr.build upload failed: Invalid response')
-  }
-
-  return result.data[0].url
+  throw new Error('All upload endpoints failed')
 }
 
 // Main upload function - encrypts file and uploads to nostr.build
@@ -198,11 +389,11 @@ export async function uploadFile(
     }
   }
 
-  // Encrypt the file with NIP-44
-  const encryptedData = encryptFileData(fileBuffer, privateKey, recipientPubkey)
+  // Encrypt the file with AES-GCM (hybrid encryption)
+  const encryptedData = await encryptFileData(fileBuffer, privateKey, recipientPubkey)
 
-  // Upload encrypted data to nostr.build
-  const url = await uploadEncryptedToNostrBuild(encryptedData, privateKey)
+  // Upload encrypted data to file host
+  const url = await uploadEncryptedFile(encryptedData, privateKey, file.type)
 
   return {
     url,

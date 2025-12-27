@@ -8,17 +8,19 @@ import {
   saveContact,
   saveRelay,
   saveSettings,
-  saveDeletedMessageId
+  saveDeletedMessageId,
+  type StoredMessage
 } from './db'
 import { useAuthStore } from '../stores/authStore'
 import type { Message, Contact, AppSettings } from '../types'
 
+// Sync data contains stored messages (encrypted events), not decrypted content
 export interface SyncData {
   version: 1
   exportedAt: number
   publicKey: string
   npub: string
-  messages: Message[]
+  messages: StoredMessage[] // Encrypted events, not decrypted content
   contacts: Contact[]
   settings: AppSettings | undefined
   relays: { url: string; read: boolean; write: boolean }[]
@@ -104,9 +106,14 @@ export async function importSyncData(data: SyncData): Promise<SyncStats> {
     relays: 0
   }
 
-  // Import messages
-  for (const message of data.messages) {
+  // Import messages (stored as encrypted events)
+  for (const storedMessage of data.messages) {
     try {
+      // Convert StoredMessage to Message format for saveMessage
+      const message: Message = {
+        ...storedMessage,
+        content: '' // Content is decrypted at runtime from encryptedEvent
+      }
       await saveMessage(message)
       stats.messages++
     } catch (error) {

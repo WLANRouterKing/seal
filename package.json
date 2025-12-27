@@ -24,6 +24,7 @@
     "@mantine/hooks": "^8.3.10",
     "@mantine/notifications": "^8.3.10",
     "@noble/hashes": "^1.8.0",
+    "@nostrify/nostrify": "^0.48.2",
     "@tabler/icons-react": "^3.36.0",
     "html5-qrcode": "^2.3.8",
     "i18next": "^25.7.3",

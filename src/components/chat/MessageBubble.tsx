@@ -12,7 +12,7 @@ import {
   Center,
   ActionIcon,
 } from '@mantine/core'
-import { IconTrash, IconCheck, IconChecks, IconAlertCircle, IconX } from '@tabler/icons-react'
+import { IconTrash, IconCheck, IconChecks, IconAlertCircle, IconX, IconClock } from '@tabler/icons-react'
 import type { Message } from '../../types'
 import { formatTimestamp } from '../../utils/format'
 import { useAuthStore } from '../../stores/authStore'
@@ -40,9 +40,29 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
   const { textContent, legacyImages, files } = parseContent(message.content)
   const [menuOpened, setMenuOpened] = useState(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [isExpired, setIsExpired] = useState(false)
 
   const privateKey = keys?.privateKey || ''
   const otherPubkey = contactPubkey
+
+  // Check expiration and auto-hide when expired
+  useEffect(() => {
+    if (!message.expiration) return
+
+    const checkExpiration = () => {
+      const now = Math.floor(Date.now() / 1000)
+      if (now >= message.expiration!) {
+        setIsExpired(true)
+      }
+    }
+
+    checkExpiration()
+    const interval = setInterval(checkExpiration, 1000)
+    return () => clearInterval(interval)
+  }, [message.expiration])
+
+  // Don't render if expired
+  if (isExpired) return null
 
   const handleTouchStart = () => {
     longPressTimer.current = setTimeout(() => {
@@ -119,6 +139,7 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
               <Text size="xs" c={isOutgoing ? 'cyan.2' : 'dimmed'}>
                 {formatTimestamp(message.createdAt)}
               </Text>
+              {message.expiration && <ExpirationTimer expiration={message.expiration} isOutgoing={isOutgoing} />}
               {isOutgoing && <StatusIcon status={message.status} />}
             </Group>
           </Paper>
@@ -305,4 +326,54 @@ function StatusIcon({ status }: { status: Message['status'] }) {
     default:
       return null
   }
+}
+
+// Format remaining time for display
+function formatRemainingTime(seconds: number): string {
+  if (seconds <= 0) return '0s'
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return secs > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${mins}m`
+  }
+  if (seconds < 86400) {
+    const hours = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+  }
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  return hours > 0 ? `${days}d ${hours}h` : `${days}d`
+}
+
+function ExpirationTimer({ expiration, isOutgoing }: { expiration: number; isOutgoing: boolean }) {
+  const [remaining, setRemaining] = useState(() => {
+    const now = Math.floor(Date.now() / 1000)
+    return Math.max(0, expiration - now)
+  })
+
+  useEffect(() => {
+    // Update every second if less than 1 hour, otherwise every minute
+    const interval = remaining < 3600 ? 1000 : 60000
+
+    const timer = setInterval(() => {
+      const now = Math.floor(Date.now() / 1000)
+      const newRemaining = Math.max(0, expiration - now)
+      setRemaining(newRemaining)
+    }, interval)
+
+    return () => clearInterval(timer)
+  }, [expiration, remaining < 3600])
+
+  if (remaining <= 0) return null
+
+  return (
+    <Group gap={2}>
+      <IconClock size={12} color={isOutgoing ? 'var(--mantine-color-cyan-2)' : 'var(--mantine-color-gray-5)'} />
+      <Text size="xs" c={isOutgoing ? 'cyan.2' : 'dimmed'}>
+        {formatRemainingTime(remaining)}
+      </Text>
+    </Group>
+  )
 }

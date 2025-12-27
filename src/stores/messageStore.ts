@@ -7,7 +7,9 @@ import {
   getContact,
   saveDeletedMessageId,
   isMessageDeleted,
-  cleanupDeletedMessages
+  cleanupDeletedMessages,
+  cleanupExpiredMessages,
+  type StoredMessage
 } from '../services/db'
 import { relayPool } from '../services/relay'
 import { createGiftWrap, createSelfGiftWrap, unwrapGiftWrap, createFileGiftWrap, type FileMetadata } from '../services/crypto'
@@ -15,8 +17,48 @@ import { notificationService } from '../services/notifications'
 import { NIP17_KIND } from '../utils/constants'
 import { truncateKey } from '../utils/format'
 import { useRelayStore } from './relayStore'
+import { useContactStore } from './contactStore'
 import { uploadFile, compressImage } from '../services/fileUpload'
 import type { Event } from 'nostr-tools'
+
+// Check if a message has expired (NIP-40)
+function isMessageExpired(expiration?: number): boolean {
+  if (!expiration) return false
+  return Math.floor(Date.now() / 1000) > expiration
+}
+
+// Decrypt a stored message using the private key
+async function decryptStoredMessage(stored: StoredMessage, privateKey: string): Promise<Message | null> {
+  try {
+    const event = JSON.parse(stored.encryptedEvent) as Event & { kind: typeof NIP17_KIND.GIFT_WRAP }
+    const unwrapped = await unwrapGiftWrap(event, privateKey)
+
+    if (!unwrapped) {
+      console.error('Failed to decrypt message:', stored.id)
+      return null
+    }
+
+    // Check if message has expired (NIP-40)
+    if (isMessageExpired(unwrapped.expiration)) {
+      return null // Don't return expired messages
+    }
+
+    return {
+      id: stored.id,
+      pubkey: stored.pubkey,
+      recipientPubkey: stored.recipientPubkey,
+      content: unwrapped.content,
+      createdAt: stored.createdAt,
+      status: stored.status,
+      isOutgoing: stored.isOutgoing,
+      encryptedEvent: stored.encryptedEvent,
+      expiration: unwrapped.expiration
+    }
+  } catch (error) {
+    console.error('Failed to parse/decrypt message:', error)
+    return null
+  }
+}
 
 interface MessageState {
   messages: Map<string, Message[]> // Keyed by contact pubkey
@@ -25,7 +67,7 @@ interface MessageState {
   isLoading: boolean
 
   // Actions
-  initialize: (userPubkey: string) => Promise<void>
+  initialize: (userPubkey: string, userPrivateKey: string) => Promise<void>
   sendMessage: (recipientPubkey: string, content: string, senderPrivateKey: string) => Promise<void>
   sendFileMessage: (recipientPubkey: string, file: File, caption: string | undefined, senderPrivateKey: string) => Promise<void>
   subscribeToMessages: (userPubkey: string, userPrivateKey: string) => () => void
@@ -42,18 +84,28 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   activeChat: null,
   isLoading: false,
 
-  initialize: async (_userPubkey: string) => {
+  initialize: async (_userPubkey: string, userPrivateKey: string) => {
     set({ isLoading: true })
 
     try {
       // Cleanup old deleted message IDs (90+ days old)
       await cleanupDeletedMessages()
 
-      // Load messages from local DB
-      const allMessages = await getAllMessages()
-      const messageMap = new Map<string, Message[]>()
+      // Cleanup expired messages (NIP-40)
+      await cleanupExpiredMessages()
 
-      allMessages.forEach(msg => {
+      // Load encrypted messages from local DB
+      const storedMessages = await getAllMessages()
+
+      // Decrypt all messages
+      const decryptedMessages = await Promise.all(
+        storedMessages.map(stored => decryptStoredMessage(stored, userPrivateKey))
+      )
+
+      // Filter out failed decryptions and build message map
+      const messageMap = new Map<string, Message[]>()
+      decryptedMessages.forEach(msg => {
+        if (!msg) return
         const contactPubkey = msg.isOutgoing ? msg.recipientPubkey : msg.pubkey
         const existing = messageMap.get(contactPubkey) || []
         messageMap.set(contactPubkey, [...existing, msg].sort((a, b) => a.createdAt - b.createdAt))
@@ -86,7 +138,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const tempId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
 
-    // Create optimistic message
+    // Get expiration setting for this contact (NIP-40)
+    const expirationSeconds = useContactStore.getState().getExpiration(recipientPubkey)
+    const expiration = expirationSeconds > 0 ? now + expirationSeconds : undefined
+
+    // Create optimistic message (encryptedEvent will be set after creation)
     const message: Message = {
       id: tempId,
       pubkey: '', // Will be set from keys
@@ -94,7 +150,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       content,
       createdAt: now,
       status: 'sending',
-      isOutgoing: true
+      isOutgoing: true,
+      encryptedEvent: '', // Placeholder, will be set after gift wrap creation
+      expiration
     }
 
     // Add to state optimistically
@@ -107,11 +165,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     updateChats(get, set, recipientPubkey, message)
 
     try {
-      // Create gift-wrapped message
-      const giftWrap = await createGiftWrap(content, recipientPubkey, senderPrivateKey)
+      // Create gift-wrapped message with expiration
+      const giftWrapOptions = expiration ? { expiration } : undefined
+      const giftWrap = await createGiftWrap(content, recipientPubkey, senderPrivateKey, giftWrapOptions)
 
-      // Create self-addressed copy
-      const selfGiftWrap = await createSelfGiftWrap(content, recipientPubkey, senderPrivateKey)
+      // Create self-addressed copy (this is what we store - we can decrypt it with our own key)
+      const selfGiftWrap = await createSelfGiftWrap(content, recipientPubkey, senderPrivateKey, giftWrapOptions)
 
       // Get recipient's preferred DM relays (NIP-17 Kind 10050)
       const recipientDMRelays = await useRelayStore.getState().getDMRelays(recipientPubkey)
@@ -129,11 +188,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         relayPool.publish(connectedRelays, selfGiftWrap as unknown as Event) // Self copy only to our relays
       ])
 
-      // Update message status
+      // Update message with self gift wrap (encrypted event we can decrypt)
       const updatedMessage: Message = {
         ...message,
         id: giftWrap.id,
-        status: result1.successes.length > 0 ? 'sent' : 'failed'
+        status: result1.successes.length > 0 ? 'sent' : 'failed',
+        encryptedEvent: JSON.stringify(selfGiftWrap) // Store self-addressed gift wrap
       }
 
       await saveMessageToDB(updatedMessage)
@@ -164,6 +224,10 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const tempId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
 
+    // Get expiration setting for this contact (NIP-40)
+    const expirationSeconds = useContactStore.getState().getExpiration(recipientPubkey)
+    const expiration = expirationSeconds > 0 ? now + expirationSeconds : undefined
+
     // Create optimistic message with placeholder
     const message: Message = {
       id: tempId,
@@ -172,7 +236,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       content: caption ? `📷 ${caption}` : '📷 Uploading...',
       createdAt: now,
       status: 'sending',
-      isOutgoing: true
+      isOutgoing: true,
+      encryptedEvent: '', // Placeholder
+      expiration
     }
 
     // Add to state optimistically
@@ -185,9 +251,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       // Compress image if needed
       const compressedFile = await compressImage(file)
+      console.log('[FileMessage] Compressed file:', compressedFile.size, 'bytes')
 
       // Upload encrypted file to nostr.build (encrypted with recipient's pubkey)
       const uploadResult = await uploadFile(compressedFile, senderPrivateKey, recipientPubkey)
+      console.log('[FileMessage] Upload result:', uploadResult)
 
       // Create file metadata for Kind 15
       const fileMetadata: FileMetadata = {
@@ -200,8 +268,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         encrypted: true
       }
 
-      // Create file gift wrap (Kind 15)
-      const giftWrap = await createFileGiftWrap(fileMetadata, recipientPubkey, senderPrivateKey)
+      // Create file gift wrap (Kind 15) with expiration
+      const giftWrapOptions = expiration ? { expiration } : undefined
+      const giftWrap = await createFileGiftWrap(fileMetadata, recipientPubkey, senderPrivateKey, giftWrapOptions)
 
       // Create file metadata JSON for storing in content
       const fileData = JSON.stringify({
@@ -214,7 +283,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       const selfContent = caption
         ? `${caption}\n[file:${fileData}]`
         : `[file:${fileData}]`
-      const selfGiftWrap = await createSelfGiftWrap(selfContent, recipientPubkey, senderPrivateKey)
+      const selfGiftWrap = await createSelfGiftWrap(selfContent, recipientPubkey, senderPrivateKey, giftWrapOptions)
 
       // Get recipient's preferred DM relays
       const recipientDMRelays = await useRelayStore.getState().getDMRelays(recipientPubkey)
@@ -226,10 +295,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       await Promise.all(newRelays.map(r => relayPool.connect(r)))
 
       // Publish
-      const [result1] = await Promise.all([
+      console.log('[FileMessage] Publishing to relays:', allTargetRelays)
+      const [result1, result2] = await Promise.all([
         relayPool.publish(allTargetRelays, giftWrap as unknown as Event),
         relayPool.publish(connectedRelays, selfGiftWrap as unknown as Event)
       ])
+      console.log('[FileMessage] Publish results:', { recipient: result1, self: result2 })
 
       // Update message with final content and status
       const finalFileData = JSON.stringify({
@@ -245,10 +316,13 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         ...message,
         id: giftWrap.id,
         content: finalContent,
-        status: result1.successes.length > 0 ? 'sent' : 'failed'
+        status: result1.successes.length > 0 ? 'sent' : 'failed',
+        encryptedEvent: JSON.stringify(selfGiftWrap) // Store self-addressed gift wrap
       }
 
+      console.log('[FileMessage] Saving message to DB:', updatedMessage.id, 'status:', updatedMessage.status)
       await saveMessageToDB(updatedMessage)
+      console.log('[FileMessage] Message saved successfully')
 
       const updatedMessages = get().messages
       const contactMessages = updatedMessages.get(recipientPubkey) || []
@@ -300,6 +374,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           // Skip own messages (already handled locally)
           if (unwrapped.senderPubkey === userPubkey) return
 
+          // Check if message has expired (NIP-40)
+          if (isMessageExpired(unwrapped.expiration)) {
+            return // Don't process expired messages
+          }
+
+          // Store the encrypted event (the original gift-wrap we received)
           const message: Message = {
             id: event.id,
             pubkey: unwrapped.senderPubkey,
@@ -307,7 +387,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
             content: unwrapped.content,
             createdAt: unwrapped.createdAt,
             status: 'delivered',
-            isOutgoing: false
+            isOutgoing: false,
+            encryptedEvent: JSON.stringify(event), // Store the gift-wrap event
+            expiration: unwrapped.expiration // NIP-40: Store expiration for filtering
           }
 
           // Check if message already exists
@@ -327,10 +409,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
             const contact = await getContact(unwrapped.senderPubkey)
             const senderName = contact?.name || truncateKey(unwrapped.senderPubkey, 8)
 
-            notificationService.showMessageNotification(
-              senderName,
-              unwrapped.content,
-              unwrapped.senderPubkey
+            await notificationService.showMessageNotification(
+                senderName,
+                unwrapped.senderPubkey
             )
           }
         } catch (error) {
@@ -348,7 +429,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   getMessagesForContact: (pubkey: string) => {
-    return get().messages.get(pubkey) || []
+    const messages = get().messages.get(pubkey) || []
+    // Filter out expired messages (NIP-40)
+    return messages.filter(m => !isMessageExpired(m.expiration))
   },
 
   markAsRead: async (pubkey: string) => {

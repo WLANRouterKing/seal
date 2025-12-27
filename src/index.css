@@ -44,6 +44,28 @@ html, body, #root {
   width: 100%;
 }
 
+/* Safe area support for mobile devices (notches, status bars) */
+html {
+  /* Ensure the viewport extends to the edges */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Mantine AppShell safe area adjustments */
+.mantine-AppShell-header {
+  padding-top: env(safe-area-inset-top) !important;
+  height: calc(56px + env(safe-area-inset-top)) !important;
+}
+
+.mantine-AppShell-footer {
+  padding-bottom: env(safe-area-inset-bottom) !important;
+  height: calc(64px + env(safe-area-inset-bottom)) !important;
+}
+
+.mantine-AppShell-main {
+  padding-top: calc(56px + env(safe-area-inset-top)) !important;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);

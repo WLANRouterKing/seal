@@ -1,11 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-// Mock the crypto.subtle.digest before importing the module
+// Mock the crypto.subtle before importing the module
+const mockAesKey = { type: 'secret' }
 vi.stubGlobal('crypto', {
   ...globalThis.crypto,
   subtle: {
-    digest: vi.fn().mockResolvedValue(new Uint8Array(32).buffer)
-  }
+    digest: vi.fn().mockResolvedValue(new Uint8Array(32).buffer),
+    generateKey: vi.fn().mockResolvedValue(mockAesKey),
+    exportKey: vi.fn().mockResolvedValue(new Uint8Array(32).buffer),
+    importKey: vi.fn().mockResolvedValue(mockAesKey),
+    encrypt: vi.fn().mockResolvedValue(new Uint8Array(100).buffer),
+    decrypt: vi.fn().mockResolvedValue(new Uint8Array(50).buffer)
+  },
+  getRandomValues: vi.fn((arr: Uint8Array) => arr)
 })
 
 // Mock nostr-tools nip44
@@ -15,8 +22,8 @@ vi.mock('nostr-tools', () => ({
       utils: {
         getConversationKey: vi.fn().mockReturnValue(new Uint8Array(32))
       },
-      encrypt: vi.fn().mockReturnValue('encrypted-data'),
-      decrypt: vi.fn().mockReturnValue('base64data')
+      encrypt: vi.fn().mockReturnValue('encrypted-key-data'),
+      decrypt: vi.fn().mockReturnValue(btoa(String.fromCharCode(...new Uint8Array(32))))
     }
   },
   finalizeEvent: vi.fn().mockReturnValue({
@@ -58,7 +65,7 @@ describe('fileUpload', () => {
 
   describe('uploadFile', () => {
     it('should upload encrypted file to nostr.build and return result', async () => {
-      const testUrl = 'https://nostr.build/i/abc123.txt'
+      const testUrl = 'https://nostr.build/i/abc123.bin'
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -132,13 +139,24 @@ describe('fileUpload', () => {
   })
 
   describe('decryptFileData', () => {
-    it('should return decrypted data as ArrayBuffer', () => {
-      const encryptedData = 'encrypted-test-data'
+    it('should return decrypted data as ArrayBuffer', async () => {
+      // Create mock encrypted data with proper format:
+      // [4 bytes key length][encrypted key][12 bytes IV][encrypted data]
+      const encryptedKey = new TextEncoder().encode('encrypted-key-data')
+      const keyLength = encryptedKey.length
+      const iv = new Uint8Array(12)
+      const encryptedFileData = new Uint8Array(50)
+
+      const mockData = new Uint8Array(4 + keyLength + 12 + 50)
+      new DataView(mockData.buffer).setUint32(0, keyLength, false)
+      mockData.set(encryptedKey, 4)
+      mockData.set(iv, 4 + keyLength)
+      mockData.set(encryptedFileData, 4 + keyLength + 12)
+
       const privateKey = '0'.repeat(64)
       const senderPubkey = '1'.repeat(64)
 
-      // Mock returns 'base64data' which atob can decode
-      const result = decryptFileData(encryptedData, privateKey, senderPubkey)
+      const result = await decryptFileData(mockData.buffer, privateKey, senderPubkey)
 
       // Should return an ArrayBuffer
       expect(result).toBeInstanceOf(ArrayBuffer)
@@ -152,7 +170,7 @@ describe('uploadFile hash calculation', () => {
       ok: true,
       json: async () => ({
         status: 'success',
-        data: [{ url: 'https://nostr.build/i/test.txt' }]
+        data: [{ url: 'https://nostr.build/i/test.bin' }]
       })
     })
 

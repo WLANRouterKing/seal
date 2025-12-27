@@ -20,6 +20,9 @@ interface ContactState {
   updateContact: (pubkey: string, updates: Partial<Contact>) => Promise<void>
   fetchProfile: (pubkey: string) => Promise<void>
   clearError: () => void
+  // NIP-40 Expiration
+  setExpiration: (pubkey: string, seconds: number) => Promise<void>
+  getExpiration: (pubkey: string) => number
 }
 
 export const useContactStore = create<ContactState>((set, get) => ({
@@ -139,5 +142,32 @@ export const useContactStore = create<ContactState>((set, get) => ({
     )
   },
 
-  clearError: () => set({ error: null })
+  clearError: () => set({ error: null }),
+
+  // NIP-40: Set message expiration for a contact
+  setExpiration: async (pubkey: string, seconds: number) => {
+    const contact = get().contacts.find(c => c.pubkey === pubkey)
+    if (contact) {
+      await get().updateContact(pubkey, { expirationSeconds: seconds })
+    } else {
+      // Contact doesn't exist yet - create it with just the expiration setting
+      const npub = pubkeyToNpub(pubkey)
+      const newContact: Contact = {
+        pubkey,
+        npub,
+        createdAt: Math.floor(Date.now() / 1000),
+        expirationSeconds: seconds
+      }
+      await saveContactToDB(newContact)
+      set({ contacts: [...get().contacts, newContact] })
+      // Fetch profile in background
+      get().fetchProfile(pubkey)
+    }
+  },
+
+  // NIP-40: Get message expiration for a contact (0 = no expiration)
+  getExpiration: (pubkey: string) => {
+    const contact = get().contacts.find(c => c.pubkey === pubkey)
+    return contact?.expirationSeconds ?? 0
+  }
 }))

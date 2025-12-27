@@ -48,7 +48,7 @@ function App() {
   useEffect(() => {
     if (keys) {
       initContacts()
-      initMessages(keys.publicKey)
+      initMessages(keys.publicKey, keys.privateKey)
     }
   }, [keys])
 

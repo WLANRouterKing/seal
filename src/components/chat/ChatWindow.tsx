@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Stack, Group, Text, Avatar, ActionIcon, Box, Paper, ScrollArea, Center } from '@mantine/core'
-import { IconArrowLeft } from '@tabler/icons-react'
+import { Stack, Group, Text, Avatar, ActionIcon, Box, Paper, ScrollArea, Center, Menu, Tooltip } from '@mantine/core'
+import { IconArrowLeft, IconClock, IconClockOff } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useMessageStore } from '../../stores/messageStore'
-import type { Contact } from '../../types'
+import { useContactStore } from '../../stores/contactStore'
+import { type Contact, EXPIRATION_OPTIONS } from '../../types'
 import { truncateKey } from '../../utils/format'
 import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
@@ -19,10 +20,16 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
   const { t } = useTranslation()
   const { keys } = useAuthStore()
   const { getMessagesForContact, sendMessage, sendFileMessage, deleteMessage } = useMessageStore()
+  const { contacts, setExpiration } = useContactStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const messages = getMessagesForContact(contactPubkey)
   const displayName = contact?.name || truncateKey(contactPubkey, 8)
+
+  // Get expiration from contact in store (reactive)
+  const storedContact = contacts.find(c => c.pubkey === contactPubkey)
+  const currentExpiration = storedContact?.expirationSeconds ?? 0
+  const expirationLabel = EXPIRATION_OPTIONS.find(o => o.value === currentExpiration)?.label || 'Off'
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -61,6 +68,33 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
               <Text size="xs" c="dimmed" truncate>{contact.nip05}</Text>
             )}
           </Box>
+
+          {/* Disappearing messages timer */}
+          <Menu shadow="md" width={160} position="bottom-end">
+            <Menu.Target>
+              <Tooltip label={`${t('chat.disappearingMessages')}: ${expirationLabel}`} position="left">
+                <ActionIcon
+                  variant={currentExpiration > 0 ? 'light' : 'subtle'}
+                  color={currentExpiration > 0 ? 'cyan' : 'gray'}
+                >
+                  {currentExpiration > 0 ? <IconClock size={20} /> : <IconClockOff size={20} />}
+                </ActionIcon>
+              </Tooltip>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Label>{t('chat.disappearingMessages')}</Menu.Label>
+              {EXPIRATION_OPTIONS.map((option) => (
+                <Menu.Item
+                  key={option.value}
+                  onClick={() => setExpiration(contactPubkey, option.value)}
+                  color={option.value === currentExpiration ? 'cyan' : undefined}
+                  fw={option.value === currentExpiration ? 600 : undefined}
+                >
+                  {option.label}
+                </Menu.Item>
+              ))}
+            </Menu.Dropdown>
+          </Menu>
         </Group>
       </Paper>
 

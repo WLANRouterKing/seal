@@ -88,7 +88,8 @@
     "imageError": "Please select an image file",
     "imageFailed": "Failed to process image. Try a smaller file.",
     "deleteChat": "Delete Chat",
-    "deleteChatConfirm": "Are you sure you want to delete this entire conversation? This cannot be undone."
+    "deleteChatConfirm": "Are you sure you want to delete this entire conversation? This cannot be undone.",
+    "disappearingMessages": "Disappearing messages"
   },
   "contacts": {
     "title": "Contacts",

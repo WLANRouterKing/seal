@@ -1,4 +1,4 @@
-import { Relay, type Filter, type Event } from 'nostr-tools'
+import { Relay, type Filter, type Event, verifyEvent } from 'nostr-tools'
 import type { Relay as RelayType } from '../types'
 
 interface Subscription {
@@ -119,11 +119,21 @@ class RelayPool {
     let eoseCount = 0
     const expectedEose = urls.filter((url) => this.connections.get(url)?.status === 'connected').length
 
+    // Wrapper to validate events before passing to callback
+    const validatedOnEvent = (event: Event) => {
+      // Verify event signature and structure
+      if (!verifyEvent(event)) {
+        console.warn('Rejected invalid event:', event.id?.slice(0, 8))
+        return
+      }
+      onEvent(event)
+    }
+
     for (const url of urls) {
       const conn = this.connections.get(url)
       if (conn?.status === 'connected' && conn.relay) {
         const sub = conn.relay.subscribe(filters, {
-          onevent: onEvent,
+          onevent: validatedOnEvent,
           oneose: () => {
             eoseCount++
             if (eoseCount >= expectedEose && onEose) {
