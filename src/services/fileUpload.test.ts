@@ -64,13 +64,15 @@ describe('fileUpload', () => {
   })
 
   describe('uploadFile', () => {
-    it('should upload encrypted file to nostr.build and return result', async () => {
-      const testUrl = 'https://nostr.build/i/abc123.bin'
+    it('should upload encrypted file via Blossom and return result', async () => {
+      const testUrl = 'https://blossom.primal.net/abc123.bin'
+      // Blossom upload succeeds
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          status: 'success',
-          data: [{ url: testUrl }]
+          url: testUrl,
+          sha256: 'abc123',
+          size: 100
         })
       })
 
@@ -81,10 +83,9 @@ describe('fileUpload', () => {
       const result = await uploadFile(file, privateKey, recipientPubkey)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://nostr.build/api/v2/upload/files',
+        'https://blossom.primal.net/upload',
         expect.objectContaining({
-          method: 'POST',
-          body: expect.any(FormData)
+          method: 'PUT'
         })
       )
       expect(result.url).toBe(testUrl)
@@ -92,26 +93,35 @@ describe('fileUpload', () => {
       expect(result.encrypted).toBe(true)
     })
 
-    it('should throw error on failed upload', async () => {
-      mockFetch.mockResolvedValueOnce({
+    it('should throw error when all upload endpoints fail', async () => {
+      // All endpoints fail (Blossom + NIP-96)
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
-        statusText: 'Internal Server Error'
+        text: async () => 'Server error'
       })
 
       const file = createMockFile('test', 'test.png', 'image/png')
       const privateKey = '0'.repeat(64)
       const recipientPubkey = '1'.repeat(64)
 
-      await expect(uploadFile(file, privateKey, recipientPubkey)).rejects.toThrow('nostr.build upload failed: 500')
+      await expect(uploadFile(file, privateKey, recipientPubkey)).rejects.toThrow('All upload endpoints failed')
     })
 
-    it('should throw error on invalid response', async () => {
+    it('should fallback to NIP-96 when Blossom fails', async () => {
+      const testUrl = 'https://nostr.build/i/test.bin'
+
+      // Blossom endpoints fail
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'error' })
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'error' })
+
+      // NIP-96 (nostr.build) succeeds
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          status: 'error',
-          message: 'File too large'
+          nip94_event: {
+            tags: [['url', testUrl]]
+          }
         })
       })
 
@@ -119,7 +129,10 @@ describe('fileUpload', () => {
       const privateKey = '0'.repeat(64)
       const recipientPubkey = '1'.repeat(64)
 
-      await expect(uploadFile(file, privateKey, recipientPubkey)).rejects.toThrow('Invalid response')
+      const result = await uploadFile(file, privateKey, recipientPubkey)
+
+      expect(result.url).toBe(testUrl)
+      expect(result.encrypted).toBe(true)
     })
   })
 
@@ -166,11 +179,13 @@ describe('fileUpload', () => {
 
 describe('uploadFile hash calculation', () => {
   it('should return a hash in the result', async () => {
+    // Mock Blossom success
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        status: 'success',
-        data: [{ url: 'https://nostr.build/i/test.bin' }]
+        url: 'https://blossom.primal.net/test.bin',
+        sha256: 'abc123',
+        size: 100
       })
     })
 
