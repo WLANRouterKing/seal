@@ -32,3 +32,9 @@ export const NIP17_KIND = {
   FILE_MESSAGE: 15,    // Encrypted file message
   DM_RELAYS: 10050     // User's preferred DM relays
 } as const
+
+// NIP-62: Request to Vanish
+// https://github.com/nostr-protocol/nips/blob/master/62.md
+export const NIP62_KIND = {
+  VANISH: 62
+} as const

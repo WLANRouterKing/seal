@@ -7,7 +7,7 @@ import {
   type Event
 } from 'nostr-tools'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
-import { NIP17_KIND } from '../utils/constants'
+import { NIP17_KIND, NIP62_KIND } from '../utils/constants'
 
 // NIP-17 Gift-Wrapped Direct Messages
 // https://github.com/nostr-protocol/nips/blob/master/17.md
@@ -443,6 +443,38 @@ export function parseFileMetadata(rumor: Rumor): FileMetadata | null {
     thumb: getTag('thumb'),
     caption: rumor.content || undefined
   }
+}
+
+// NIP-62: Request to Vanish
+// https://github.com/nostr-protocol/nips/blob/master/62.md
+// Requests relays to delete all events from this pubkey
+
+export interface VanishRequestOptions {
+  relays?: string[]  // Specific relays to request deletion from, or empty for ALL_RELAYS
+  reason?: string    // Optional reason for the vanish request
+}
+
+export function createVanishRequest(
+  privateKey: string,
+  options?: VanishRequestOptions
+): Event {
+  const privateKeyBytes = hexToBytes(privateKey)
+  const pubkey = getPublicKey(privateKeyBytes)
+
+  // Build relay tags - either specific relays or ALL_RELAYS
+  const relayTags: string[][] = options?.relays?.length
+    ? options.relays.map(relay => ['relay', relay])
+    : [['relay', 'ALL_RELAYS']]
+
+  const event: UnsignedEvent = {
+    kind: NIP62_KIND.VANISH,
+    content: options?.reason || '',
+    tags: relayTags,
+    created_at: Math.floor(Date.now() / 1000),
+    pubkey
+  }
+
+  return finalizeEvent(event, privateKeyBytes)
 }
 
 // Export utility for getting hex from nsec
