@@ -174,6 +174,11 @@
     "currentPasswordPlaceholder": "Enter current password",
     "removing": "Removing...",
     "removePasswordButton": "Remove Password",
+    "hideIdentity": "Hide Identity",
+    "hideIdentityHint": "Encrypt your public key in the database",
+    "hideIdentityConfirmTitle": "Confirm Password",
+    "hideIdentityConfirmEnable": "Your public key will be encrypted. Without your password, no one can see whose Seal this is.",
+    "hideIdentityConfirmDisable": "Your public key will be visible in the database again.",
     "errors": {
       "tooShort": "Password must be at least 6 characters",
       "noMatch": "Passwords do not match",

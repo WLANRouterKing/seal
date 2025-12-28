@@ -14,6 +14,8 @@ import {
   Button,
   PasswordInput,
   Anchor,
+  Switch,
+  Modal,
 } from '@mantine/core'
 import {
   IconArrowLeft,
@@ -24,6 +26,7 @@ import {
   IconExternalLink,
   IconAlertTriangle,
   IconInfoCircle,
+  IconEyeOff,
 } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -33,9 +36,33 @@ interface SecuritySettingsProps {
 
 export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
   const { t } = useTranslation()
-  const { hasPassword, lock } = useAuthStore()
+  const { hasPassword, lock, hideIdentity, setHideIdentity } = useAuthStore()
   const [showSetPassword, setShowSetPassword] = useState(false)
   const [showRemovePassword, setShowRemovePassword] = useState(false)
+  const [showHideIdentityModal, setShowHideIdentityModal] = useState(false)
+  const [pendingHideIdentity, setPendingHideIdentity] = useState(false)
+  const [hideIdentityPassword, setHideIdentityPassword] = useState('')
+  const [hideIdentityError, setHideIdentityError] = useState('')
+  const [hideIdentityLoading, setHideIdentityLoading] = useState(false)
+
+  const handleHideIdentityToggle = (checked: boolean) => {
+    setPendingHideIdentity(checked)
+    setShowHideIdentityModal(true)
+    setHideIdentityPassword('')
+    setHideIdentityError('')
+  }
+
+  const confirmHideIdentity = async () => {
+    setHideIdentityLoading(true)
+    setHideIdentityError('')
+    const success = await setHideIdentity(pendingHideIdentity, hideIdentityPassword)
+    setHideIdentityLoading(false)
+    if (success) {
+      setShowHideIdentityModal(false)
+    } else {
+      setHideIdentityError(t('securitySettings.errors.incorrect'))
+    }
+  }
 
   if (showSetPassword) {
     return (
@@ -144,6 +171,26 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
                   </Box>
                 </Group>
               </UnstyledButton>
+
+              {/* Hide Identity Toggle */}
+              <Box px="md" py="sm">
+                <Group justify="space-between">
+                  <Group gap="sm">
+                    <ThemeIcon variant="light" color="violet" size={40} radius="md">
+                      <IconEyeOff size={20} />
+                    </ThemeIcon>
+                    <Box>
+                      <Text fw={500}>{t('securitySettings.hideIdentity')}</Text>
+                      <Text size="xs" c="dimmed">{t('securitySettings.hideIdentityHint')}</Text>
+                    </Box>
+                  </Group>
+                  <Switch
+                    checked={hideIdentity}
+                    onChange={(e) => handleHideIdentityToggle(e.currentTarget.checked)}
+                    color="violet"
+                  />
+                </Group>
+              </Box>
             </Stack>
           )}
         </Box>
@@ -187,6 +234,47 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
           </Alert>
         </Box>
       </ScrollArea>
+
+      {/* Hide Identity Password Confirmation Modal */}
+      <Modal
+        opened={showHideIdentityModal}
+        onClose={() => setShowHideIdentityModal(false)}
+        title={t('securitySettings.hideIdentityConfirmTitle')}
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {pendingHideIdentity
+              ? t('securitySettings.hideIdentityConfirmEnable')
+              : t('securitySettings.hideIdentityConfirmDisable')}
+          </Text>
+          <PasswordInput
+            label={t('securitySettings.currentPasswordLabel')}
+            placeholder={t('securitySettings.currentPasswordPlaceholder')}
+            value={hideIdentityPassword}
+            onChange={(e) => setHideIdentityPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          {hideIdentityError && (
+            <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+              {hideIdentityError}
+            </Alert>
+          )}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setShowHideIdentityModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              color="violet"
+              onClick={confirmHideIdentity}
+              loading={hideIdentityLoading}
+              disabled={!hideIdentityPassword}
+            >
+              {t('common.save')}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   )
 }

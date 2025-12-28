@@ -6,9 +6,10 @@ import { isEncryptionUnlocked } from './encryptionKeyManager'
 
 interface EncryptedKeys {
   encrypted: string
-  publicKey: string
-  npub: string
+  publicKey?: string // Optional when identityHidden is true
+  npub?: string // Optional when identityHidden is true
   dbSalt?: string // Base64-encoded salt for DB encryption
+  identityHidden?: boolean // When true, publicKey/npub are inside encrypted blob
 }
 
 interface NostrChatDB extends DBSchema {

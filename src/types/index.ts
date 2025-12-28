@@ -67,4 +67,5 @@ export interface AppSettings {
   notificationsEnabled?: boolean
   relays?: string[]
   setupComplete?: boolean
+  hideIdentity?: boolean // When true, npub/publicKey are also encrypted
 }

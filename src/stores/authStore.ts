@@ -12,6 +12,7 @@ interface AuthState {
   isInitialized: boolean
   hasPassword: boolean
   setupComplete: boolean
+  hideIdentity: boolean
   publicInfo: { publicKey: string; npub: string } | null
   error: string | null
 
@@ -26,6 +27,7 @@ interface AuthState {
   setPassword: (password: string) => Promise<boolean>
   removePassword: (currentPassword: string) => Promise<boolean>
   completeSetup: () => Promise<void>
+  setHideIdentity: (hide: boolean, password: string) => Promise<boolean>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -35,6 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isInitialized: false,
   hasPassword: false,
   setupComplete: true, // Default true, will be set to false for new accounts
+  hideIdentity: false,
   publicInfo: null,
   error: null,
 
@@ -47,17 +50,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const setupComplete = settings?.setupComplete !== false
 
       if (!storedKeys) {
-        set({ isLoading: false, isInitialized: true, setupComplete: true })
+        set({ isLoading: false, isInitialized: true, setupComplete: true, hideIdentity: false })
         return
       }
 
       if (isEncryptedKeys(storedKeys)) {
         // Keys are encrypted - need password to unlock
+        const identityHidden = storedKeys.identityHidden === true
         set({
           isLocked: true,
           hasPassword: true,
           setupComplete,
-          publicInfo: { publicKey: storedKeys.publicKey, npub: storedKeys.npub },
+          hideIdentity: identityHidden,
+          // Only show publicInfo if identity is not hidden
+          publicInfo: identityHidden ? null : { publicKey: storedKeys.publicKey!, npub: storedKeys.npub! },
           isLoading: false,
           isInitialized: true
         })
@@ -66,6 +72,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           keys: storedKeys,
           hasPassword: false,
+          hideIdentity: false,
           setupComplete,
           isLoading: false,
           isInitialized: true
@@ -146,9 +153,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   unlock: async (password: string) => {
-    const { publicInfo } = get()
-    if (!publicInfo) return false
-
     set({ isLoading: true, error: null })
 
     try {
@@ -164,12 +168,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return false
       }
 
-      const { privateKey, nsec } = JSON.parse(decrypted)
-      const keys: NostrKeys = {
-        privateKey,
-        nsec,
-        publicKey: storedKeys.publicKey,
-        npub: storedKeys.npub
+      const decryptedData = JSON.parse(decrypted)
+      let keys: NostrKeys
+
+      if (storedKeys.identityHidden) {
+        // All keys are in the encrypted blob
+        keys = {
+          privateKey: decryptedData.privateKey,
+          nsec: decryptedData.nsec,
+          publicKey: decryptedData.publicKey,
+          npub: decryptedData.npub
+        }
+      } else {
+        // publicKey and npub are stored separately
+        keys = {
+          privateKey: decryptedData.privateKey,
+          nsec: decryptedData.nsec,
+          publicKey: storedKeys.publicKey!,
+          npub: storedKeys.npub!
+        }
       }
 
       // Set up DB encryption key
@@ -204,14 +221,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   lock: () => {
-    const { hasPassword, keys } = get()
+    const { hasPassword, keys, hideIdentity } = get()
     if (hasPassword && keys) {
       // Clear DB encryption key
       clearEncryptionKey()
       set({
         keys: null,
         isLocked: true,
-        publicInfo: { publicKey: keys.publicKey, npub: keys.npub }
+        // Only store publicInfo if identity is not hidden
+        publicInfo: hideIdentity ? null : { publicKey: keys.publicKey, npub: keys.npub }
       })
     }
   },
@@ -228,7 +246,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setPassword: async (password: string) => {
-    const { keys } = get()
+    const { keys, hideIdentity } = get()
     if (!keys) return false
 
     try {
@@ -242,17 +260,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Migrate existing data to encrypted format
       await migrateToEncrypted()
 
-      // Encrypt private keys
-      const encrypted = await encryptWithPassword(
-        JSON.stringify({ privateKey: keys.privateKey, nsec: keys.nsec }),
-        password
-      )
-      const encryptedKeys: EncryptedKeys = {
-        encrypted,
-        publicKey: keys.publicKey,
-        npub: keys.npub,
-        dbSalt: btoa(String.fromCharCode(...dbSalt))
-      }
+      // Encrypt keys - include publicKey/npub if hideIdentity is enabled
+      const dataToEncrypt = hideIdentity
+        ? { privateKey: keys.privateKey, nsec: keys.nsec, publicKey: keys.publicKey, npub: keys.npub }
+        : { privateKey: keys.privateKey, nsec: keys.nsec }
+
+      const encrypted = await encryptWithPassword(JSON.stringify(dataToEncrypt), password)
+
+      const encryptedKeys: EncryptedKeys = hideIdentity
+        ? {
+            encrypted,
+            dbSalt: btoa(String.fromCharCode(...dbSalt)),
+            identityHidden: true
+          }
+        : {
+            encrypted,
+            publicKey: keys.publicKey,
+            npub: keys.npub,
+            dbSalt: btoa(String.fromCharCode(...dbSalt))
+          }
+
       await saveKeys(encryptedKeys)
       set({ hasPassword: true })
       return true
@@ -295,5 +322,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   completeSetup: async () => {
     await saveSettings({ setupComplete: true })
     set({ setupComplete: true })
+  },
+
+  setHideIdentity: async (hide: boolean, password: string) => {
+    const { keys, hasPassword } = get()
+    if (!keys || !hasPassword) return false
+
+    try {
+      // Verify password first
+      const storedKeys = await loadKeys()
+      if (!storedKeys || !isEncryptedKeys(storedKeys)) return false
+
+      const decrypted = await decryptWithPassword(storedKeys.encrypted, password)
+      if (!decrypted) return false
+
+      // Re-encrypt with new identity setting
+      const dataToEncrypt = hide
+        ? { privateKey: keys.privateKey, nsec: keys.nsec, publicKey: keys.publicKey, npub: keys.npub }
+        : { privateKey: keys.privateKey, nsec: keys.nsec }
+
+      const encrypted = await encryptWithPassword(JSON.stringify(dataToEncrypt), password)
+
+      const encryptedKeys: EncryptedKeys = hide
+        ? {
+            encrypted,
+            dbSalt: storedKeys.dbSalt,
+            identityHidden: true
+          }
+        : {
+            encrypted,
+            publicKey: keys.publicKey,
+            npub: keys.npub,
+            dbSalt: storedKeys.dbSalt
+          }
+
+      await saveKeys(encryptedKeys)
+      await saveSettings({ hideIdentity: hide })
+      set({ hideIdentity: hide })
+      return true
+    } catch (error) {
+      console.error('Failed to set hide identity:', error)
+      return false
+    }
   }
 }))
