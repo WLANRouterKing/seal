@@ -98,7 +98,7 @@ class RelayPool {
         if (conn.relay) {
           try {
             conn.relay.close()
-          } catch (e) {
+          } catch {
             // Ignore close errors
           }
         }

@@ -437,7 +437,7 @@ export class WebRTCSync {
               }
               break
 
-            case 'done':
+            case 'done': {
               // Reassemble data
               let result = ''
               for (let i = 0; i < totalChunks; i++) {
@@ -451,6 +451,7 @@ export class WebRTCSync {
               this.onDataReceived = originalHandler
               resolve(result)
               break
+            }
 
             case 'error':
               this.onDataReceived = originalHandler

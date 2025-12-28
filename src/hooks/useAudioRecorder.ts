@@ -71,28 +71,36 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderActions] {
     }
   }, [cleanup, audioUrl])
 
-  // Waveform analysis
-  const analyzeWaveform = useCallback(() => {
-    if (!analyserRef.current || !isRecording || isPaused) return
+  // Waveform analysis - use ref to avoid self-reference issue
+  const analyzeWaveformRef = useRef<() => void>(() => {})
 
-    const bufferLength = analyserRef.current.frequencyBinCount
-    const dataArray = new Uint8Array(bufferLength)
-    analyserRef.current.getByteFrequencyData(dataArray)
+  useEffect(() => {
+    analyzeWaveformRef.current = () => {
+      if (!analyserRef.current || !isRecording || isPaused) return
 
-    // Calculate average amplitude (0-1)
-    const average = dataArray.reduce((a, b) => a + b, 0) / bufferLength / 255
+      const bufferLength = analyserRef.current.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+      analyserRef.current.getByteFrequencyData(dataArray)
 
-    setWaveform(prev => {
-      const newWaveform = [...prev, average]
-      // Keep last 50 samples for visualization
-      if (newWaveform.length > 50) {
-        return newWaveform.slice(-50)
-      }
-      return newWaveform
-    })
+      // Calculate average amplitude (0-1)
+      const average = dataArray.reduce((a, b) => a + b, 0) / bufferLength / 255
 
-    animationRef.current = requestAnimationFrame(analyzeWaveform)
+      setWaveform(prev => {
+        const newWaveform = [...prev, average]
+        // Keep last 50 samples for visualization
+        if (newWaveform.length > 50) {
+          return newWaveform.slice(-50)
+        }
+        return newWaveform
+      })
+
+      animationRef.current = requestAnimationFrame(analyzeWaveformRef.current)
+    }
   }, [isRecording, isPaused])
+
+  const analyzeWaveform = useCallback(() => {
+    analyzeWaveformRef.current()
+  }, [])
 
   const startRecording = useCallback(async () => {
     try {

@@ -51,7 +51,8 @@ const updateSW = registerSW({
   }
 })
 
-function Root() {
+// Extracted to separate component for fast refresh compatibility
+export function Root() {
   const effectiveTheme = useThemeStore(state => state.getEffectiveTheme())
 
   return (

@@ -73,9 +73,7 @@ function randomizeTimestamp(timestamp: number, variance: number = 172800): numbe
   return timestamp - randomOffset
 }
 
-export interface GiftWrapOptions extends RumorOptions {
-  // Can be extended with more options
-}
+export type GiftWrapOptions = RumorOptions
 
 export async function createGiftWrap(
   content: string,
