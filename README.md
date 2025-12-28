@@ -1,5 +1,7 @@
 # Seal
 
+https://sealchat.app
+
 [![CI](https://github.com/WLANRouterKing/seal/actions/workflows/ci.yml/badge.svg)](https://github.com/WLANRouterKing/seal/actions/workflows/ci.yml)
 [![Security](https://github.com/WLANRouterKing/seal/actions/workflows/security.yml/badge.svg)](https://github.com/WLANRouterKing/seal/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

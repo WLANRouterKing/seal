@@ -219,9 +219,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     set({ isLoading: true })
     try {
-      // Clear ALL data from IndexedDB (keys, messages, contacts, settings, relays)
-      await clearAllData()
-
       // Force page reload to reset all in-memory state
       window.location.reload()
     } catch (error) {
