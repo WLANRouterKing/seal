@@ -237,5 +237,23 @@
     "connect": "Connect",
     "pasteAnswer": "Connection data (for manual setup)",
     "answerPlaceholder": "Paste connection data here..."
+  },
+  "deleteAccount": {
+    "title": "Delete Account",
+    "buttonHint": "Delete keys and request data removal",
+    "warning": "This action cannot be undone!",
+    "description": "This will delete your private keys from this device. Optionally, a vanish request (NIP-62) can be sent to all connected relays to request deletion of your data.",
+    "sendVanish": "Send vanish request to relays",
+    "sendVanishHint": "Request {{count}} connected relays to delete your data",
+    "confirmLabel": "I understand that this will permanently delete my account",
+    "deleteButton": "Delete Account",
+    "publishing": "Sending vanish request...",
+    "doNotClose": "Please do not close this window",
+    "done": "Account Deleted",
+    "publishResult": "Vanish request sent to {{successes}} relays ({{failures}} failed)",
+    "redirecting": "Redirecting...",
+    "error": "Failed to send vanish request",
+    "errorHint": "You can still delete your local data",
+    "deleteAnywayButton": "Delete Anyway"
   }
 }

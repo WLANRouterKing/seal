@@ -38,13 +38,15 @@ import SecuritySettings from '../components/settings/SecuritySettings'
 import LanguageSettings from '../components/settings/LanguageSettings'
 import { SyncModal } from '../components/sync/SyncModal'
 import MyQRCode from '../components/settings/MyQRCode'
+import DeleteAccountModal from '../components/settings/DeleteAccountModal'
 
 type SettingsView = 'main' | 'relays' | 'keys' | 'theme' | 'security' | 'language' | 'sync' | 'myqr'
 
 export default function Settings() {
   const { t, i18n } = useTranslation()
   const [view, setView] = useState<SettingsView>('main')
-  const { keys, logout, hasPassword } = useAuthStore()
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const { keys, hasPassword } = useAuthStore()
   const { relays } = useRelayStore()
   const { theme } = useThemeStore()
 
@@ -175,18 +177,23 @@ export default function Settings() {
             {t('settings.account')}
           </Text>
 
-          <UnstyledButton w="100%" onClick={logout} py="sm" px="md">
+          <UnstyledButton w="100%" onClick={() => setDeleteModalOpen(true)} py="sm" px="md">
             <Group gap="sm">
               <ThemeIcon variant="light" color="red" size={40} radius="md">
                 <IconLogout size={20} />
               </ThemeIcon>
               <Box>
-                <Text c="red" fw={500}>{t('settings.logout')}</Text>
-                <Text size="xs" c="dimmed">{t('settings.logoutHint')}</Text>
+                <Text c="red" fw={500}>{t('deleteAccount.title')}</Text>
+                <Text size="xs" c="dimmed">{t('deleteAccount.buttonHint')}</Text>
               </Box>
             </Group>
           </UnstyledButton>
         </Box>
+
+        <DeleteAccountModal
+          opened={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+        />
 
         {/* Footer */}
         <Box py="xl" ta="center">

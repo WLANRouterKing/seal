@@ -237,5 +237,23 @@
     "connect": "Verbinden",
     "pasteAnswer": "Verbindungsdaten (für manuelle Einrichtung)",
     "answerPlaceholder": "Verbindungsdaten hier einfügen..."
+  },
+  "deleteAccount": {
+    "title": "Konto löschen",
+    "buttonHint": "Keys löschen und Datenlöschung anfordern",
+    "warning": "Diese Aktion kann nicht rückgängig gemacht werden!",
+    "description": "Dies löscht deine privaten Keys von diesem Gerät. Optional kann eine Vanish-Anfrage (NIP-62) an alle verbundenen Relays gesendet werden, um die Löschung deiner Daten anzufordern.",
+    "sendVanish": "Vanish-Anfrage an Relays senden",
+    "sendVanishHint": "{{count}} verbundene Relays bitten, deine Daten zu löschen",
+    "confirmLabel": "Ich verstehe, dass dies mein Konto dauerhaft löscht",
+    "deleteButton": "Konto löschen",
+    "publishing": "Vanish-Anfrage wird gesendet...",
+    "doNotClose": "Bitte dieses Fenster nicht schließen",
+    "done": "Konto gelöscht",
+    "publishResult": "Vanish-Anfrage an {{successes}} Relays gesendet ({{failures}} fehlgeschlagen)",
+    "redirecting": "Weiterleitung...",
+    "error": "Vanish-Anfrage konnte nicht gesendet werden",
+    "errorHint": "Du kannst trotzdem deine lokalen Daten löschen",
+    "deleteAnywayButton": "Trotzdem löschen"
   }
 }
