@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Setup Java
@@ -44,7 +44,7 @@ jobs:
       - name: Create keystore.properties
         run: |
           cat > android/keystore.properties << EOF
-          storeFile=seal-release.keystore
+          storeFile=../seal-release.keystore
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyAlias=seal
           keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
