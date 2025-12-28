@@ -89,7 +89,7 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
             p={0}
             radius="lg"
             bg={isOutgoing ? 'cyan.6' : 'dark.5'}
-            maw="80%"
+            maw="20%"
             style={{
               borderBottomRightRadius: isOutgoing ? 4 : undefined,
               borderBottomLeftRadius: !isOutgoing ? 4 : undefined,
