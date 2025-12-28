@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,10 +39,17 @@ jobs:
           cd dist
           zip -r ../seal-${{ github.ref_name }}.zip .
 
+      - name: Generate Release Notes
+        uses: orhun/git-cliff-action@v4
+        id: changelog
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: seal-${{ github.ref_name }}.zip
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.content }}
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
