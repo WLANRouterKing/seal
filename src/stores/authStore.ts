@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { NostrKeys } from '../types'
-import { loadKeys, saveKeys, clearAllData, loadSettings, saveSettings, isEncryptedKeys, migrateToEncrypted, migrateToDecrypted, type EncryptedKeys } from '../services/db'
+import { loadKeys, saveKeys, loadSettings, saveSettings, isEncryptedKeys, migrateToEncrypted, migrateToDecrypted, type EncryptedKeys } from '../services/db'
 import { generateKeyPair, keysFromNsec } from '../services/keys'
 import { encryptWithPassword, decryptWithPassword, deriveKey, generateSalt } from '../services/encryption'
 import { setEncryptionKey, clearEncryptionKey } from '../services/encryptionKeyManager'
