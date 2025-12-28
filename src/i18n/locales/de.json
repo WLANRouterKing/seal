@@ -238,6 +238,11 @@
     "pasteAnswer": "Verbindungsdaten (für manuelle Einrichtung)",
     "answerPlaceholder": "Verbindungsdaten hier einfügen..."
   },
+  "voiceMessage": {
+    "ready": "Bereit zum Senden",
+    "recording": "Aufnahme...",
+    "microphoneError": "Mikrofonzugriff verweigert"
+  },
   "deleteAccount": {
     "title": "Konto löschen",
     "buttonHint": "Keys löschen und Datenlöschung anfordern",

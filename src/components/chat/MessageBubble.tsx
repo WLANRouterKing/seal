@@ -12,7 +12,7 @@ import {
   Center,
   ActionIcon,
 } from '@mantine/core'
-import { IconTrash, IconCheck, IconChecks, IconAlertCircle, IconX, IconClock } from '@tabler/icons-react'
+import { IconTrash, IconCheck, IconChecks, IconAlertCircle, IconX, IconClock, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react'
 import type { Message } from '../../types'
 import { formatTimestamp } from '../../utils/format'
 import { useAuthStore } from '../../stores/authStore'
@@ -37,7 +37,7 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
   const { t } = useTranslation()
   const { keys } = useAuthStore()
   const isOutgoing = message.isOutgoing
-  const { textContent, legacyImages, files } = parseContent(message.content)
+  const { textContent, legacyImages, imageFiles, audioFiles } = parseContent(message.content)
   const [menuOpened, setMenuOpened] = useState(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isExpired, setIsExpired] = useState(false)
@@ -110,12 +110,23 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
             ))}
 
             {/* Encrypted file images */}
-            {files.length > 0 && files.map((file, index) => (
+            {imageFiles.length > 0 && imageFiles.map((file, index) => (
               <EncryptedImage
                 key={`file-${index}`}
                 file={file}
                 privateKey={privateKey}
                 otherPubkey={otherPubkey}
+              />
+            ))}
+
+            {/* Audio messages */}
+            {audioFiles.length > 0 && audioFiles.map((file, index) => (
+              <AudioPlayer
+                key={`audio-${index}`}
+                file={file}
+                privateKey={privateKey}
+                otherPubkey={otherPubkey}
+                isOutgoing={isOutgoing}
               />
             ))}
 
@@ -159,9 +170,10 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
   )
 }
 
-function parseContent(content: string): { textContent: string; legacyImages: string[]; files: FileData[] } {
+function parseContent(content: string): { textContent: string; legacyImages: string[]; imageFiles: FileData[]; audioFiles: FileData[] } {
   const legacyImages: string[] = []
-  const files: FileData[] = []
+  const imageFiles: FileData[] = []
+  const audioFiles: FileData[] = []
   let match
 
   while ((match = IMAGE_REGEX.exec(content)) !== null) {
@@ -173,12 +185,16 @@ function parseContent(content: string): { textContent: string; legacyImages: str
     if (data.startsWith('{')) {
       try {
         const fileData = JSON.parse(data) as FileData
-        files.push(fileData)
+        if (fileData.mimeType.startsWith('audio/')) {
+          audioFiles.push(fileData)
+        } else {
+          imageFiles.push(fileData)
+        }
       } catch {
         // Invalid JSON, skip
       }
     } else {
-      files.push({
+      imageFiles.push({
         url: data,
         mimeType: 'image/jpeg',
         encrypted: false
@@ -191,7 +207,7 @@ function parseContent(content: string): { textContent: string; legacyImages: str
     .replace(FILE_DATA_REGEX, '')
     .trim()
 
-  return { textContent, legacyImages, files }
+  return { textContent, legacyImages, imageFiles, audioFiles }
 }
 
 function EncryptedImage({
@@ -268,6 +284,166 @@ function EncryptedImage({
   }
 
   return <ImageWithLightbox src={decryptedUrl} />
+}
+
+function AudioPlayer({
+  file,
+  privateKey,
+  otherPubkey,
+  isOutgoing
+}: {
+  file: FileData
+  privateKey: string
+  otherPubkey: string
+  isOutgoing: boolean
+}) {
+  const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    let objectUrl: string | null = null
+
+    async function decrypt() {
+      if (!file.encrypted) {
+        setDecryptedUrl(file.url)
+        setIsLoading(false)
+        return
+      }
+
+      if (!privateKey || !otherPubkey) {
+        setError(true)
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        objectUrl = await getDecryptedFileUrl(
+          file.url,
+          file.mimeType,
+          privateKey,
+          otherPubkey
+        )
+        setDecryptedUrl(objectUrl)
+      } catch (err) {
+        console.error('Failed to decrypt audio:', err)
+        setError(true)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    decrypt()
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl)
+      }
+    }
+  }, [file.url, file.mimeType, file.encrypted, privateKey, otherPubkey])
+
+  useEffect(() => {
+    if (!decryptedUrl) return
+
+    const audio = new Audio(decryptedUrl)
+    audioRef.current = audio
+
+    audio.addEventListener('loadedmetadata', () => {
+      setDuration(audio.duration)
+    })
+
+    audio.addEventListener('timeupdate', () => {
+      setProgress(audio.currentTime / audio.duration)
+    })
+
+    audio.addEventListener('ended', () => {
+      setIsPlaying(false)
+      setProgress(0)
+    })
+
+    return () => {
+      audio.pause()
+      audio.src = ''
+    }
+  }, [decryptedUrl])
+
+  const togglePlay = () => {
+    if (!audioRef.current) return
+
+    if (isPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+    setIsPlaying(!isPlaying)
+  }
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  if (isLoading) {
+    return (
+      <Box px="md" py="sm">
+        <Group gap="sm">
+          <Loader size="sm" color={isOutgoing ? 'white' : 'cyan'} />
+          <Text size="sm" c={isOutgoing ? 'white' : 'dimmed'}>Loading audio...</Text>
+        </Group>
+      </Box>
+    )
+  }
+
+  if (error || !decryptedUrl) {
+    return (
+      <Box px="md" py="sm">
+        <Group gap="xs">
+          <IconAlertCircle size={20} />
+          <Text size="sm" c="dimmed">Failed to load audio</Text>
+        </Group>
+      </Box>
+    )
+  }
+
+  return (
+    <Box px="md" py="sm">
+      <Group gap="sm">
+        <ActionIcon
+          variant="filled"
+          color={isOutgoing ? 'cyan.8' : 'cyan'}
+          radius="xl"
+          size="lg"
+          onClick={togglePlay}
+        >
+          {isPlaying ? <IconPlayerPause size={18} /> : <IconPlayerPlay size={18} />}
+        </ActionIcon>
+
+        <Box style={{ flex: 1 }}>
+          {/* Progress bar */}
+          <Box
+            h={4}
+            bg={isOutgoing ? 'cyan.8' : 'dark.4'}
+            style={{ borderRadius: 2, overflow: 'hidden' }}
+          >
+            <Box
+              h="100%"
+              w={`${progress * 100}%`}
+              bg={isOutgoing ? 'white' : 'cyan'}
+              style={{ transition: 'width 0.1s' }}
+            />
+          </Box>
+          <Text size="xs" c={isOutgoing ? 'cyan.1' : 'dimmed'} mt={4}>
+            {formatTime(duration * progress)} / {formatTime(duration)}
+          </Text>
+        </Box>
+      </Group>
+    </Box>
+  )
 }
 
 function ImageWithLightbox({ src }: { src: string }) {

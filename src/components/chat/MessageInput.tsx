@@ -9,8 +9,10 @@ import {
   Image,
   CloseButton,
   Loader,
+  Text,
 } from '@mantine/core'
-import { IconPhoto, IconSend } from '@tabler/icons-react'
+import { IconPhoto, IconSend, IconMicrophone, IconPlayerStop, IconX } from '@tabler/icons-react'
+import { useAudioRecorder, formatDuration, audioToFile } from '../../hooks/useAudioRecorder'
 
 interface MessageInputProps {
   onSend: (content: string) => void
@@ -25,6 +27,9 @@ export default function MessageInput({ onSend, onSendFile }: MessageInputProps) 
   const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Audio recording
+  const [audioState, audioActions] = useAudioRecorder()
+
   const handleSubmit = () => {
     const trimmedMessage = message.trim()
 
@@ -36,6 +41,14 @@ export default function MessageInput({ onSend, onSendFile }: MessageInputProps) 
     } else if (trimmedMessage) {
       onSend(trimmedMessage)
       setMessage('')
+    }
+  }
+
+  const handleSendAudio = () => {
+    if (audioState.audioBlob && onSendFile) {
+      const audioFile = audioToFile(audioState.audioBlob)
+      onSendFile(audioFile)
+      audioActions.cancelRecording()
     }
   }
 
@@ -90,6 +103,83 @@ export default function MessageInput({ onSend, onSendFile }: MessageInputProps) 
 
   const canSend = message.trim() || imagePreview
 
+  // Show recording UI
+  if (audioState.isRecording || audioState.audioBlob) {
+    return (
+      <Paper p="sm" radius={0} style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
+        <Group gap="sm" align="center">
+          {/* Cancel Button */}
+          <ActionIcon
+            variant="subtle"
+            color="red"
+            size="lg"
+            onClick={audioActions.cancelRecording}
+          >
+            <IconX size={24} />
+          </ActionIcon>
+
+          {/* Waveform / Duration */}
+          <Box style={{ flex: 1 }}>
+            {audioState.isRecording ? (
+              <Group gap="xs" justify="center">
+                {/* Live waveform visualization */}
+                <Group gap={2} align="center" h={32}>
+                  {audioState.waveform.slice(-20).map((amplitude, i) => (
+                    <Box
+                      key={i}
+                      w={3}
+                      h={Math.max(4, amplitude * 28)}
+                      bg="red"
+                      style={{ borderRadius: 2 }}
+                    />
+                  ))}
+                </Group>
+                <Text size="sm" c="red" fw={500}>
+                  {formatDuration(audioState.duration)}
+                </Text>
+              </Group>
+            ) : (
+              <Group gap="xs" justify="center">
+                <Text size="sm" c="dimmed">
+                  {t('voiceMessage.ready')} ({formatDuration(audioState.duration)})
+                </Text>
+              </Group>
+            )}
+          </Box>
+
+          {/* Stop / Send Button */}
+          {audioState.isRecording ? (
+            <ActionIcon
+              variant="filled"
+              color="red"
+              size="lg"
+              radius="xl"
+              onClick={audioActions.stopRecording}
+            >
+              <IconPlayerStop size={20} />
+            </ActionIcon>
+          ) : (
+            <ActionIcon
+              variant="filled"
+              color="cyan"
+              size="lg"
+              radius="xl"
+              onClick={handleSendAudio}
+            >
+              <IconSend size={20} />
+            </ActionIcon>
+          )}
+        </Group>
+
+        {audioState.error && (
+          <Text size="xs" c="red" ta="center" mt="xs">
+            {audioState.error}
+          </Text>
+        )}
+      </Paper>
+    )
+  }
+
   return (
     <Paper p="sm" radius={0} style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
       {/* Image Preview */}
@@ -130,6 +220,16 @@ export default function MessageInput({ onSend, onSendFile }: MessageInputProps) 
           ) : (
             <IconPhoto size={24} />
           )}
+        </ActionIcon>
+
+        {/* Voice Recording Button */}
+        <ActionIcon
+          variant="subtle"
+          size="lg"
+          onClick={audioActions.startRecording}
+          disabled={isProcessing || !!imagePreview}
+        >
+          <IconMicrophone size={24} />
         </ActionIcon>
 
         <input

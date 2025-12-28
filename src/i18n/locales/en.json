@@ -238,6 +238,11 @@
     "pasteAnswer": "Connection data (for manual setup)",
     "answerPlaceholder": "Paste connection data here..."
   },
+  "voiceMessage": {
+    "ready": "Ready to send",
+    "recording": "Recording...",
+    "microphoneError": "Microphone access denied"
+  },
   "deleteAccount": {
     "title": "Delete Account",
     "buttonHint": "Delete keys and request data removal",
