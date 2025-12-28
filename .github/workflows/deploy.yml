@@ -11,9 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: []  # Runs after CI workflow succeeds (via branch protection)
 
-    environment:
-      name: production
-      url: https://${{ secrets.DEPLOY_DOMAIN }}
+    environment: production
 
     steps:
       - name: Checkout
