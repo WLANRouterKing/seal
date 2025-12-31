@@ -18,20 +18,28 @@ export default function LockScreen() {
     const {t} = useTranslation()
     const [password, setPassword] = useState('')
     const {unlock, publicInfo, isLoading, error, clearError, lockoutUntil, failedAttempts, refreshLockoutStatus} = useAuthStore()
-    const [remainingTime, setRemainingTime] = useState<number>(0)
+
+    // State for remaining lockout time - initialized lazily (impure functions allowed in initializers)
+    const [remainingTime, setRemainingTime] = useState<number>(() => {
+        if (!lockoutUntil) return 0
+        return Math.max(0, lockoutUntil - Date.now())
+    })
 
     // Check lockout status on mount
     useEffect(() => {
         refreshLockoutStatus()
     }, [refreshLockoutStatus])
 
-    // Countdown timer for lockout
+    // Countdown timer for lockout - sync and update remaining time
     useEffect(() => {
+        // Sync remaining time when lockoutUntil changes
         if (!lockoutUntil) {
-            setRemainingTime(0)
-            return
+            // Schedule state update to avoid synchronous setState in effect
+            const timeout = setTimeout(() => setRemainingTime(0), 0)
+            return () => clearTimeout(timeout)
         }
 
+        // Calculate and set initial remaining time
         const updateRemaining = () => {
             const remaining = lockoutUntil - Date.now()
             if (remaining <= 0) {
@@ -42,9 +50,14 @@ export default function LockScreen() {
             }
         }
 
-        updateRemaining()
+        // Initial update via timeout to avoid synchronous setState
+        const initialTimeout = setTimeout(updateRemaining, 0)
         const interval = setInterval(updateRemaining, 1000)
-        return () => clearInterval(interval)
+
+        return () => {
+            clearTimeout(initialTimeout)
+            clearInterval(interval)
+        }
     }, [lockoutUntil, refreshLockoutStatus])
 
     const isLockedOut = remainingTime > 0

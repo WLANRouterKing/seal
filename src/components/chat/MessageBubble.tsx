@@ -595,9 +595,12 @@ function ExpirationTimer({ expiration, isOutgoing }: { expiration: number; isOut
     return Math.max(0, expiration - now)
   })
 
+  // Extract complex expression to a variable for ESLint
+  const useShortInterval = remaining < 3600
+
   useEffect(() => {
     // Update every second if less than 1 hour, otherwise every minute
-    const interval = remaining < 3600 ? 1000 : 60000
+    const interval = useShortInterval ? 1000 : 60000
 
     const timer = setInterval(() => {
       const now = Math.floor(Date.now() / 1000)
@@ -606,7 +609,7 @@ function ExpirationTimer({ expiration, isOutgoing }: { expiration: number; isOut
     }, interval)
 
     return () => clearInterval(timer)
-  }, [expiration, remaining < 3600])
+  }, [expiration, useShortInterval])
 
   if (remaining <= 0) return null
 

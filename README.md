@@ -168,3 +168,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 MIT
+
+### Third-Party Licenses
+
+- **[Tabler Icons](https://tabler.io/icons)** - MIT License

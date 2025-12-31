@@ -26,6 +26,7 @@ export default function MessageInput({ onSend, onSendFile }: MessageInputProps) 
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const imagePreviewRef = useRef<string | null>(null)
 
   // Audio recording
   const [audioState, audioActions] = useAudioRecorder()
@@ -93,10 +94,16 @@ export default function MessageInput({ onSend, onSendFile }: MessageInputProps) 
     setSelectedFile(null)
   }
 
+  // Keep ref in sync with state for cleanup
+  useEffect(() => {
+    imagePreviewRef.current = imagePreview
+  }, [imagePreview])
+
+  // Cleanup object URL on unmount
   useEffect(() => {
     return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview)
+      if (imagePreviewRef.current) {
+        URL.revokeObjectURL(imagePreviewRef.current)
       }
     }
   }, [])

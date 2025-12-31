@@ -33,7 +33,7 @@ function App() {
 
   useEffect(() => {
     initAuth()
-  }, [])
+  }, [initAuth])
 
   // Initialize relays, notifications and background service when we have an account (even if locked)
   useEffect(() => {
@@ -42,7 +42,7 @@ function App() {
       notificationService.init()
       backgroundService.start()
     }
-  }, [keys, hasPassword, publicInfo])
+  }, [keys, hasPassword, publicInfo, initRelays])
 
   // Initialize contacts and messages only when unlocked
   useEffect(() => {
@@ -50,7 +50,7 @@ function App() {
       initContacts()
       initMessages(keys.publicKey, keys.privateKey)
     }
-  }, [keys])
+  }, [keys, initContacts, initMessages])
 
   // Subscribe to messages when unlocked and relays are connected
   useEffect(() => {
@@ -58,7 +58,7 @@ function App() {
       const unsubscribe = subscribeToMessages(keys.publicKey, keys.privateKey)
       return unsubscribe
     }
-  }, [keys, connectedCount])
+  }, [keys, connectedCount, subscribeToMessages])
 
   if (!isInitialized || isLoading) {
     return (
