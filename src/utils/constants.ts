@@ -14,7 +14,7 @@ export const DEFAULT_RELAYS = [
 ]
 
 export const DB_NAME = 'seal-chat-db'
-export const DB_VERSION = 4 // v4: Messages store encryptedEvent instead of plaintext content
+export const DB_VERSION = 1 // Clean slate - unified encryption schema
 
 export const STORES = {
   KEYS: 'keys',

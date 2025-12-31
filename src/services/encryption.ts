@@ -5,7 +5,16 @@ import { getEncryptionKey } from './encryptionKeyManager'
 const SALT_LENGTH = 16
 const IV_LENGTH = 12
 const ITERATIONS = 100000
-const ENCRYPTED_PREFIX = 'ENC:'
+
+// Unified envelope for all encrypted data in IndexedDB
+export interface EncryptedEnvelope {
+  _e: 1  // Marker + version (short to save space)
+  d: string  // Base64-encoded encrypted data
+}
+
+export function isEncryptedEnvelope(value: unknown): value is EncryptedEnvelope {
+  return typeof value === 'object' && value !== null && '_e' in value && (value as EncryptedEnvelope)._e === 1
+}
 
 export async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const encoder = new TextEncoder()
@@ -75,37 +84,21 @@ export async function decryptWithPassword(encryptedData: string, password: strin
   }
 }
 
-export function isEncrypted(data: string): boolean {
-  // Simple check - encrypted data is base64 encoded
-  try {
-    const decoded = atob(data)
-    // Encrypted data should have at least salt + iv + some content
-    return decoded.length >= SALT_LENGTH + IV_LENGTH + 16
-  } catch {
-    return false
-  }
-}
-
-// Check if data is encrypted for storage (has ENC: prefix)
-export function isStorageEncrypted(data: string): boolean {
-  return data.startsWith(ENCRYPTED_PREFIX)
-}
-
-// Encrypt data for IndexedDB storage using the key from encryptionKeyManager
-export async function encryptForStorage(data: string): Promise<string> {
+// Encrypt any value for IndexedDB storage - returns EncryptedEnvelope
+export async function encryptForStorage<T>(data: T): Promise<EncryptedEnvelope> {
   const keyData = getEncryptionKey()
   if (!keyData) {
-    // No encryption key set - return data as-is
-    return data
+    throw new Error('No encryption key available')
   }
 
   const encoder = new TextEncoder()
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
+  const jsonData = JSON.stringify(data)
 
   const encrypted = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     keyData.key,
-    encoder.encode(data)
+    encoder.encode(jsonData)
   )
 
   // Combine iv + encrypted data and encode as base64
@@ -113,25 +106,21 @@ export async function encryptForStorage(data: string): Promise<string> {
   combined.set(iv, 0)
   combined.set(new Uint8Array(encrypted), iv.length)
 
-  return ENCRYPTED_PREFIX + btoa(String.fromCharCode(...combined))
+  return {
+    _e: 1,
+    d: btoa(String.fromCharCode(...combined))
+  }
 }
 
-// Decrypt data from IndexedDB storage using the key from encryptionKeyManager
-export async function decryptFromStorage(encryptedData: string): Promise<string | null> {
-  // If not encrypted, return as-is
-  if (!encryptedData.startsWith(ENCRYPTED_PREFIX)) {
-    return encryptedData
-  }
-
+// Decrypt EncryptedEnvelope from IndexedDB storage
+export async function decryptFromStorage<T>(envelope: EncryptedEnvelope): Promise<T | null> {
   const keyData = getEncryptionKey()
   if (!keyData) {
-    // No encryption key set - cannot decrypt
     return null
   }
 
   try {
-    const base64Data = encryptedData.slice(ENCRYPTED_PREFIX.length)
-    const combined = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
+    const combined = Uint8Array.from(atob(envelope.d), c => c.charCodeAt(0))
 
     const iv = combined.slice(0, IV_LENGTH)
     const data = combined.slice(IV_LENGTH)
@@ -142,9 +131,9 @@ export async function decryptFromStorage(encryptedData: string): Promise<string 
       data
     )
 
-    return new TextDecoder().decode(decrypted)
+    return JSON.parse(new TextDecoder().decode(decrypted)) as T
   } catch {
-    return null // Decryption failed
+    return null
   }
 }
 
