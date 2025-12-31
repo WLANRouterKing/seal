@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
     Center,
@@ -9,19 +9,50 @@ import {
     Button,
     Alert,
 } from '@mantine/core'
-import {IconLock, IconAlertTriangle} from '@tabler/icons-react'
+import {IconLock, IconAlertTriangle, IconClock} from '@tabler/icons-react'
 import {useAuthStore} from '../stores/authStore'
 import {truncateKey} from '../utils/format'
+import {formatRemainingTime} from '../services/rateLimiter'
 
 export default function LockScreen() {
     const {t} = useTranslation()
     const [password, setPassword] = useState('')
-    const {unlock, publicInfo, isLoading, error, clearError} = useAuthStore()
+    const {unlock, publicInfo, isLoading, error, clearError, lockoutUntil, failedAttempts, refreshLockoutStatus} = useAuthStore()
+    const [remainingTime, setRemainingTime] = useState<number>(0)
+
+    // Check lockout status on mount
+    useEffect(() => {
+        refreshLockoutStatus()
+    }, [refreshLockoutStatus])
+
+    // Countdown timer for lockout
+    useEffect(() => {
+        if (!lockoutUntil) {
+            setRemainingTime(0)
+            return
+        }
+
+        const updateRemaining = () => {
+            const remaining = lockoutUntil - Date.now()
+            if (remaining <= 0) {
+                setRemainingTime(0)
+                refreshLockoutStatus()
+            } else {
+                setRemainingTime(remaining)
+            }
+        }
+
+        updateRemaining()
+        const interval = setInterval(updateRemaining, 1000)
+        return () => clearInterval(interval)
+    }, [lockoutUntil, refreshLockoutStatus])
+
+    const isLockedOut = remainingTime > 0
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         clearError()
-        if (password.trim()) {
+        if (password.trim() && !isLockedOut) {
             await unlock(password)
             setPassword('')
         }
@@ -51,12 +82,24 @@ export default function LockScreen() {
                             autoFocus
                             autoComplete="current-password"
                             size="lg"
+                            disabled={isLockedOut}
                             styles={{input: {textAlign: 'center'}}}
                         />
 
-                        {error && (
+                        {isLockedOut && (
+                            <Alert color="orange" icon={<IconClock size={16}/>}>
+                                {t('lockScreen.lockedOut', { time: formatRemainingTime(remainingTime) })}
+                            </Alert>
+                        )}
+
+                        {error && !isLockedOut && (
                             <Alert color="red" icon={<IconAlertTriangle size={16}/>}>
                                 {error}
+                                {failedAttempts > 0 && failedAttempts < 3 && (
+                                    <Text size="xs" mt={4}>
+                                        {t('lockScreen.attemptsRemaining', { count: 3 - failedAttempts })}
+                                    </Text>
+                                )}
                             </Alert>
                         )}
 
@@ -65,10 +108,13 @@ export default function LockScreen() {
                             size="lg"
                             color="cyan"
                             fullWidth
-                            disabled={!password.trim()}
+                            disabled={!password.trim() || isLockedOut}
                             loading={isLoading}
                         >
-                            {t('lockScreen.unlock')}
+                            {isLockedOut
+                                ? formatRemainingTime(remainingTime)
+                                : t('lockScreen.unlock')
+                            }
                         </Button>
                     </Stack>
                 </form>

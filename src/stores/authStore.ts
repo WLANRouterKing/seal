@@ -4,6 +4,7 @@ import { loadKeys, saveKeys, loadSettings, saveSettings, isEncryptedKeys, migrat
 import { generateKeyPair, keysFromNsec } from '../services/keys'
 import { encryptWithPassword, decryptWithPassword, deriveKey, generateSalt } from '../services/encryption'
 import { setEncryptionKey, clearEncryptionKey } from '../services/encryptionKeyManager'
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../services/rateLimiter'
 
 interface AuthState {
   keys: NostrKeys | null
@@ -15,6 +16,8 @@ interface AuthState {
   hideIdentity: boolean
   publicInfo: { publicKey: string; npub: string } | null
   error: string | null
+  lockoutUntil: number | null
+  failedAttempts: number
 
   // Actions
   initialize: () => Promise<void>
@@ -28,6 +31,7 @@ interface AuthState {
   removePassword: (currentPassword: string) => Promise<boolean>
   completeSetup: () => Promise<void>
   setHideIdentity: (hide: boolean, password: string) => Promise<boolean>
+  refreshLockoutStatus: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -40,6 +44,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hideIdentity: false,
   publicInfo: null,
   error: null,
+  lockoutUntil: null,
+  failedAttempts: 0,
 
   initialize: async () => {
     try {
@@ -156,6 +162,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null })
 
     try {
+      // Check rate limit first
+      const rateLimitCheck = await checkRateLimit()
+      if (!rateLimitCheck.allowed) {
+        set({
+          isLoading: false,
+          lockoutUntil: Date.now() + rateLimitCheck.remainingMs,
+          failedAttempts: rateLimitCheck.attempts
+        })
+        return false
+      }
+
       const storedKeys = await loadKeys()
       if (!storedKeys || !isEncryptedKeys(storedKeys)) {
         set({ isLoading: false, error: 'No encrypted keys found' })
@@ -164,9 +181,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const decrypted = await decryptWithPassword(storedKeys.encrypted, password)
       if (!decrypted) {
-        set({ isLoading: false, error: 'Incorrect password' })
+        // Record failed attempt
+        const result = await recordFailedAttempt()
+        set({
+          isLoading: false,
+          error: 'Incorrect password',
+          failedAttempts: result.attempts,
+          lockoutUntil: result.remainingMs > 0 ? Date.now() + result.remainingMs : null
+        })
         return false
       }
+
+      // Success - reset rate limit
+      await resetRateLimit()
 
       const decryptedData = JSON.parse(decrypted)
       let keys: NostrKeys
@@ -211,7 +238,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Migrate unencrypted data if any
       await migrateToEncrypted()
 
-      set({ keys, isLocked: false, isLoading: false, error: null })
+      set({ keys, isLocked: false, isLoading: false, error: null, lockoutUntil: null, failedAttempts: 0 })
       return true
     } catch (error) {
       console.error('Failed to unlock:', error)
@@ -363,6 +390,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Failed to set hide identity:', error)
       return false
+    }
+  },
+
+  refreshLockoutStatus: async () => {
+    const result = await checkRateLimit()
+    if (!result.allowed) {
+      set({
+        lockoutUntil: Date.now() + result.remainingMs,
+        failedAttempts: result.attempts
+      })
+    } else {
+      set({
+        lockoutUntil: null,
+        failedAttempts: result.attempts
+      })
     }
   }
 }))

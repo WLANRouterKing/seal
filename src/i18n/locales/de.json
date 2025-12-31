@@ -77,7 +77,9 @@
     "placeholder": "Passwort eingeben",
     "unlocking": "Wird entsperrt...",
     "unlock": "Entsperren",
-    "logout": "Abmelden und Keys löschen"
+    "logout": "Abmelden und Keys löschen",
+    "lockedOut": "Zu viele Fehlversuche. Versuche es in {{time}} erneut.",
+    "attemptsRemaining": "Noch {{count}} Versuche vor Sperre"
   },
   "chat": {
     "noMessages": "Noch keine Nachrichten",
