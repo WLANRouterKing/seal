@@ -134,11 +134,6 @@ export async function loadKeys(): Promise<NostrKeys | EncryptedKeys | undefined>
   return db.get(STORES.KEYS, 'primary')
 }
 
-export async function deleteKeys(): Promise<void> {
-  const db = await getDB()
-  await db.delete(STORES.KEYS, 'primary')
-}
-
 // =============================================================================
 // MESSAGES
 // =============================================================================
