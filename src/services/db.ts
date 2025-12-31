@@ -1,16 +1,50 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import { DB_NAME, DB_VERSION, STORES } from '../utils/constants'
 import type { NostrKeys, Contact, Message, AppSettings } from '../types'
-import { encryptForStorage, decryptFromStorage, isStorageEncrypted } from './encryption'
+import { encryptForStorage, decryptFromStorage, isEncryptedEnvelope, type EncryptedEnvelope } from './encryption'
 import { isEncryptionUnlocked } from './encryptionKeyManager'
 
-interface EncryptedKeys {
-  encrypted: string
-  publicKey?: string // Optional when identityHidden is true
-  npub?: string // Optional when identityHidden is true
-  dbSalt?: string // Base64-encoded salt for DB encryption
-  identityHidden?: boolean // When true, publicKey/npub are inside encrypted blob
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+// Keys store: encrypted blob with optional visible public info
+export interface EncryptedKeys {
+  _e: 1
+  d: string
+  publicKey?: string  // Visible when locked (unless identityHidden)
+  npub?: string       // Visible when locked (unless identityHidden)
+  dbSalt?: string     // Base64-encoded salt for DB encryption
+  identityHidden?: boolean
 }
+
+// Messages: stored with encryptedEvent, optionally wrapped in envelope
+export interface StoredMessage {
+  id: string
+  pubkey: string
+  recipientPubkey: string
+  encryptedEvent: string
+  createdAt: number
+  status: Message['status']
+  isOutgoing: boolean
+  expiration?: number
+}
+
+// Encrypted message keeps id visible for keyPath
+type EncryptedMessage = EncryptedEnvelope & { id: string }
+
+// Relay data
+type RelayData = { url: string; read: boolean; write: boolean }
+
+// Encrypted relay keeps a hash key for lookups
+type EncryptedRelay = EncryptedEnvelope & { _k: string }
+
+// Encrypted contact keeps pubkey visible for keyPath
+type EncryptedContact = EncryptedEnvelope & { pubkey: string }
+
+// =============================================================================
+// DATABASE SCHEMA
+// =============================================================================
 
 interface NostrChatDB extends DBSchema {
   [STORES.KEYS]: {
@@ -19,7 +53,7 @@ interface NostrChatDB extends DBSchema {
   }
   [STORES.MESSAGES]: {
     key: string
-    value: Message
+    value: StoredMessage | EncryptedMessage
     indexes: {
       'by-pubkey': string
       'by-created': number
@@ -27,15 +61,15 @@ interface NostrChatDB extends DBSchema {
   }
   [STORES.CONTACTS]: {
     key: string
-    value: Contact
+    value: Contact | EncryptedContact
   }
   [STORES.SETTINGS]: {
     key: string
-    value: AppSettings
+    value: AppSettings | EncryptedEnvelope
   }
   [STORES.RELAYS]: {
     key: string
-    value: { url: string; read: boolean; write: boolean }
+    value: RelayData | EncryptedRelay
   }
   [STORES.DELETED_MESSAGES]: {
     key: string
@@ -48,54 +82,48 @@ let dbPromise: Promise<IDBPDatabase<NostrChatDB>> | null = null
 export async function getDB(): Promise<IDBPDatabase<NostrChatDB>> {
   if (!dbPromise) {
     dbPromise = openDB<NostrChatDB>(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion, _newVersion, _transaction) {
-        // Migration pattern:
-        // - Each version block runs ONLY for users upgrading from a lower version
-        // - New installs run ALL blocks sequentially (oldVersion = 0)
-        // - To add a new migration:
-        //   1. Increment DB_VERSION in constants.ts
-        //   2. Add a new `if (oldVersion < N)` block below
-        //   3. Put your schema changes inside
+      upgrade(db) {
+        // Clean slate - create all stores
+        db.createObjectStore(STORES.KEYS)
 
-        // Version 1: Initial schema
-        if (oldVersion < 1) {
-          db.createObjectStore(STORES.KEYS)
+        const messageStore = db.createObjectStore(STORES.MESSAGES, { keyPath: 'id' })
+        messageStore.createIndex('by-pubkey', 'pubkey')
+        messageStore.createIndex('by-created', 'createdAt')
 
-          const messageStore = db.createObjectStore(STORES.MESSAGES, { keyPath: 'id' })
-          messageStore.createIndex('by-pubkey', 'pubkey')
-          messageStore.createIndex('by-created', 'createdAt')
-
-          db.createObjectStore(STORES.CONTACTS, { keyPath: 'pubkey' })
-          db.createObjectStore(STORES.SETTINGS)
-          db.createObjectStore(STORES.RELAYS, { keyPath: 'url' })
-        }
-
-        // Version 2: Add deleted messages store for relay deduplication
-        if (oldVersion < 2) {
-          db.createObjectStore(STORES.DELETED_MESSAGES, { keyPath: 'id' })
-        }
-
-        if(oldVersion < 3) {
-            db.deleteObjectStore(STORES.RELAYS)
-            db.createObjectStore(STORES.RELAYS, { keyPath: 'url' })
-        }
-
-        // Version 4: Messages now store encryptedEvent instead of plaintext content
-        // Old messages are incompatible and must be cleared
-        if (oldVersion < 4 && oldVersion > 0) {
-          // Clear messages store - old format is incompatible
-          const tx = _transaction
-          const messagesStore = tx.objectStore(STORES.MESSAGES)
-          messagesStore.clear()
-          console.log('Cleared messages store for v4 migration (encrypted storage)')
-        }
+        db.createObjectStore(STORES.CONTACTS, { keyPath: 'pubkey' })
+        db.createObjectStore(STORES.SETTINGS)
+        db.createObjectStore(STORES.RELAYS, { keyPath: 'url' })
+        db.createObjectStore(STORES.DELETED_MESSAGES, { keyPath: 'id' })
       }
     })
   }
   return dbPromise
 }
 
-// Keys
+// =============================================================================
+// TYPE GUARDS
+// =============================================================================
+
+export function isEncryptedKeys(keys: NostrKeys | EncryptedKeys): keys is EncryptedKeys {
+  return isEncryptedEnvelope(keys)
+}
+
+function isEncryptedMessage(msg: unknown): msg is EncryptedMessage {
+  return isEncryptedEnvelope(msg)
+}
+
+function isEncryptedContact(contact: unknown): contact is EncryptedContact {
+  return isEncryptedEnvelope(contact)
+}
+
+function isEncryptedRelay(relay: unknown): relay is EncryptedRelay {
+  return isEncryptedEnvelope(relay)
+}
+
+// =============================================================================
+// KEYS
+// =============================================================================
+
 export async function saveKeys(keys: NostrKeys | EncryptedKeys): Promise<void> {
   const db = await getDB()
   await db.put(STORES.KEYS, keys, 'primary')
@@ -111,35 +139,11 @@ export async function deleteKeys(): Promise<void> {
   await db.delete(STORES.KEYS, 'primary')
 }
 
-export function isEncryptedKeys(keys: NostrKeys | EncryptedKeys): keys is EncryptedKeys {
-  return 'encrypted' in keys && !('privateKey' in keys)
-}
-
 export type { EncryptedKeys }
 
-// Messages - stored with encryptedEvent, content is decrypted on load by caller
-// The DB stores: id, pubkey, recipientPubkey, encryptedEvent, createdAt, status, isOutgoing
-// When password is set, metadata (pubkey, recipientPubkey) is also encrypted
-
-export interface StoredMessage {
-  id: string
-  pubkey: string
-  recipientPubkey: string
-  encryptedEvent: string
-  createdAt: number
-  status: Message['status']
-  isOutgoing: boolean
-}
-
-// Encrypted message format when password is set
-interface EncryptedStoredMessage {
-  id: string
-  encryptedData: string // Contains encrypted JSON of all other fields
-}
-
-function isEncryptedStoredMessage(msg: unknown): msg is EncryptedStoredMessage {
-  return typeof msg === 'object' && msg !== null && 'encryptedData' in msg && !('pubkey' in msg)
-}
+// =============================================================================
+// MESSAGES
+// =============================================================================
 
 export async function saveMessage(message: Message): Promise<void> {
   const db = await getDB()
@@ -151,36 +155,21 @@ export async function saveMessage(message: Message): Promise<void> {
     encryptedEvent: message.encryptedEvent,
     createdAt: message.createdAt,
     status: message.status,
-    isOutgoing: message.isOutgoing
+    isOutgoing: message.isOutgoing,
+    expiration: message.expiration
   }
 
-  // If password encryption is enabled, encrypt all metadata too
   if (isEncryptionUnlocked()) {
-    const dataToEncrypt = JSON.stringify({
-      pubkey: storedMessage.pubkey,
-      recipientPubkey: storedMessage.recipientPubkey,
-      encryptedEvent: storedMessage.encryptedEvent,
-      createdAt: storedMessage.createdAt,
-      status: storedMessage.status,
-      isOutgoing: storedMessage.isOutgoing
-    })
-    const encryptedData = await encryptForStorage(dataToEncrypt)
-    await db.put(STORES.MESSAGES, { id: message.id, encryptedData } as unknown as Message)
+    const envelope = await encryptForStorage(storedMessage)
+    await db.put(STORES.MESSAGES, { ...envelope, id: message.id } as unknown as StoredMessage)
   } else {
-    await db.put(STORES.MESSAGES, storedMessage as unknown as Message)
+    await db.put(STORES.MESSAGES, storedMessage)
   }
 }
 
-async function decryptStoredMessageFromDB(msg: unknown): Promise<StoredMessage | null> {
-  if (isEncryptedStoredMessage(msg)) {
-    const decrypted = await decryptFromStorage(msg.encryptedData)
-    if (!decrypted) return null
-    try {
-      const data = JSON.parse(decrypted)
-      return { id: msg.id, ...data }
-    } catch {
-      return null
-    }
+async function decryptMessage(msg: unknown): Promise<StoredMessage | null> {
+  if (isEncryptedMessage(msg)) {
+    return decryptFromStorage<StoredMessage>(msg)
   }
   return msg as StoredMessage
 }
@@ -189,26 +178,22 @@ export async function getMessages(pubkey: string): Promise<StoredMessage[]> {
   const db = await getDB()
 
   // When encryption is enabled, we can't use the index (pubkey is encrypted)
-  // So we load all messages and filter in memory
   if (isEncryptionUnlocked()) {
     const allMessages = await db.getAll(STORES.MESSAGES)
-    const decrypted = await Promise.all(allMessages.map(m => decryptStoredMessageFromDB(m)))
+    const decrypted = await Promise.all(allMessages.map(decryptMessage))
     return decrypted
       .filter((m): m is StoredMessage => m !== null && m.pubkey === pubkey)
       .sort((a, b) => a.createdAt - b.createdAt)
   }
 
-  // Without encryption, use the index for efficiency
   const messages = await db.getAllFromIndex(STORES.MESSAGES, 'by-pubkey', pubkey)
-  return (messages as unknown as StoredMessage[]).sort((a, b) => a.createdAt - b.createdAt)
+  return (messages as StoredMessage[]).sort((a, b) => a.createdAt - b.createdAt)
 }
 
 export async function getAllMessages(): Promise<StoredMessage[]> {
   const db = await getDB()
   const messages = await db.getAll(STORES.MESSAGES)
-
-  // Decrypt if needed
-  const decrypted = await Promise.all(messages.map(m => decryptStoredMessageFromDB(m)))
+  const decrypted = await Promise.all(messages.map(decryptMessage))
   return decrypted.filter((m): m is StoredMessage => m !== null)
 }
 
@@ -217,7 +202,10 @@ export async function deleteMessage(id: string): Promise<void> {
   await db.delete(STORES.MESSAGES, id)
 }
 
-// Deleted message IDs - for relay deduplication
+// =============================================================================
+// DELETED MESSAGES (for relay deduplication)
+// =============================================================================
+
 const DELETED_MESSAGE_RETENTION_DAYS = 90
 
 export async function saveDeletedMessageId(id: string): Promise<void> {
@@ -231,7 +219,6 @@ export async function isMessageDeleted(id: string): Promise<boolean> {
   return !!deleted
 }
 
-// Cleanup old deleted message IDs (older than 90 days)
 export async function cleanupDeletedMessages(): Promise<number> {
   const db = await getDB()
   const cutoff = Date.now() - (DELETED_MESSAGE_RETENTION_DAYS * 24 * 60 * 60 * 1000)
@@ -244,75 +231,61 @@ export async function cleanupDeletedMessages(): Promise<number> {
       cleaned++
     }
   }
-
-  if (cleaned > 0) {
-    console.log(`Cleaned up ${cleaned} old deleted message IDs`)
-  }
   return cleaned
 }
 
-// Cleanup expired messages (NIP-40) - delete from DB and add to deleted_messages
 export async function cleanupExpiredMessages(): Promise<string[]> {
   const db = await getDB()
   const now = Math.floor(Date.now() / 1000)
-  const allMessages = await db.getAll(STORES.MESSAGES)
+  const allMessages = await getAllMessages()
 
   const expiredIds: string[] = []
-
   for (const msg of allMessages) {
-    // Check if message has expiration in encryptedEvent
-    // We need to check the stored message's expiration field
     if (msg.expiration && msg.expiration < now) {
       expiredIds.push(msg.id)
       await db.delete(STORES.MESSAGES, msg.id)
       await db.put(STORES.DELETED_MESSAGES, { id: msg.id, deletedAt: Date.now() })
     }
   }
-
-  if (expiredIds.length > 0) {
-    console.log(`Cleaned up ${expiredIds.length} expired messages (NIP-40)`)
-  }
   return expiredIds
 }
 
-// Contacts - encrypt sensitive fields (name, about, picture, nip05)
-async function encryptContact(contact: Contact): Promise<Contact> {
-  return {
-    ...contact,
-    name: contact.name ? await encryptForStorage(contact.name) : undefined,
-    about: contact.about ? await encryptForStorage(contact.about) : undefined,
-    picture: contact.picture ? await encryptForStorage(contact.picture) : undefined,
-    nip05: contact.nip05 ? await encryptForStorage(contact.nip05) : undefined
-  }
-}
-
-async function decryptContact(contact: Contact): Promise<Contact> {
-  return {
-    ...contact,
-    name: contact.name ? (await decryptFromStorage(contact.name)) ?? undefined : undefined,
-    about: contact.about ? (await decryptFromStorage(contact.about)) ?? undefined : undefined,
-    picture: contact.picture ? (await decryptFromStorage(contact.picture)) ?? undefined : undefined,
-    nip05: contact.nip05 ? (await decryptFromStorage(contact.nip05)) ?? undefined : undefined
-  }
-}
+// =============================================================================
+// CONTACTS
+// =============================================================================
 
 export async function saveContact(contact: Contact): Promise<void> {
   const db = await getDB()
-  const encryptedContact = await encryptContact(contact)
-  await db.put(STORES.CONTACTS, encryptedContact)
+
+  if (isEncryptionUnlocked()) {
+    const envelope = await encryptForStorage(contact)
+    await db.put(STORES.CONTACTS, { ...envelope, pubkey: contact.pubkey } as unknown as Contact)
+  } else {
+    await db.put(STORES.CONTACTS, contact)
+  }
+}
+
+async function decryptContact(contact: unknown): Promise<Contact | null> {
+  if (isEncryptedContact(contact)) {
+    return decryptFromStorage<Contact>(contact)
+  }
+  return contact as Contact
 }
 
 export async function getContact(pubkey: string): Promise<Contact | undefined> {
   const db = await getDB()
   const contact = await db.get(STORES.CONTACTS, pubkey)
   if (!contact) return undefined
-  return decryptContact(contact)
+
+  const decrypted = await decryptContact(contact)
+  return decrypted ?? undefined
 }
 
 export async function getAllContacts(): Promise<Contact[]> {
   const db = await getDB()
   const contacts = await db.getAll(STORES.CONTACTS)
-  return Promise.all(contacts.map(decryptContact))
+  const decrypted = await Promise.all(contacts.map(decryptContact))
+  return decrypted.filter((c): c is Contact => c !== null)
 }
 
 export async function deleteContact(pubkey: string): Promise<void> {
@@ -320,37 +293,20 @@ export async function deleteContact(pubkey: string): Promise<void> {
   await db.delete(STORES.CONTACTS, pubkey)
 }
 
-// Settings - stored as encrypted JSON when encryption is enabled
-interface EncryptedSettings {
-  encrypted: string
-}
-
-function isEncryptedSettings(data: unknown): data is EncryptedSettings {
-  return typeof data === 'object' && data !== null && 'encrypted' in data
-}
+// =============================================================================
+// SETTINGS
+// =============================================================================
 
 export async function saveSettings(settings: Partial<AppSettings>): Promise<void> {
   const db = await getDB()
 
   // Load and merge with existing settings
-  const existingRaw = await db.get(STORES.SETTINGS, 'app')
-  let existing: AppSettings | undefined
-
-  if (existingRaw) {
-    if (isEncryptedSettings(existingRaw)) {
-      const decrypted = await decryptFromStorage(existingRaw.encrypted)
-      existing = decrypted ? JSON.parse(decrypted) : undefined
-    } else {
-      existing = existingRaw as AppSettings
-    }
-  }
-
+  const existing = await loadSettings()
   const merged = { ...existing, ...settings }
 
-  // Encrypt if encryption is enabled
   if (isEncryptionUnlocked()) {
-    const encrypted = await encryptForStorage(JSON.stringify(merged))
-    await db.put(STORES.SETTINGS, { encrypted } as unknown as AppSettings, 'app')
+    const envelope = await encryptForStorage(merged)
+    await db.put(STORES.SETTINGS, envelope as unknown as AppSettings, 'app')
   } else {
     await db.put(STORES.SETTINGS, merged, 'app')
   }
@@ -362,18 +318,16 @@ export async function loadSettings(): Promise<AppSettings | undefined> {
 
   if (!data) return undefined
 
-  if (isEncryptedSettings(data)) {
-    const decrypted = await decryptFromStorage(data.encrypted)
-    return decrypted ? JSON.parse(decrypted) : undefined
+  if (isEncryptedEnvelope(data)) {
+    return (await decryptFromStorage<AppSettings>(data)) ?? undefined
   }
 
   return data as AppSettings
 }
 
-// Relays - URL is encrypted, but we use a hash as the key for lookups
-// When encryption is enabled, we store: { url: encryptedUrl, read, write, _urlHash: hash }
-type RelayData = { url: string; read: boolean; write: boolean }
-type StoredRelay = RelayData & { _urlHash?: string }
+// =============================================================================
+// RELAYS
+// =============================================================================
 
 async function hashUrl(url: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -388,17 +342,12 @@ export async function saveRelay(relay: RelayData): Promise<void> {
 
   if (isEncryptionUnlocked()) {
     const urlHash = await hashUrl(relay.url)
-    const encryptedUrl = await encryptForStorage(relay.url)
-    // First delete by original URL (for migration) and by hash
+    const envelope = await encryptForStorage(relay)
+    // Use hash as key, store original url field for keyPath compatibility
+    const encrypted: EncryptedRelay = { ...envelope, _k: urlHash }
+    // Delete old entry by plain URL if exists
     try { await db.delete(STORES.RELAYS, relay.url) } catch { /* ignore */ }
-    const storedRelay: StoredRelay = {
-      url: encryptedUrl,
-      read: relay.read,
-      write: relay.write,
-      _urlHash: urlHash
-    }
-    // Use hash as key when encrypted
-    await (db as IDBPDatabase<NostrChatDB>).put(STORES.RELAYS, storedRelay as unknown as { url: string; read: boolean; write: boolean })
+    await db.put(STORES.RELAYS, { ...encrypted, url: urlHash } as unknown as RelayData)
   } else {
     await db.put(STORES.RELAYS, relay)
   }
@@ -406,22 +355,13 @@ export async function saveRelay(relay: RelayData): Promise<void> {
 
 export async function getAllRelays(): Promise<RelayData[]> {
   const db = await getDB()
-  const relays = await db.getAll(STORES.RELAYS) as StoredRelay[]
+  const relays = await db.getAll(STORES.RELAYS)
 
   const results = await Promise.all(relays.map(async (relay) => {
-    if (isStorageEncrypted(relay.url)) {
-      const decryptedUrl = await decryptFromStorage(relay.url)
-      // Skip if decryption failed - don't return encrypted URL
-      if (!decryptedUrl) {
-        return null
-      }
-      return {
-        url: decryptedUrl,
-        read: relay.read,
-        write: relay.write
-      }
+    if (isEncryptedRelay(relay)) {
+      return decryptFromStorage<RelayData>(relay)
     }
-    return { url: relay.url, read: relay.read, write: relay.write }
+    return relay as RelayData
   }))
 
   return results.filter((r): r is RelayData => r !== null)
@@ -429,28 +369,27 @@ export async function getAllRelays(): Promise<RelayData[]> {
 
 export async function deleteRelay(url: string): Promise<void> {
   const db = await getDB()
+
   // Try deleting by plain URL first
   try { await db.delete(STORES.RELAYS, url) } catch { /* ignore */ }
 
-  // If encryption is enabled, also try to find and delete by matching decrypted URL
+  // If encryption is enabled, also try by hash
   if (isEncryptionUnlocked()) {
-    const allRelays = await db.getAll(STORES.RELAYS) as StoredRelay[]
-    for (const relay of allRelays) {
-      if (isStorageEncrypted(relay.url)) {
-        const decryptedUrl = await decryptFromStorage(relay.url)
-        if (decryptedUrl === url && relay._urlHash) {
-          await db.delete(STORES.RELAYS, relay.url)
-          break
-        }
-      }
-    }
+    const urlHash = await hashUrl(url)
+    try { await db.delete(STORES.RELAYS, urlHash) } catch { /* ignore */ }
   }
 }
 
-// Clear all data
+// =============================================================================
+// CLEAR ALL DATA
+// =============================================================================
+
 export async function clearAllData(): Promise<void> {
   const db = await getDB()
-  const tx = db.transaction([STORES.KEYS, STORES.MESSAGES, STORES.CONTACTS, STORES.SETTINGS, STORES.RELAYS, STORES.DELETED_MESSAGES], 'readwrite')
+  const tx = db.transaction(
+    [STORES.KEYS, STORES.MESSAGES, STORES.CONTACTS, STORES.SETTINGS, STORES.RELAYS, STORES.DELETED_MESSAGES],
+    'readwrite'
+  )
   await Promise.all([
     tx.objectStore(STORES.KEYS).clear(),
     tx.objectStore(STORES.MESSAGES).clear(),
@@ -462,99 +401,63 @@ export async function clearAllData(): Promise<void> {
   ])
 }
 
-// Migration: Encrypt all existing unencrypted data
-// Called when user sets a password for the first time or on unlock with unencrypted data
+// =============================================================================
+// MIGRATIONS (encrypt/decrypt all data when password is set/removed)
+// =============================================================================
+
 export async function migrateToEncrypted(): Promise<void> {
   const db = await getDB()
 
-  // Migrate messages - encrypt metadata (pubkey, recipientPubkey, etc.)
+  // Migrate messages
   const messages = await db.getAll(STORES.MESSAGES)
   for (const msg of messages) {
-    // Skip already encrypted messages
-    if (isEncryptedStoredMessage(msg)) continue
-
-    const storedMsg = msg as unknown as StoredMessage
-    const dataToEncrypt = JSON.stringify({
-      pubkey: storedMsg.pubkey,
-      recipientPubkey: storedMsg.recipientPubkey,
-      encryptedEvent: storedMsg.encryptedEvent,
-      createdAt: storedMsg.createdAt,
-      status: storedMsg.status,
-      isOutgoing: storedMsg.isOutgoing
-    })
-    const encryptedData = await encryptForStorage(dataToEncrypt)
-    await db.put(STORES.MESSAGES, { id: storedMsg.id, encryptedData } as unknown as Message)
+    if (!isEncryptedMessage(msg)) {
+      const storedMsg = msg as StoredMessage
+      const envelope = await encryptForStorage(storedMsg)
+      await db.put(STORES.MESSAGES, { ...envelope, id: storedMsg.id } as unknown as StoredMessage)
+    }
   }
 
   // Migrate contacts
   const contacts = await db.getAll(STORES.CONTACTS)
   for (const contact of contacts) {
-    let needsUpdate = false
-    const updated = { ...contact }
-
-    if (contact.name && !isStorageEncrypted(contact.name)) {
-      updated.name = await encryptForStorage(contact.name)
-      needsUpdate = true
-    }
-    if (contact.about && !isStorageEncrypted(contact.about)) {
-      updated.about = await encryptForStorage(contact.about)
-      needsUpdate = true
-    }
-    if (contact.picture && !isStorageEncrypted(contact.picture)) {
-      updated.picture = await encryptForStorage(contact.picture)
-      needsUpdate = true
-    }
-    if (contact.nip05 && !isStorageEncrypted(contact.nip05)) {
-      updated.nip05 = await encryptForStorage(contact.nip05)
-      needsUpdate = true
-    }
-
-    if (needsUpdate) {
-      await db.put(STORES.CONTACTS, updated)
+    if (!isEncryptedContact(contact)) {
+      const c = contact as Contact
+      const envelope = await encryptForStorage(c)
+      await db.put(STORES.CONTACTS, { ...envelope, pubkey: c.pubkey } as unknown as Contact)
     }
   }
 
   // Migrate settings
   const settings = await db.get(STORES.SETTINGS, 'app')
-  if (settings && !isEncryptedSettings(settings)) {
-    const encrypted = await encryptForStorage(JSON.stringify(settings))
-    await db.put(STORES.SETTINGS, { encrypted } as unknown as AppSettings, 'app')
+  if (settings && !isEncryptedEnvelope(settings)) {
+    const envelope = await encryptForStorage(settings)
+    await db.put(STORES.SETTINGS, envelope as unknown as AppSettings, 'app')
   }
 
   // Migrate relays
-  const relays = await db.getAll(STORES.RELAYS) as StoredRelay[]
+  const relays = await db.getAll(STORES.RELAYS)
   for (const relay of relays) {
-    if (!isStorageEncrypted(relay.url)) {
-      const urlHash = await hashUrl(relay.url)
-      const encryptedUrl = await encryptForStorage(relay.url)
-      await db.delete(STORES.RELAYS, relay.url)
-      await db.put(STORES.RELAYS, {
-        url: encryptedUrl,
-        read: relay.read,
-        write: relay.write,
-        _urlHash: urlHash
-      } as unknown as { url: string; read: boolean; write: boolean })
+    if (!isEncryptedRelay(relay)) {
+      const r = relay as RelayData
+      const urlHash = await hashUrl(r.url)
+      const envelope = await encryptForStorage(r)
+      await db.delete(STORES.RELAYS, r.url)
+      await db.put(STORES.RELAYS, { ...envelope, _k: urlHash, url: urlHash } as unknown as RelayData)
     }
   }
 }
 
-// Migration: Decrypt all data (when user removes password)
 export async function migrateToDecrypted(): Promise<void> {
   const db = await getDB()
 
-  // Decrypt messages - restore plain metadata
+  // Decrypt messages
   const messages = await db.getAll(STORES.MESSAGES)
   for (const msg of messages) {
-    if (isEncryptedStoredMessage(msg)) {
-      const decrypted = await decryptFromStorage(msg.encryptedData)
+    if (isEncryptedMessage(msg)) {
+      const decrypted = await decryptFromStorage<StoredMessage>(msg)
       if (decrypted) {
-        try {
-          const data = JSON.parse(decrypted)
-          const storedMsg: StoredMessage = { id: msg.id, ...data }
-          await db.put(STORES.MESSAGES, storedMsg as unknown as Message)
-        } catch {
-          console.error('Failed to decrypt message during migration:', msg.id)
-        }
+        await db.put(STORES.MESSAGES, decrypted)
       }
     }
   }
@@ -562,52 +465,31 @@ export async function migrateToDecrypted(): Promise<void> {
   // Decrypt contacts
   const contacts = await db.getAll(STORES.CONTACTS)
   for (const contact of contacts) {
-    let needsUpdate = false
-    const updated = { ...contact }
-
-    if (contact.name && isStorageEncrypted(contact.name)) {
-      updated.name = (await decryptFromStorage(contact.name)) ?? undefined
-      needsUpdate = true
-    }
-    if (contact.about && isStorageEncrypted(contact.about)) {
-      updated.about = (await decryptFromStorage(contact.about)) ?? undefined
-      needsUpdate = true
-    }
-    if (contact.picture && isStorageEncrypted(contact.picture)) {
-      updated.picture = (await decryptFromStorage(contact.picture)) ?? undefined
-      needsUpdate = true
-    }
-    if (contact.nip05 && isStorageEncrypted(contact.nip05)) {
-      updated.nip05 = (await decryptFromStorage(contact.nip05)) ?? undefined
-      needsUpdate = true
-    }
-
-    if (needsUpdate) {
-      await db.put(STORES.CONTACTS, updated)
+    if (isEncryptedContact(contact)) {
+      const decrypted = await decryptFromStorage<Contact>(contact)
+      if (decrypted) {
+        await db.put(STORES.CONTACTS, decrypted)
+      }
     }
   }
 
   // Decrypt settings
-  const settingsRaw = await db.get(STORES.SETTINGS, 'app')
-  if (settingsRaw && isEncryptedSettings(settingsRaw)) {
-    const decrypted = await decryptFromStorage(settingsRaw.encrypted)
+  const settings = await db.get(STORES.SETTINGS, 'app')
+  if (settings && isEncryptedEnvelope(settings)) {
+    const decrypted = await decryptFromStorage<AppSettings>(settings)
     if (decrypted) {
-      await db.put(STORES.SETTINGS, JSON.parse(decrypted), 'app')
+      await db.put(STORES.SETTINGS, decrypted, 'app')
     }
   }
 
   // Decrypt relays
-  const relays = await db.getAll(STORES.RELAYS) as StoredRelay[]
+  const relays = await db.getAll(STORES.RELAYS)
   for (const relay of relays) {
-    if (isStorageEncrypted(relay.url)) {
-      const decryptedUrl = await decryptFromStorage(relay.url)
-      if (decryptedUrl) {
-        await db.delete(STORES.RELAYS, relay.url)
-        await db.put(STORES.RELAYS, {
-          url: decryptedUrl,
-          read: relay.read,
-          write: relay.write
-        })
+    if (isEncryptedRelay(relay)) {
+      const decrypted = await decryptFromStorage<RelayData>(relay)
+      if (decrypted) {
+        await db.delete(STORES.RELAYS, (relay as unknown as { url: string }).url)
+        await db.put(STORES.RELAYS, decrypted)
       }
     }
   }

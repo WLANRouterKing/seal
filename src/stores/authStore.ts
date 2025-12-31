@@ -105,7 +105,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           password
         )
         const encryptedKeys: EncryptedKeys = {
-          encrypted,
+          _e: 1,
+          d: encrypted,
           publicKey: keys.publicKey,
           npub: keys.npub
         }
@@ -139,7 +140,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           password
         )
         const encryptedKeys: EncryptedKeys = {
-          encrypted,
+          _e: 1,
+          d: encrypted,
           publicKey: keys.publicKey,
           npub: keys.npub
         }
@@ -179,7 +181,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return false
       }
 
-      const decrypted = await decryptWithPassword(storedKeys.encrypted, password)
+      const decrypted = await decryptWithPassword(storedKeys.d, password)
       if (!decrypted) {
         // Record failed attempt
         const result = await recordFailedAttempt()
@@ -302,12 +304,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const encryptedKeys: EncryptedKeys = hideIdentity
         ? {
-            encrypted,
+            _e: 1,
+            d: encrypted,
             dbSalt: btoa(String.fromCharCode(...dbSalt)),
             identityHidden: true
           }
         : {
-            encrypted,
+            _e: 1,
+            d: encrypted,
             publicKey: keys.publicKey,
             npub: keys.npub,
             dbSalt: btoa(String.fromCharCode(...dbSalt))
@@ -331,7 +335,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const storedKeys = await loadKeys()
       if (!storedKeys || !isEncryptedKeys(storedKeys)) return false
 
-      const decrypted = await decryptWithPassword(storedKeys.encrypted, currentPassword)
+      const decrypted = await decryptWithPassword(storedKeys.d, currentPassword)
       if (!decrypted) return false
 
       // Migrate all data back to unencrypted format (while we still have the key)
@@ -366,7 +370,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const storedKeys = await loadKeys()
       if (!storedKeys || !isEncryptedKeys(storedKeys)) return false
 
-      const decrypted = await decryptWithPassword(storedKeys.encrypted, password)
+      const decrypted = await decryptWithPassword(storedKeys.d, password)
       if (!decrypted) return false
 
       // Re-encrypt with new identity setting
@@ -378,12 +382,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const encryptedKeys: EncryptedKeys = hide
         ? {
-            encrypted,
+            _e: 1,
+            d: encrypted,
             dbSalt: storedKeys.dbSalt,
             identityHidden: true
           }
         : {
-            encrypted,
+            _e: 1,
+            d: encrypted,
             publicKey: keys.publicKey,
             npub: keys.npub,
             dbSalt: storedKeys.dbSalt
