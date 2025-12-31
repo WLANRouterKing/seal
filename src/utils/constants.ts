@@ -13,7 +13,7 @@ export const DEFAULT_RELAYS = [
   'wss://relay.noswhere.com'
 ]
 
-export const DB_NAME = 'nostr-chat-db'
+export const DB_NAME = 'seal-chat-db'
 export const DB_VERSION = 4 // v4: Messages store encryptedEvent instead of plaintext content
 
 export const STORES = {

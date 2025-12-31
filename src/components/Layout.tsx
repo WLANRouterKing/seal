@@ -1,12 +1,14 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { AppShell, Group, Text, Indicator, UnstyledButton, Stack } from '@mantine/core'
-import { IconMessageCircle, IconUsers, IconSettings } from '@tabler/icons-react'
+import { AppShell, Group, Text, Indicator, UnstyledButton, Stack, ActionIcon, Tooltip } from '@mantine/core'
+import { IconMessageCircle, IconUsers, IconSettings, IconLock } from '@tabler/icons-react'
 import { useRelayStore } from '../stores/relayStore'
+import { useAuthStore } from '../stores/authStore'
 
 export default function Layout() {
   const { t } = useTranslation()
   const { relays } = useRelayStore()
+  const { hasPassword, lock } = useAuthStore()
   const location = useLocation()
 
   const connectedCount = relays.filter(r => r.status === 'connected').length
@@ -25,17 +27,31 @@ export default function Layout() {
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Text fw={600} size="lg">Seal - Decentralized messaging</Text>
-          <Group gap="xs">
-            <Indicator
-              color={connectedCount > 0 ? 'green' : 'red'}
-              size={8}
-              processing={connectedCount === 0}
-            >
-              <div />
-            </Indicator>
-            <Text size="xs" c="dimmed">
-              {connectedCount} relay{connectedCount !== 1 ? 's' : ''}
-            </Text>
+          <Group gap="md">
+            <Group gap="xs">
+              <Indicator
+                color={connectedCount > 0 ? 'green' : 'red'}
+                size={8}
+                processing={connectedCount === 0}
+              >
+                <div />
+              </Indicator>
+              <Text size="xs" c="dimmed">
+                {connectedCount} relay{connectedCount !== 1 ? 's' : ''}
+              </Text>
+            </Group>
+            {hasPassword && (
+              <Tooltip label={t('securitySettings.lockNow')}>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  onClick={lock}
+                  aria-label={t('securitySettings.lockNow')}
+                >
+                  <IconLock size={18} />
+                </ActionIcon>
+              </Tooltip>
+            )}
           </Group>
         </Group>
       </AppShell.Header>

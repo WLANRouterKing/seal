@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { NostrKeys } from '../types'
-import { loadKeys, saveKeys, loadSettings, saveSettings, isEncryptedKeys, migrateToEncrypted, migrateToDecrypted, type EncryptedKeys } from '../services/db'
+import { loadKeys, saveKeys, loadSettings, saveSettings, isEncryptedKeys, migrateToEncrypted, migrateToDecrypted, clearAllData, type EncryptedKeys } from '../services/db'
 import { generateKeyPair, keysFromNsec } from '../services/keys'
 import { encryptWithPassword, decryptWithPassword, deriveKey, generateSalt } from '../services/encryption'
 import { setEncryptionKey, clearEncryptionKey } from '../services/encryptionKeyManager'
@@ -264,6 +264,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     set({ isLoading: true })
     try {
+      // Clear encryption key from memory
+      clearEncryptionKey()
+
+      // Delete all data from IndexedDB
+      await clearAllData()
+
       // Force page reload to reset all in-memory state
       window.location.reload()
     } catch (error) {
