@@ -26,7 +26,7 @@ export default function Layout() {
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Text fw={600} size="lg">Seal - Decentralized messaging</Text>
+          <Text fw={600} size="lg">Seal</Text>
           <Group gap="md">
             <Group gap="xs">
               <Indicator

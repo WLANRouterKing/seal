@@ -149,7 +149,6 @@
     "title": "Security",
     "passwordProtection": "Password Protection",
     "networkPrivacy": "Network Privacy",
-    "torRecommended": "Tor Browser Recommended",
     "torHint": "For maximum privacy, open Seal in Tor Browser. All connections will automatically route through the Tor network, hiding your IP address from relays.",
     "downloadTor": "Download Tor Browser",
     "setPassword": "Set Password",

@@ -149,7 +149,6 @@
     "title": "Sicherheit",
     "passwordProtection": "Passwortschutz",
     "networkPrivacy": "Netzwerk-Privatsphäre",
-    "torRecommended": "Tor Browser empfohlen",
     "torHint": "Für maximale Privatsphäre öffne Seal im Tor Browser. Alle Verbindungen werden automatisch über das Tor-Netzwerk geleitet und deine IP-Adresse vor Relays verborgen.",
     "downloadTor": "Tor Browser herunterladen",
     "setPassword": "Passwort setzen",

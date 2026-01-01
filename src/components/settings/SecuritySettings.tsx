@@ -203,7 +203,6 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
           <Alert
             color="violet"
             icon={<IconWorld size={16} />}
-            title={t('securitySettings.torRecommended')}
           >
             <Text size="xs" mb="xs">{t('securitySettings.torHint')}</Text>
             <Anchor
