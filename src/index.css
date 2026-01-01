@@ -42,6 +42,7 @@ button:disabled {
 html, body, #root {
   height: 100%;
   width: 100%;
+  overscroll-behavior-y: contain;
 }
 
 /* Safe area support for mobile devices (notches, status bars) */
@@ -64,6 +65,12 @@ html {
 .mantine-AppShell-main {
   padding-top: calc(56px + env(safe-area-inset-top)) !important;
   padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+  overscroll-behavior-y: contain;
+}
+
+/* Prevent rubber-banding on scroll containers */
+.mantine-ScrollArea-viewport {
+  overscroll-behavior-y: contain;
 }
 
 body {

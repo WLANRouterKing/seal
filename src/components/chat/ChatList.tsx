@@ -76,7 +76,7 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
 
   return (
     <>
-      <Stack gap={0} h="100%" style={{ overflow: 'auto' }}>
+      <Stack gap={0} h="100%" style={{ overflow: 'auto', overscrollBehaviorY: 'contain' }}>
         {chats.map((chat) => (
           <Box
             key={chat.pubkey}
