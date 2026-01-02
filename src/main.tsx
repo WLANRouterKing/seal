@@ -9,6 +9,11 @@ import '@mantine/notifications/styles.css'
 import './index.css'
 import './i18n'
 import { useThemeStore } from './stores/themeStore'
+
+// Load dev tools in development mode (exposes window.devTools)
+if (import.meta.env.DEV) {
+  import('./utils/devTools')
+}
 import { registerSW } from 'virtual:pwa-register'
 
 const theme = createTheme({

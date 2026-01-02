@@ -1,7 +1,7 @@
 {
   "name": "seal",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,14 +10,18 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "version": "node scripts/bump-version.js",
+    "icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^9.1.2",
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
     "@capawesome-team/capacitor-android-battery-optimization": "^8.0.0",
     "@capawesome-team/capacitor-android-foreground-service": "^8.0.0",
     "@mantine/core": "^8.3.10",

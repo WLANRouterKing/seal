@@ -68,4 +68,5 @@ export interface AppSettings {
   relays?: string[]
   setupComplete?: boolean
   hideIdentity?: boolean // When true, npub/publicKey are also encrypted
+  biometricsEnabled?: boolean // When true, biometric unlock is enabled
 }

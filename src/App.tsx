@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { StatusBar } from '@capacitor/status-bar'
+import { Capacitor } from '@capacitor/core'
 import { useAuthStore } from './stores/authStore'
 import { useRelayStore } from './stores/relayStore'
 import { useContactStore } from './stores/contactStore'
@@ -30,6 +32,13 @@ function App() {
 
   // Show notifications even when locked
   useLockedNotifications()
+
+  // Configure status bar on native platforms
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setOverlaysWebView({ overlay: false })
+    }
+  }, [])
 
   useEffect(() => {
     initAuth()

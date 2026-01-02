@@ -5,6 +5,7 @@ import { generateKeyPair, keysFromNsec } from '../services/keys'
 import { encryptWithPassword, decryptWithPassword, deriveKey, generateSalt } from '../services/encryption'
 import { setEncryptionKey, clearEncryptionKey } from '../services/encryptionKeyManager'
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../services/rateLimiter'
+import { biometricsService } from '../services/biometrics'
 
 interface AuthState {
   keys: NostrKeys | null
@@ -19,11 +20,17 @@ interface AuthState {
   lockoutUntil: number | null
   failedAttempts: number
 
+  // Biometrics
+  biometricsAvailable: boolean
+  biometricsEnabled: boolean
+  biometricType: 'none' | 'fingerprint' | 'face' | 'iris' | 'webauthn'
+
   // Actions
   initialize: () => Promise<void>
   createKeys: (password?: string) => Promise<NostrKeys>
   importKeys: (nsec: string, password?: string) => Promise<boolean>
   unlock: (password: string) => Promise<boolean>
+  unlockWithBiometrics: () => Promise<boolean>
   lock: () => void
   logout: () => Promise<void>
   clearError: () => void
@@ -32,6 +39,9 @@ interface AuthState {
   completeSetup: () => Promise<void>
   setHideIdentity: (hide: boolean, password: string) => Promise<boolean>
   refreshLockoutStatus: () => Promise<void>
+  checkBiometrics: () => Promise<void>
+  enableBiometrics: (password: string) => Promise<boolean>
+  disableBiometrics: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -46,6 +56,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   lockoutUntil: null,
   failedAttempts: 0,
+
+  // Biometrics
+  biometricsAvailable: false,
+  biometricsEnabled: false,
+  biometricType: 'none',
 
   initialize: async () => {
     try {
@@ -417,6 +432,134 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         lockoutUntil: null,
         failedAttempts: result.attempts
       })
+    }
+  },
+
+  // Biometric methods
+  checkBiometrics: async () => {
+    try {
+      const state = await biometricsService.checkAvailability()
+      const settings = await loadSettings()
+      const biometricsEnabled = settings?.biometricsEnabled === true && biometricsService.hasBiometricKey('default')
+
+      set({
+        biometricsAvailable: state.available,
+        biometricType: state.type,
+        biometricsEnabled
+      })
+    } catch (error) {
+      console.error('Failed to check biometrics:', error)
+      set({ biometricsAvailable: false, biometricType: 'none', biometricsEnabled: false })
+    }
+  },
+
+  enableBiometrics: async (password: string) => {
+    const { keys, hasPassword } = get()
+    if (!keys || !hasPassword) return false
+
+    try {
+      // First verify the password
+      const storedKeys = await loadKeys()
+      if (!storedKeys || !isEncryptedKeys(storedKeys)) return false
+
+      const decrypted = await decryptWithPassword(storedKeys.d, password)
+      if (!decrypted) {
+        set({ error: 'Incorrect password' })
+        return false
+      }
+
+      // Authenticate with biometrics to get/create key
+      const biometricKey = await biometricsService.authenticate('Enable biometric unlock')
+      if (!biometricKey) {
+        set({ error: 'Biometric authentication failed' })
+        return false
+      }
+
+      // Store the nsec encrypted with the biometric key
+      const success = await biometricsService.storeEncryptedKey('default', keys.nsec, biometricKey)
+      if (!success) {
+        set({ error: 'Failed to store biometric key' })
+        return false
+      }
+
+      // Save setting
+      await saveSettings({ biometricsEnabled: true })
+      set({ biometricsEnabled: true, error: null })
+      return true
+    } catch (error) {
+      console.error('Failed to enable biometrics:', error)
+      set({ error: 'Failed to enable biometrics' })
+      return false
+    }
+  },
+
+  disableBiometrics: async () => {
+    try {
+      biometricsService.clearBiometricData()
+      await saveSettings({ biometricsEnabled: false })
+      set({ biometricsEnabled: false })
+    } catch (error) {
+      console.error('Failed to disable biometrics:', error)
+    }
+  },
+
+  unlockWithBiometrics: async () => {
+    set({ isLoading: true, error: null })
+
+    try {
+      // Check if biometrics is enabled
+      if (!biometricsService.hasBiometricKey('default')) {
+        set({ isLoading: false, error: 'Biometrics not enabled' })
+        return false
+      }
+
+      // Authenticate with biometrics
+      const biometricKey = await biometricsService.authenticate('Unlock Seal')
+      if (!biometricKey) {
+        set({ isLoading: false, error: 'Biometric authentication failed' })
+        return false
+      }
+
+      // Retrieve the encrypted nsec
+      const nsec = await biometricsService.retrieveEncryptedKey('default', biometricKey)
+      if (!nsec) {
+        set({ isLoading: false, error: 'Failed to decrypt keys' })
+        return false
+      }
+
+      // Convert nsec to keys
+      const keys = keysFromNsec(nsec)
+      if (!keys) {
+        set({ isLoading: false, error: 'Invalid stored key' })
+        return false
+      }
+
+      // Load stored keys to get DB salt for database encryption
+      const storedKeys = await loadKeys()
+      if (storedKeys && isEncryptedKeys(storedKeys) && storedKeys.dbSalt) {
+        const dbSalt = Uint8Array.from(atob(storedKeys.dbSalt), c => c.charCodeAt(0))
+        // For biometric unlock, we use the biometric key to derive DB key
+        const keyBuffer = new Uint8Array(biometricKey).buffer
+        const hkdfKey = await crypto.subtle.importKey('raw', keyBuffer, 'HKDF', false, ['deriveKey'])
+        const dbKey = await crypto.subtle.deriveKey(
+          { name: 'HKDF', salt: dbSalt, info: new TextEncoder().encode('seal-db-key'), hash: 'SHA-256' },
+          hkdfKey,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt']
+        )
+        setEncryptionKey(dbKey, dbSalt)
+      }
+
+      // Success - reset rate limit
+      await resetRateLimit()
+
+      set({ keys, isLocked: false, isLoading: false, error: null, lockoutUntil: null, failedAttempts: 0 })
+      return true
+    } catch (error) {
+      console.error('Failed to unlock with biometrics:', error)
+      set({ isLoading: false, error: 'Biometric unlock failed' })
+      return false
     }
   }
 }))

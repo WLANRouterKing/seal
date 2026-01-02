@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Stack,
@@ -27,6 +27,8 @@ import {
   IconAlertTriangle,
   IconInfoCircle,
   IconEyeOff,
+  IconFingerprint,
+  IconFaceId,
 } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -36,7 +38,18 @@ interface SecuritySettingsProps {
 
 export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
   const { t } = useTranslation()
-  const { hasPassword, lock, hideIdentity, setHideIdentity } = useAuthStore()
+  const {
+    hasPassword,
+    lock,
+    hideIdentity,
+    setHideIdentity,
+    biometricsAvailable,
+    biometricsEnabled,
+    biometricType,
+    checkBiometrics,
+    enableBiometrics,
+    disableBiometrics
+  } = useAuthStore()
   const [showSetPassword, setShowSetPassword] = useState(false)
   const [showRemovePassword, setShowRemovePassword] = useState(false)
   const [showHideIdentityModal, setShowHideIdentityModal] = useState(false)
@@ -44,6 +57,46 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
   const [hideIdentityPassword, setHideIdentityPassword] = useState('')
   const [hideIdentityError, setHideIdentityError] = useState('')
   const [hideIdentityLoading, setHideIdentityLoading] = useState(false)
+  const [showBiometricsModal, setShowBiometricsModal] = useState(false)
+  const [biometricsPassword, setBiometricsPassword] = useState('')
+  const [biometricsError, setBiometricsError] = useState('')
+  const [biometricsLoading, setBiometricsLoading] = useState(false)
+
+  // Check biometrics availability on mount
+  useEffect(() => {
+    checkBiometrics()
+  }, [checkBiometrics])
+
+  const handleBiometricsToggle = async (checked: boolean) => {
+    if (checked) {
+      // Need password to enable
+      setShowBiometricsModal(true)
+      setBiometricsPassword('')
+      setBiometricsError('')
+    } else {
+      // Disable directly
+      await disableBiometrics()
+    }
+  }
+
+  const confirmEnableBiometrics = async () => {
+    setBiometricsLoading(true)
+    setBiometricsError('')
+    const success = await enableBiometrics(biometricsPassword)
+    setBiometricsLoading(false)
+    if (success) {
+      setShowBiometricsModal(false)
+    } else {
+      setBiometricsError(t('securitySettings.errors.biometricsFailed', 'Failed to enable biometrics. Check your password.'))
+    }
+  }
+
+  const BiometricIcon = biometricType === 'face' ? IconFaceId : IconFingerprint
+  const biometricLabel = biometricType === 'face'
+    ? t('securitySettings.faceId', 'Face ID')
+    : biometricType === 'webauthn'
+      ? t('securitySettings.passkey', 'Passkey')
+      : t('securitySettings.fingerprint', 'Fingerprint')
 
   const handleHideIdentityToggle = (checked: boolean) => {
     setPendingHideIdentity(checked)
@@ -191,6 +244,30 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
                   />
                 </Group>
               </Box>
+
+              {/* Biometrics Toggle - only show if available */}
+              {biometricsAvailable && (
+                <Box px="md" py="sm">
+                  <Group justify="space-between">
+                    <Group gap="sm">
+                      <ThemeIcon variant="light" color="cyan" size={40} radius="md">
+                        <BiometricIcon size={20} />
+                      </ThemeIcon>
+                      <Box>
+                        <Text fw={500}>{biometricLabel}</Text>
+                        <Text size="xs" c="dimmed">
+                          {t('securitySettings.biometricsHint', 'Unlock with biometrics')}
+                        </Text>
+                      </Box>
+                    </Group>
+                    <Switch
+                      checked={biometricsEnabled}
+                      onChange={(e) => handleBiometricsToggle(e.currentTarget.checked)}
+                      color="cyan"
+                    />
+                  </Group>
+                </Box>
+              )}
             </Stack>
           )}
         </Box>
@@ -270,6 +347,45 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
               disabled={!hideIdentityPassword}
             >
               {t('common.save')}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Biometrics Enable Modal */}
+      <Modal
+        opened={showBiometricsModal}
+        onClose={() => setShowBiometricsModal(false)}
+        title={t('securitySettings.enableBiometricsTitle', 'Enable Biometrics')}
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {t('securitySettings.enableBiometricsHint', 'Enter your password to enable biometric unlock.')}
+          </Text>
+          <PasswordInput
+            label={t('securitySettings.currentPasswordLabel')}
+            placeholder={t('securitySettings.currentPasswordPlaceholder')}
+            value={biometricsPassword}
+            onChange={(e) => setBiometricsPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          {biometricsError && (
+            <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+              {biometricsError}
+            </Alert>
+          )}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setShowBiometricsModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              color="cyan"
+              onClick={confirmEnableBiometrics}
+              loading={biometricsLoading}
+              disabled={!biometricsPassword}
+            >
+              {t('common.enable', 'Enable')}
             </Button>
           </Group>
         </Stack>
