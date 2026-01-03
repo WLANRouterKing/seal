@@ -24,6 +24,24 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
       if (!containerRef.current || hasScanned.current) return
 
       try {
+        console.log('[QRScanner] Starting camera...')
+
+        // Check if getUserMedia is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Camera API not available')
+        }
+
+        // First request camera permission explicitly
+        console.log('[QRScanner] Requesting camera permission...')
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        })
+        console.log('[QRScanner] Camera permission granted, tracks:', stream.getTracks().length)
+
+        // Stop the stream immediately - we just needed to trigger permission
+        stream.getTracks().forEach(track => track.stop())
+
+        console.log('[QRScanner] Initializing Html5Qrcode...')
         // Disable native BarcodeDetector API to avoid Google Play Services dependency
         // This forces the library to use the JavaScript-based ZXing decoder
         const scanner = new Html5Qrcode('qr-reader', {
@@ -32,6 +50,7 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
         })
         scannerRef.current = scanner
 
+        console.log('[QRScanner] Starting scanner...')
         await scanner.start(
           { facingMode: 'environment' },
           {
@@ -52,13 +71,20 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
           () => {}
         )
 
+        console.log('[QRScanner] Scanner started successfully')
         if (mounted) {
           setIsStarting(false)
         }
       } catch (err) {
-        console.error('Failed to start scanner:', err)
+        console.error('[QRScanner] Failed to start scanner:', err)
         if (mounted) {
-          setError(t('sync.cameraError') || 'Failed to access camera')
+          const errorMsg = err instanceof Error ? err.message : String(err)
+          console.error('[QRScanner] Error message:', errorMsg)
+          if (errorMsg.includes('Permission') || errorMsg.includes('NotAllowed') || errorMsg.includes('denied')) {
+            setError(t('sync.cameraPermissionDenied') || 'Camera permission denied. Please allow camera access in your device settings.')
+          } else {
+            setError((t('sync.cameraError') || 'Failed to access camera') + ': ' + errorMsg)
+          }
           setIsStarting(false)
         }
       }

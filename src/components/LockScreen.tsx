@@ -47,23 +47,12 @@ export default function LockScreen() {
         checkBiometrics()
     }, [refreshLockoutStatus, checkBiometrics])
 
-    // Auto-trigger biometrics on mount if enabled
     const handleBiometricUnlock = useCallback(async () => {
         if (!isLoading && !isLockedOut) {
             clearError()
             await unlockWithBiometrics()
         }
     }, [isLoading, isLockedOut, clearError, unlockWithBiometrics])
-
-    useEffect(() => {
-        if (biometricsEnabled && !isLoading) {
-            // Small delay to let the UI render first
-            const timeout = setTimeout(() => {
-                handleBiometricUnlock()
-            }, 300)
-            return () => clearTimeout(timeout)
-        }
-    }, [biometricsEnabled]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const BiometricIcon = biometricType === 'face' ? IconFaceId : IconFingerprint
 

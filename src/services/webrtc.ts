@@ -82,12 +82,22 @@ export class WebRTCSync {
     )
   }
 
-  // Compress SDP by removing unnecessary whitespace and comments
+  // Compress SDP by removing unnecessary lines and whitespace
   private compressSDP(sdp: string): string {
-    return btoa(sdp
+    const compressed = sdp
       .split('\r\n')
-      .filter(line => line.length > 0)
-      .join('\n'))
+      .filter(line => {
+        // Keep essential lines only
+        if (line.length === 0) return false
+        // Remove session-level attributes we don't need
+        if (line.startsWith('a=msid-semantic')) return false
+        if (line.startsWith('a=group:BUNDLE')) return false
+        if (line.startsWith('a=extmap-allow-mixed')) return false
+        if (line.startsWith('a=extmap:')) return false
+        return true
+      })
+      .join('\n')
+    return btoa(compressed)
   }
 
   // Decompress SDP

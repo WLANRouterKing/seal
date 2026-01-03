@@ -130,7 +130,7 @@
     "logoutHint": "Remove keys from this device",
     "language": "Language",
     "languageHint": "App language",
-    "version": "Seal v0.1.6-alpha",
+    "version": "Seal v0.1.7-alpha",
     "footer": "Decentralized messaging with NIP-17"
   },
   "relaySettings": {
@@ -237,6 +237,7 @@
     "error": "Sync Failed",
     "codeInvalid": "Invalid confirmation code",
     "cameraError": "Failed to access camera",
+    "cameraPermissionDenied": "Camera permission denied. Please allow camera access in your device settings.",
     "retry": "Try Again",
     "cancel": "Cancel",
     "back": "Back",

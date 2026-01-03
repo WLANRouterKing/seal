@@ -38,7 +38,7 @@ export function QRCodeDisplay({ qrData, onCodeEntered, onCancel }: QRCodeDisplay
         <Text c="dimmed" ta="center">{t('sync.showingQR')}</Text>
 
         <Box p="md" bg="white" style={{ borderRadius: 'var(--mantine-radius-lg)' }}>
-          <QRCodeSVG value={qrData} size={250} level="M" includeMargin={false} />
+          <QRCodeSVG value={qrData} size={300} level="L" includeMargin />
         </Box>
 
         <Button color="cyan" onClick={() => setStep('code')}>{t('sync.enterCode')}</Button>

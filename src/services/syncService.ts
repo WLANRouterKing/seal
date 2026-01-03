@@ -12,6 +12,7 @@ import {
   type StoredMessage
 } from './db'
 import { useAuthStore } from '../stores/authStore'
+import { npubToPubkey } from './keys'
 import type { Message, Contact, AppSettings } from '../types'
 
 // Sync data contains stored messages (encrypted events), not decrypted content
@@ -42,6 +43,12 @@ export async function exportSyncData(): Promise<SyncData> {
     throw new Error('Not logged in')
   }
 
+  // Derive publicKey from npub
+  const publicKey = npubToPubkey(publicInfo.npub)
+  if (!publicKey) {
+    throw new Error('Invalid npub')
+  }
+
   const [messages, contacts, settings, relays] = await Promise.all([
     getAllMessages(),
     getAllContacts(),
@@ -55,7 +62,7 @@ export async function exportSyncData(): Promise<SyncData> {
   return {
     version: 1,
     exportedAt: Date.now(),
-    publicKey: publicInfo.publicKey,
+    publicKey,
     npub: publicInfo.npub,
     messages,
     contacts,
@@ -92,8 +99,11 @@ export async function importSyncData(data: SyncData): Promise<SyncStats> {
   const publicInfo = authState.publicInfo
 
   // Verify this data belongs to the same user
-  if (publicInfo && publicInfo.publicKey !== data.publicKey) {
-    throw new Error('Sync data belongs to a different user')
+  if (publicInfo) {
+    const currentPubkey = npubToPubkey(publicInfo.npub)
+    if (currentPubkey && currentPubkey !== data.publicKey) {
+      throw new Error('Sync data belongs to a different user')
+    }
   }
 
   // Clear existing data (except keys)

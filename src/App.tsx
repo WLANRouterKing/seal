@@ -6,6 +6,7 @@ import { useAuthStore } from './stores/authStore'
 import { useRelayStore } from './stores/relayStore'
 import { useContactStore } from './stores/contactStore'
 import { useMessageStore } from './stores/messageStore'
+import { nsecToPrivateKey, npubToPubkey } from './services/keys'
 import { notificationService } from './services/notifications'
 import { backgroundService } from './services/backgroundService'
 import { useAutoLock } from './hooks/useAutoLock'
@@ -56,16 +57,24 @@ function App() {
   // Initialize contacts and messages only when unlocked
   useEffect(() => {
     if (keys) {
-      initContacts()
-      initMessages(keys.publicKey, keys.privateKey)
+      const pubkey = npubToPubkey(keys.npub)
+      const privateKey = nsecToPrivateKey(keys.nsec)
+      if (pubkey && privateKey) {
+        initContacts()
+        initMessages(pubkey, privateKey)
+      }
     }
   }, [keys, initContacts, initMessages])
 
   // Subscribe to messages when unlocked and relays are connected
   useEffect(() => {
     if (keys && connectedCount > 0) {
-      const unsubscribe = subscribeToMessages(keys.publicKey, keys.privateKey)
-      return unsubscribe
+      const pubkey = npubToPubkey(keys.npub)
+      const privateKey = nsecToPrivateKey(keys.nsec)
+      if (pubkey && privateKey) {
+        const unsubscribe = subscribeToMessages(pubkey, privateKey)
+        return unsubscribe
+      }
     }
   }, [keys, connectedCount, subscribeToMessages])
 

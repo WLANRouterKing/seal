@@ -5,6 +5,7 @@ import { IconArrowLeft, IconClock, IconClockOff } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useMessageStore } from '../../stores/messageStore'
 import { useContactStore } from '../../stores/contactStore'
+import { nsecToPrivateKey } from '../../services/keys'
 import { type Contact, EXPIRATION_OPTIONS } from '../../types'
 import { truncateKey } from '../../utils/format'
 import MessageBubble from './MessageBubble'
@@ -37,12 +38,16 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
 
   const handleSend = async (content: string) => {
     if (!keys) return
-    await sendMessage(contactPubkey, content, keys.privateKey)
+    const privateKey = nsecToPrivateKey(keys.nsec)
+    if (!privateKey) return
+    await sendMessage(contactPubkey, content, privateKey)
   }
 
   const handleSendFile = async (file: File, caption?: string) => {
     if (!keys) return
-    await sendFileMessage(contactPubkey, file, caption, keys.privateKey)
+    const privateKey = nsecToPrivateKey(keys.nsec)
+    if (!privateKey) return
+    await sendFileMessage(contactPubkey, file, caption, privateKey)
   }
 
   const handleDelete = async (messageId: string) => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAuthStore } from '../stores/authStore'
 import { useRelayStore } from '../stores/relayStore'
+import { npubToPubkey } from '../services/keys'
 import { relayPool } from '../services/relay'
 import { notificationService } from '../services/notifications'
 import { NIP17_KIND } from '../utils/constants'
@@ -27,6 +28,10 @@ export function useLockedNotifications() {
     const connectedRelays = relayPool.getConnectedUrls()
     if (connectedRelays.length === 0) return
 
+    // Convert npub to hex pubkey for subscription filter
+    const pubkey = npubToPubkey(publicInfo.npub)
+    if (!pubkey) return
+
     // Reset sync state and record subscribe time
     initialSyncDone.current = false
     subscribeTime.current = Math.floor(Date.now() / 1000)
@@ -34,7 +39,7 @@ export function useLockedNotifications() {
     // Subscribe to gift-wrapped messages for our pubkey
     const unsubscribe = relayPool.subscribe(
       connectedRelays,
-      [{ kinds: [NIP17_KIND.GIFT_WRAP], '#p': [publicInfo.publicKey] }],
+      [{ kinds: [NIP17_KIND.GIFT_WRAP], '#p': [pubkey] }],
       (event) => {
         // Skip if already processed
         if (processedIds.current.has(event.id)) return

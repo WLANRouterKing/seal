@@ -234,9 +234,31 @@ function KeyQRScanner({onScan}: { onScan: (data: string) => void }) {
             if (hasScanned.current) return
 
             try {
-                const scanner = new Html5Qrcode('key-qr-reader')
+                console.log('[KeyQRScanner] Starting camera...')
+
+                // Check if getUserMedia is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera API not available')
+                }
+
+                // First request camera permission explicitly
+                console.log('[KeyQRScanner] Requesting camera permission...')
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                })
+                console.log('[KeyQRScanner] Camera permission granted')
+
+                // Stop the stream immediately - we just needed to trigger permission
+                stream.getTracks().forEach(track => track.stop())
+
+                console.log('[KeyQRScanner] Initializing Html5Qrcode...')
+                const scanner = new Html5Qrcode('key-qr-reader', {
+                    useBarCodeDetectorIfSupported: false,
+                    verbose: false
+                })
                 scannerRef.current = scanner
 
+                console.log('[KeyQRScanner] Starting scanner...')
                 await scanner.start(
                     {facingMode: 'environment'},
                     {
@@ -258,13 +280,20 @@ function KeyQRScanner({onScan}: { onScan: (data: string) => void }) {
                     }
                 )
 
+                console.log('[KeyQRScanner] Scanner started successfully')
                 if (mounted) {
                     setIsStarting(false)
                 }
             } catch (err) {
-                console.error('Failed to start scanner:', err)
+                console.error('[KeyQRScanner] Failed to start scanner:', err)
                 if (mounted) {
-                    setError(t('sync.cameraError') || 'Failed to access camera')
+                    const errorMsg = err instanceof Error ? err.message : String(err)
+                    console.error('[KeyQRScanner] Error message:', errorMsg)
+                    if (errorMsg.includes('Permission') || errorMsg.includes('NotAllowed') || errorMsg.includes('denied')) {
+                        setError(t('sync.cameraPermissionDenied') || 'Camera permission denied. Please allow camera access in your device settings.')
+                    } else {
+                        setError((t('sync.cameraError') || 'Failed to access camera') + ': ' + errorMsg)
+                    }
                     setIsStarting(false)
                 }
             }

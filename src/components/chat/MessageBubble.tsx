@@ -16,6 +16,7 @@ import { IconTrash, IconCheck, IconChecks, IconAlertCircle, IconX, IconClock, Ic
 import type { Message } from '../../types'
 import { formatTimestamp } from '../../utils/format'
 import { useAuthStore } from '../../stores/authStore'
+import { nsecToPrivateKey } from '../../services/keys'
 import { getDecryptedFileUrl } from '../../services/fileUpload'
 
 interface MessageBubbleProps {
@@ -42,7 +43,7 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isExpired, setIsExpired] = useState(false)
 
-  const privateKey = keys?.privateKey || ''
+  const privateKey = keys ? (nsecToPrivateKey(keys.nsec) || '') : ''
   const otherPubkey = contactPubkey
 
   // Check expiration and auto-hide when expired
