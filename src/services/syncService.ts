@@ -37,17 +37,20 @@ export interface SyncStats {
 // Export all data for sync
 export async function exportSyncData(): Promise<SyncData> {
   const authState = useAuthStore.getState()
-  const publicInfo = authState.publicInfo
 
-  if (!publicInfo) {
-    throw new Error('Not logged in')
+  // Use keys (available when unlocked) instead of publicInfo (which is null when identity is hidden)
+  const keys = authState.keys
+  if (!keys) {
+    throw new Error('Not logged in - please unlock your account first')
   }
 
   // Derive publicKey from npub
-  const publicKey = npubToPubkey(publicInfo.npub)
+  const publicKey = npubToPubkey(keys.npub)
   if (!publicKey) {
     throw new Error('Invalid npub')
   }
+
+  const npub = keys.npub
 
   const [messages, contacts, settings, relays] = await Promise.all([
     getAllMessages(),
@@ -63,7 +66,7 @@ export async function exportSyncData(): Promise<SyncData> {
     version: 1,
     exportedAt: Date.now(),
     publicKey,
-    npub: publicInfo.npub,
+    npub,
     messages,
     contacts,
     settings,

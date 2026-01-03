@@ -235,6 +235,7 @@
     "relays": "relays",
     "done": "Done",
     "error": "Sync Failed",
+    "notLoggedIn": "You must be logged in to sync data",
     "codeInvalid": "Invalid confirmation code",
     "cameraError": "Failed to access camera",
     "cameraPermissionDenied": "Camera permission denied. Please allow camera access in your device settings.",
@@ -242,8 +243,9 @@
     "cancel": "Cancel",
     "back": "Back",
     "connect": "Connect",
-    "pasteAnswer": "Connection data (for manual setup)",
-    "answerPlaceholder": "Paste connection data here..."
+    "next": "Next: Scan Response",
+    "step1of2": "Step 1/2: Let the other device scan this code",
+    "step2of2": "Step 2/2: Let the other device scan this code"
   },
   "voiceMessage": {
     "ready": "Ready to send",

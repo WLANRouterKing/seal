@@ -15,6 +15,9 @@ export function QRCodeDisplay({ qrData, onCodeEntered, onCancel }: QRCodeDisplay
   const [answerInput, setAnswerInput] = useState('')
   const [step, setStep] = useState<'qr' | 'code'>('qr')
 
+  // Log QR data size for debugging
+  console.log('[QRCodeDisplay] QR data length:', qrData.length, 'bytes')
+
   const handleCodeChange = (value: string) => {
     const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (cleaned.length <= 6) {

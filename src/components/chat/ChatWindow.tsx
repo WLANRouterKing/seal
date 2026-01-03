@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Stack, Group, Text, Avatar, ActionIcon, Box, Paper, ScrollArea, Center, Menu, Tooltip } from '@mantine/core'
-import { IconArrowLeft, IconClock, IconClockOff } from '@tabler/icons-react'
+import { Stack, Group, Text, Avatar, ActionIcon, Box, Paper, ScrollArea, Center, Menu, Tooltip, Modal, Button } from '@mantine/core'
+import { IconArrowLeft, IconClock, IconClockOff, IconDotsVertical, IconTrash } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useMessageStore } from '../../stores/messageStore'
 import { useContactStore } from '../../stores/contactStore'
@@ -20,9 +20,10 @@ interface ChatWindowProps {
 export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindowProps) {
   const { t } = useTranslation()
   const { keys } = useAuthStore()
-  const { getMessagesForContact, sendMessage, sendFileMessage, deleteMessage } = useMessageStore()
+  const { getMessagesForContact, sendMessage, sendFileMessage, deleteMessage, deleteChat } = useMessageStore()
   const { contacts, setExpiration } = useContactStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const messages = getMessagesForContact(contactPubkey)
   const displayName = contact?.name || truncateKey(contactPubkey, 8)
@@ -54,7 +55,31 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
     await deleteMessage(contactPubkey, messageId)
   }
 
+  const handleDeleteChat = async () => {
+    await deleteChat(contactPubkey)
+    setShowDeleteConfirm(false)
+    onBack()
+  }
+
   return (
+    <>
+    {/* Delete confirmation modal */}
+    <Modal
+      opened={showDeleteConfirm}
+      onClose={() => setShowDeleteConfirm(false)}
+      title={t('chat.deleteChat')}
+      centered
+    >
+      <Text mb="lg">{t('chat.deleteChatConfirm')}</Text>
+      <Group justify="flex-end">
+        <Button variant="default" onClick={() => setShowDeleteConfirm(false)}>
+          {t('common.cancel')}
+        </Button>
+        <Button color="red" onClick={handleDeleteChat}>
+          {t('common.delete')}
+        </Button>
+      </Group>
+    </Modal>
     <Stack h="100%" gap={0}>
       {/* Header */}
       <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
@@ -100,6 +125,24 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
               ))}
             </Menu.Dropdown>
           </Menu>
+
+          {/* More options menu */}
+          <Menu shadow="md" width={180} position="bottom-end">
+            <Menu.Target>
+              <ActionIcon variant="subtle">
+                <IconDotsVertical size={20} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item
+                color="red"
+                leftSection={<IconTrash size={16} />}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                {t('chat.deleteChat')}
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
         </Group>
       </Paper>
 
@@ -129,5 +172,6 @@ export default function ChatWindow({ contactPubkey, contact, onBack }: ChatWindo
       {/* Input */}
       <MessageInput onSend={handleSend} onSendFile={handleSendFile} />
     </Stack>
+    </>
   )
 }

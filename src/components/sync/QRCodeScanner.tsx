@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Stack, Text, Box, Alert, Button, Loader, Center } from '@mantine/core'
-import { IconAlertTriangle } from '@tabler/icons-react'
+import { Stack, Text, Box, Alert, Button, Loader, Center, Badge } from '@mantine/core'
+import { IconAlertTriangle, IconCamera } from '@tabler/icons-react'
 import { Html5Qrcode } from 'html5-qrcode'
 
 interface QRCodeScannerProps {
@@ -15,6 +15,7 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string>('')
   const [isStarting, setIsStarting] = useState(true)
+  const [isScanning, setIsScanning] = useState(false)
   const hasScanned = useRef(false)
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
         console.log('[QRScanner] Scanner started successfully')
         if (mounted) {
           setIsStarting(false)
+          setIsScanning(true)
         }
       } catch (err) {
         console.error('[QRScanner] Failed to start scanner:', err)
@@ -112,6 +114,13 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
   return (
     <Stack align="center" gap="md">
       <Text c="dimmed" ta="center">{t('sync.scanning')}</Text>
+
+      {isScanning && (
+        <Badge color="green" variant="dot" size="lg">
+          <IconCamera size={14} style={{ marginRight: 4 }} />
+          Kamera aktiv - Scanne...
+        </Badge>
+      )}
 
       <Box
         ref={containerRef}

@@ -1,6 +1,7 @@
 // WebRTC P2P Connection Manager for Device Sync
 import { sha256 } from '@noble/hashes/sha256'
 import { bytesToHex } from '@noble/hashes/utils'
+import pako from 'pako'
 
 interface SyncPacket {
   type: 'meta' | 'chunk' | 'done' | 'ack' | 'error'
@@ -10,9 +11,10 @@ interface SyncPacket {
   error?: string
 }
 
+// Minimal QR payload - using short keys to save bytes
 interface QRPayload {
   v: number           // Version
-  o: string           // SDP Offer (base64)
+  o: string           // SDP Offer (compressed)
   k: string           // AES key (base64)
   f: string           // Fingerprint
 }
@@ -82,29 +84,76 @@ export class WebRTCSync {
     )
   }
 
-  // Compress SDP by removing unnecessary lines and whitespace
+  // Filter SDP to keep only essential lines for data channel connection
+  private filterSDP(sdp: string): string {
+    const lines = sdp.split('\r\n')
+    let iceCandidateCount = 0
+    const maxCandidates = 3  // Keep only first 3 ICE candidates
+
+    const essential = lines.filter(line => {
+      // Always keep these essential lines
+      if (line.startsWith('v=')) return true
+      if (line.startsWith('o=')) return true
+      if (line.startsWith('s=')) return true
+      if (line.startsWith('t=')) return true
+      if (line.startsWith('m=')) return true
+      if (line.startsWith('c=')) return true
+      if (line.startsWith('a=ice-ufrag:')) return true
+      if (line.startsWith('a=ice-pwd:')) return true
+      if (line.startsWith('a=fingerprint:')) return true
+      if (line.startsWith('a=setup:')) return true
+      if (line.startsWith('a=mid:')) return true
+      if (line.startsWith('a=sctp-port:')) return true
+      if (line.startsWith('a=max-message-size:')) return true
+
+      // Keep limited ICE candidates (prefer host and srflx)
+      if (line.startsWith('a=candidate:')) {
+        // Skip relay candidates (typ relay) as they need TURN
+        if (line.includes(' typ relay ')) return false
+        iceCandidateCount++
+        return iceCandidateCount <= maxCandidates
+      }
+
+      // Skip everything else (extensions, rtcp, etc.)
+      return false
+    })
+
+    return essential.join('\r\n') + '\r\n'
+  }
+
+  // Compress SDP using gzip + base64
   private compressSDP(sdp: string): string {
-    const compressed = sdp
-      .split('\r\n')
-      .filter(line => {
-        // Keep essential lines only
-        if (line.length === 0) return false
-        // Remove session-level attributes we don't need
-        if (line.startsWith('a=msid-semantic')) return false
-        if (line.startsWith('a=group:BUNDLE')) return false
-        if (line.startsWith('a=extmap-allow-mixed')) return false
-        if (line.startsWith('a=extmap:')) return false
-        return true
-      })
-      .join('\n')
-    return btoa(compressed)
+    const filtered = this.filterSDP(sdp)
+    const compressed = pako.deflate(new TextEncoder().encode(filtered))
+    // Convert to base64
+    let binary = ''
+    for (let i = 0; i < compressed.length; i++) {
+      binary += String.fromCharCode(compressed[i])
+    }
+    return btoa(binary)
   }
 
   // Decompress SDP
   private decompressSDP(compressed: string): string {
-    return atob(compressed)
-      .split('\n')
-      .join('\r\n') + '\r\n'
+    const binary = atob(compressed)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    const decompressed = pako.inflate(bytes)
+    return new TextDecoder().decode(decompressed)
+  }
+
+  // Extract key parts for confirmation code (deterministic across devices)
+  private extractSDPKey(sdp: string): string {
+    const lines = sdp.split('\r\n')
+    let ufrag = '', pwd = '', fingerprint = ''
+    for (const line of lines) {
+      if (line.startsWith('a=ice-ufrag:')) ufrag = line.slice(12)
+      else if (line.startsWith('a=ice-pwd:')) pwd = line.slice(10)
+      else if (line.startsWith('a=fingerprint:')) fingerprint = line.slice(14)
+    }
+    return `${ufrag}|${pwd}|${fingerprint}`
   }
 
   // Generate fingerprint from key
@@ -114,10 +163,14 @@ export class WebRTCSync {
     return bytesToHex(hash).slice(0, 8)
   }
 
-  // Generate confirmation code from offer + answer + key
+  // Generate confirmation code from key SDP parts + encryption key
+  // Uses extracted key parts to ensure deterministic hashing across devices
   generateConfirmationCode(): string {
     if (!this.keyBytes || !this.offer || !this.answer) return ''
-    const combined = this.offer + this.answer + bytesToHex(this.keyBytes)
+    // Use deterministic parts (ufrag|pwd|fingerprint) for consistent hashing
+    const offerKey = this.extractSDPKey(this.offer)
+    const answerKey = this.extractSDPKey(this.answer)
+    const combined = offerKey + answerKey + bytesToHex(this.keyBytes)
     const hash = sha256(new TextEncoder().encode(combined))
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Avoid confusing chars
     let code = ''
@@ -145,19 +198,43 @@ export class WebRTCSync {
     const offer = await this.peerConnection.createOffer()
     await this.peerConnection.setLocalDescription(offer)
 
-    // Wait for ICE gathering to complete
-    await this.waitForICEGathering()
+    // Wait for ICE gathering to get some candidates
+    await this.waitForICECandidates(2000)
 
     this.offer = this.peerConnection.localDescription?.sdp || ''
+    const compressedOffer = this.compressSDP(this.offer)
 
     const payload: QRPayload = {
-      v: 1,
-      o: this.compressSDP(this.offer),
+      v: 3, // Version 3: gzip compressed SDP
+      o: compressedOffer,
       k: btoa(String.fromCharCode(...this.keyBytes!)),
       f: this.generateFingerprint()
     }
 
+    console.log('[WebRTC] Original SDP size:', this.offer.length, 'bytes')
+    console.log('[WebRTC] Filtered SDP:', this.filterSDP(this.offer))
+    console.log('[WebRTC] Compressed offer size:', compressedOffer.length, 'bytes')
+    console.log('[WebRTC] Total payload size:', JSON.stringify(payload).length, 'bytes')
     return JSON.stringify(payload)
+  }
+
+  // Wait for some ICE candidates to be gathered
+  private waitForICECandidates(timeout: number): Promise<void> {
+    return new Promise(resolve => {
+      const timer = setTimeout(resolve, timeout)
+
+      // Also resolve early if we get enough candidates
+      let candidateCount = 0
+      const handler = () => {
+        candidateCount++
+        if (candidateCount >= 3) {
+          clearTimeout(timer)
+          this.peerConnection?.removeEventListener('icecandidate', handler)
+          setTimeout(resolve, 100) // Small delay for SDP to update
+        }
+      }
+      this.peerConnection?.addEventListener('icecandidate', handler)
+    })
   }
 
   // Parse QR code and create answer, returns confirmation code
@@ -166,12 +243,15 @@ export class WebRTCSync {
 
     const payload: QRPayload = JSON.parse(qrData)
 
-    if (payload.v !== 1) {
-      throw new Error('Unsupported sync version')
+    if (payload.v !== 3) {
+      throw new Error('Unsupported sync version. Please update both devices.')
     }
 
     await this.importEncryptionKey(payload.k)
+
+    // Decompress and restore offer SDP
     this.offer = this.decompressSDP(payload.o)
+    console.log('[WebRTC] Decompressed offer SDP:', this.offer)
 
     this.peerConnection = new RTCPeerConnection(this.rtcConfig)
     this.setupPeerConnectionHandlers()
@@ -192,15 +272,19 @@ export class WebRTCSync {
     const answer = await this.peerConnection.createAnswer()
     await this.peerConnection.setLocalDescription(answer)
 
-    // Wait for ICE gathering
-    await this.waitForICEGathering()
+    // Wait for ICE gathering to get some candidates
+    await this.waitForICECandidates(2000)
 
     this.answer = this.peerConnection.localDescription?.sdp || ''
     this.expectedCode = this.generateConfirmationCode()
+    const compressedAnswer = this.compressSDP(this.answer)
+
+    console.log('[WebRTC] Answer SDP size:', this.answer.length, 'bytes')
+    console.log('[WebRTC] Compressed answer size:', compressedAnswer.length, 'bytes')
 
     return {
       code: this.expectedCode,
-      answerData: this.compressSDP(this.answer)
+      answerData: compressedAnswer
     }
   }
 
@@ -210,12 +294,16 @@ export class WebRTCSync {
       throw new Error('No peer connection')
     }
 
+    // Decompress answer SDP
     this.answer = this.decompressSDP(answerData)
+    console.log('[WebRTC] Decompressed answer SDP:', this.answer)
     this.expectedCode = this.generateConfirmationCode()
 
     // Verify confirmation code
     const normalizedEntered = enteredCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
     const normalizedExpected = this.expectedCode.replace('-', '')
+
+    console.log('[WebRTC] Code verification:', normalizedEntered, 'vs', normalizedExpected)
 
     if (normalizedEntered !== normalizedExpected) {
       this.setState('error')
@@ -267,24 +355,6 @@ export class WebRTCSync {
         }
       }
       checkConnection()
-    })
-  }
-
-  private waitForICEGathering(): Promise<void> {
-    return new Promise((resolve) => {
-      if (this.peerConnection?.iceGatheringState === 'complete') {
-        resolve()
-        return
-      }
-
-      const timeout = setTimeout(() => resolve(), 5000) // 5 second max wait
-
-      this.peerConnection?.addEventListener('icegatheringstatechange', () => {
-        if (this.peerConnection?.iceGatheringState === 'complete') {
-          clearTimeout(timeout)
-          resolve()
-        }
-      })
     })
   }
 
