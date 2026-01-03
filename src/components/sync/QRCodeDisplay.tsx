@@ -15,6 +15,9 @@ export function QRCodeDisplay({ qrData, onCodeEntered, onCancel }: QRCodeDisplay
   const [answerInput, setAnswerInput] = useState('')
   const [step, setStep] = useState<'qr' | 'code'>('qr')
 
+  // Log QR data size for debugging
+  console.log('[QRCodeDisplay] QR data length:', qrData.length, 'bytes')
+
   const handleCodeChange = (value: string) => {
     const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (cleaned.length <= 6) {
@@ -38,7 +41,7 @@ export function QRCodeDisplay({ qrData, onCodeEntered, onCancel }: QRCodeDisplay
         <Text c="dimmed" ta="center">{t('sync.showingQR')}</Text>
 
         <Box p="md" bg="white" style={{ borderRadius: 'var(--mantine-radius-lg)' }}>
-          <QRCodeSVG value={qrData} size={250} level="M" includeMargin={false} />
+          <QRCodeSVG value={qrData} size={300} level="L" includeMargin />
         </Box>
 
         <Button color="cyan" onClick={() => setStep('code')}>{t('sync.enterCode')}</Button>

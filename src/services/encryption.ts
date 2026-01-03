@@ -16,6 +16,11 @@ export function isEncryptedEnvelope(value: unknown): value is EncryptedEnvelope 
   return typeof value === 'object' && value !== null && '_e' in value && (value as EncryptedEnvelope)._e === 1
 }
 
+// Helper to convert Uint8Array to ArrayBuffer (fixes TypeScript crypto.subtle type issues)
+function toBuffer(arr: Uint8Array): ArrayBuffer {
+  return arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength) as ArrayBuffer
+}
+
 export async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const encoder = new TextEncoder()
   const passwordKey = await crypto.subtle.importKey(
@@ -29,14 +34,14 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt.buffer as ArrayBuffer,
+      salt: toBuffer(salt),
       iterations: ITERATIONS,
       hash: 'SHA-256'
     },
     passwordKey,
     { name: 'AES-GCM', length: 256 },
     false,
-    ['encrypt', 'decrypt']
+    ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
   )
 }
 

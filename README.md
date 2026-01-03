@@ -37,6 +37,38 @@ Seal is a privacy-focused messaging app built on the [Nostr](https://nostr.com) 
 - **Multi-Language** - English and German support
 - **Dark/Light Theme** - System-aware theme with manual override
 
+## Importing vs. Device Sync
+
+There are two ways to access your account on a new device:
+
+### Private Key Import (nsec)
+
+When you import your private key on a new device:
+- ✅ Your identity is restored (same npub/nsec)
+- ✅ Messages stored on relays are fetched
+- ❌ **Contacts are NOT imported** (stored locally only)
+- ❌ **Relay settings are NOT imported**
+- ❌ **App settings are NOT imported**
+
+This is because Nostr is a decentralized protocol - only encrypted messages are stored on relays. Contacts and settings are stored locally on your device.
+
+### Device Sync (Recommended)
+
+Device Sync transfers **all your data** directly between devices via encrypted P2P connection:
+- ✅ Your identity (keys)
+- ✅ All messages (including those no longer on relays)
+- ✅ **All contacts**
+- ✅ **Relay settings**
+- ✅ **App settings**
+
+**How to use Device Sync:**
+1. On your old device: Settings → Device Sync → "Send Data"
+2. A QR code and connection info will be shown
+3. On your new device: Settings → Device Sync → "Receive Data"
+4. Scan the QR code with the new device
+5. Confirm the security code matches on both devices
+6. Data transfers directly via encrypted WebRTC connection
+
 ## How It Works
 
 ### NIP-17 Gift Wraps

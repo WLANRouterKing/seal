@@ -10,11 +10,10 @@ import {
   ThemeIcon,
   Box,
   Code,
-  CopyButton,
-  Textarea,
+  TextInput,
 } from '@mantine/core'
 import { IconArrowLeft, IconUpload, IconDownload, IconCheck, IconX } from '@tabler/icons-react'
-import { QRCodeDisplay } from './QRCodeDisplay'
+import { QRCodeSVG } from 'qrcode.react'
 import { QRCodeScanner } from './QRCodeScanner'
 import { SyncProgress } from './SyncProgress'
 import { WebRTCSync } from '../../services/webrtc'
@@ -28,9 +27,11 @@ import {
 
 type SyncState =
   | 'idle'
-  | 'showing_qr'
-  | 'scanning'
-  | 'confirming'
+  | 'showing_qr'       // Sender: showing offer QR
+  | 'scanning_answer'  // Sender: scanning answer QR from receiver
+  | 'entering_code'    // Sender: entering confirmation code
+  | 'scanning'         // Receiver: scanning offer QR
+  | 'confirming'       // Receiver: showing answer QR + code
   | 'connected'
   | 'transferring'
   | 'complete'
@@ -51,6 +52,7 @@ export function SyncModal({ onBack }: SyncModalProps) {
   const [stats, setStats] = useState<SyncStats | null>(null)
   const [error, setError] = useState('')
   const [isSender, setIsSender] = useState(false)
+  const [codeInput, setCodeInput] = useState('')
 
   const startAsSender = async () => {
     try {
@@ -70,6 +72,45 @@ export function SyncModal({ onBack }: SyncModalProps) {
     setState('scanning')
   }
 
+  // Sender: move from showing QR to scanning answer QR
+  const handleSenderNextStep = () => {
+    setState('scanning_answer')
+  }
+
+  // Sender: scanned answer QR from receiver
+  const handleAnswerScanned = async (data: string) => {
+    try {
+      setAnswerData(data)
+      setState('entering_code')
+    } catch (err) {
+      console.error('Failed to process answer:', err)
+      setError(t('sync.error'))
+      setState('error')
+    }
+  }
+
+  // Sender: entered confirmation code
+  const handleCodeSubmit = async (code: string) => {
+    try {
+      console.log('[Sync] Completing connection with code:', code)
+      console.log('[Sync] Answer data length:', answerData.length)
+      const connected = await webrtc.completeConnection(answerData, code)
+      console.log('[Sync] Connection result:', connected)
+      if (connected) {
+        setState('connected')
+        startTransfer()
+      } else {
+        setError(t('sync.codeInvalid') || 'Invalid confirmation code')
+        setState('error')
+      }
+    } catch (err) {
+      console.error('Failed to complete connection:', err)
+      setError(t('sync.error') + ': ' + (err instanceof Error ? err.message : String(err)))
+      setState('error')
+    }
+  }
+
+  // Receiver: scanned offer QR
   const handleQRScanned = async (data: string) => {
     try {
       const { code, answerData: answer } = await webrtc.processOffer(data)
@@ -91,29 +132,14 @@ export function SyncModal({ onBack }: SyncModalProps) {
     }
   }
 
-  const handleCodeEntered = async (code: string, answer: string) => {
-    try {
-      const connected = await webrtc.completeConnection(answer, code)
-      if (connected) {
-        setState('connected')
-        startTransfer()
-      } else {
-        setError(t('sync.codeInvalid') || 'Invalid confirmation code')
-        setState('error')
-      }
-    } catch (err) {
-      console.error('Failed to complete connection:', err)
-      setError(t('sync.error'))
-      setState('error')
-    }
-  }
-
   const startTransfer = async () => {
     setState('transferring')
 
     try {
       if (isSender) {
+        console.log('[Sync] Starting export...')
         const data = await exportSyncData()
+        console.log('[Sync] Export complete, messages:', data.messages.length)
         const json = serializeSyncData(data)
 
         await webrtc.sendSyncData(json, (sent, total) => {
@@ -139,7 +165,12 @@ export function SyncModal({ onBack }: SyncModalProps) {
       }
     } catch (err) {
       console.error('Transfer failed:', err)
-      setError(t('sync.error'))
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('Not logged in')) {
+        setError(t('sync.notLoggedIn') || 'You must be logged in to sync data')
+      } else {
+        setError(t('sync.error') + ': ' + msg)
+      }
       setState('error')
     }
   }
@@ -154,6 +185,7 @@ export function SyncModal({ onBack }: SyncModalProps) {
     setQrData('')
     setConfirmCode('')
     setAnswerData('')
+    setCodeInput('')
     setProgress({ current: 0, total: 0 })
     setStats(null)
     setError('')
@@ -191,7 +223,61 @@ export function SyncModal({ onBack }: SyncModalProps) {
         )}
 
         {state === 'showing_qr' && (
-          <QRCodeDisplay qrData={qrData} onCodeEntered={handleCodeEntered} onCancel={handleReset} />
+          <Stack align="center" gap="lg">
+            <Text c="dimmed" ta="center">{t('sync.showingQR')}</Text>
+            <Box p="md" bg="white" style={{ borderRadius: 'var(--mantine-radius-lg)' }}>
+              <QRCodeSVG value={qrData} size={280} level="L" includeMargin />
+            </Box>
+            <Text size="sm" c="dimmed" ta="center">
+              {t('sync.step1of2') || 'Step 1/2: Let the other device scan this code'}
+            </Text>
+            <Button color="cyan" onClick={handleSenderNextStep}>
+              {t('sync.next') || 'Next: Scan Response'}
+            </Button>
+            <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
+          </Stack>
+        )}
+
+        {state === 'scanning_answer' && (
+          <QRCodeScanner onScan={handleAnswerScanned} onCancel={handleReset} />
+        )}
+
+        {state === 'entering_code' && (
+          <Stack align="center" gap="lg">
+            <Text c="dimmed" ta="center">
+              {t('sync.enterCodeFromDevice') || 'Enter the code shown on the other device'}
+            </Text>
+            <TextInput
+              value={codeInput}
+              onChange={(e) => {
+                const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                if (val.length <= 6) {
+                  setCodeInput(val.length > 3 ? val.slice(0, 3) + '-' + val.slice(3) : val)
+                }
+              }}
+              placeholder="XXX-XXX"
+              maxLength={7}
+              size="xl"
+              styles={{
+                input: {
+                  textAlign: 'center',
+                  fontFamily: 'monospace',
+                  fontSize: '2rem',
+                  letterSpacing: '0.2em',
+                  width: 200,
+                }
+              }}
+              autoFocus
+            />
+            <Button
+              color="cyan"
+              onClick={() => handleCodeSubmit(codeInput)}
+              disabled={codeInput.replace('-', '').length !== 6}
+            >
+              {t('sync.connect') || 'Connect'}
+            </Button>
+            <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
+          </Stack>
         )}
 
         {state === 'scanning' && (
@@ -200,25 +286,16 @@ export function SyncModal({ onBack }: SyncModalProps) {
 
         {state === 'confirming' && (
           <Stack align="center" gap="lg">
-            <Text c="dimmed" ta="center">{t('sync.tellOtherDevice')}</Text>
+            <Text c="dimmed" ta="center">
+              {t('sync.step2of2') || 'Step 2/2: Let the other device scan this code'}
+            </Text>
+            <Box p="md" bg="white" style={{ borderRadius: 'var(--mantine-radius-lg)' }}>
+              <QRCodeSVG value={answerData} size={280} level="L" includeMargin />
+            </Box>
+            <Text size="sm" c="dimmed" ta="center">{t('sync.tellOtherDevice')}</Text>
             <Paper p="xl" withBorder>
               <Code fz="2rem" fw={700} style={{ letterSpacing: '0.2em' }}>{confirmCode}</Code>
             </Paper>
-            <Box w="100%">
-              <Text size="sm" c="dimmed" mb="xs">{t('sync.copyAnswerData') || 'Copy this connection data:'}</Text>
-              <CopyButton value={answerData}>
-                {({ copied, copy }) => (
-                  <Textarea
-                    value={answerData}
-                    readOnly
-                    minRows={3}
-                    styles={{ input: { fontFamily: 'monospace', fontSize: '0.75rem' } }}
-                    onClick={copy}
-                    rightSection={copied ? <IconCheck size={14} /> : null}
-                  />
-                )}
-              </CopyButton>
-            </Box>
             <Text c="dimmed" size="sm">{t('sync.waitingForConnection') || 'Waiting for connection...'}</Text>
             <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
           </Stack>

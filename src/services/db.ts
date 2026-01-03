@@ -3,19 +3,48 @@ import { DB_NAME, DB_VERSION, STORES } from '../utils/constants'
 import type { NostrKeys, Contact, Message, AppSettings } from '../types'
 import { encryptForStorage, decryptFromStorage, isEncryptedEnvelope, type EncryptedEnvelope } from './encryption'
 import { isEncryptionUnlocked } from './encryptionKeyManager'
+import type { KeySlot } from './masterKey'
 
 // =============================================================================
 // TYPE DEFINITIONS
 // =============================================================================
 
-// Keys store: encrypted blob with optional visible public info
-export interface EncryptedKeys {
+/**
+ * Key Slot Structure (v2)
+ *
+ * Uses a master key system where the actual encryption key is wrapped
+ * by multiple "slots" - each slot can independently unlock the master key.
+ *
+ * See ENCRYPTION.md for full architecture documentation.
+ */
+export interface EncryptedKeysV2 {
+  _v: 2                 // Version marker
+  encryptedNsec: string // nsec encrypted with master key (IV + ciphertext, base64)
+  slots: KeySlot[]      // Array of key slots (password, passkey, etc.)
+  dbSalt: string        // Salt for deriving DB encryption key from master key
+  npub?: string         // Visible when locked (unless identityHidden)
+  identityHidden?: boolean
+}
+
+// Legacy format (v1) - for migration
+export interface EncryptedKeysV1 {
   _e: 1
   d: string
-  publicKey?: string  // Visible when locked (unless identityHidden)
-  npub?: string       // Visible when locked (unless identityHidden)
-  dbSalt?: string     // Base64-encoded salt for DB encryption
+  npub?: string
+  dbSalt?: string
   identityHidden?: boolean
+}
+
+// Union type for both versions
+export type EncryptedKeys = EncryptedKeysV1 | EncryptedKeysV2
+
+// Type guards
+export function isEncryptedKeysV2(keys: EncryptedKeys): keys is EncryptedKeysV2 {
+  return '_v' in keys && keys._v === 2
+}
+
+export function isEncryptedKeysV1(keys: EncryptedKeys): keys is EncryptedKeysV1 {
+  return '_e' in keys && keys._e === 1 && !('_v' in keys)
 }
 
 // Messages: stored with encryptedEvent, optionally wrapped in envelope
@@ -105,6 +134,9 @@ export async function getDB(): Promise<IDBPDatabase<NostrChatDB>> {
 // =============================================================================
 
 export function isEncryptedKeys(keys: NostrKeys | EncryptedKeys): keys is EncryptedKeys {
+  // Check for V2 format (master key slots)
+  if ('_v' in keys && keys._v === 2) return true
+  // Check for V1 format (legacy)
   return isEncryptedEnvelope(keys)
 }
 

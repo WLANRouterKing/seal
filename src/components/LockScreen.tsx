@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react'
+import {useState, useEffect, useCallback} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
     Center,
@@ -8,8 +8,9 @@ import {
     PasswordInput,
     Button,
     Alert,
+    Divider,
 } from '@mantine/core'
-import {IconLock, IconAlertTriangle, IconClock} from '@tabler/icons-react'
+import {IconLock, IconAlertTriangle, IconClock, IconFingerprint, IconFaceId} from '@tabler/icons-react'
 import {useAuthStore} from '../stores/authStore'
 import {truncateKey} from '../utils/format'
 import {formatRemainingTime} from '../services/rateLimiter'
@@ -17,7 +18,20 @@ import {formatRemainingTime} from '../services/rateLimiter'
 export default function LockScreen() {
     const {t} = useTranslation()
     const [password, setPassword] = useState('')
-    const {unlock, publicInfo, isLoading, error, clearError, lockoutUntil, failedAttempts, refreshLockoutStatus} = useAuthStore()
+    const {
+        unlock,
+        unlockWithBiometrics,
+        publicInfo,
+        isLoading,
+        error,
+        clearError,
+        lockoutUntil,
+        failedAttempts,
+        refreshLockoutStatus,
+        checkBiometrics,
+        biometricsEnabled,
+        biometricType
+    } = useAuthStore()
 
     // State for remaining lockout time - initialized lazily (impure functions allowed in initializers)
     const [remainingTime, setRemainingTime] = useState<number>(() => {
@@ -25,10 +39,22 @@ export default function LockScreen() {
         return Math.max(0, lockoutUntil - Date.now())
     })
 
-    // Check lockout status on mount
+    const isLockedOut = remainingTime > 0
+
+    // Check lockout status and biometrics on mount
     useEffect(() => {
         refreshLockoutStatus()
-    }, [refreshLockoutStatus])
+        checkBiometrics()
+    }, [refreshLockoutStatus, checkBiometrics])
+
+    const handleBiometricUnlock = useCallback(async () => {
+        if (!isLoading && !isLockedOut) {
+            clearError()
+            await unlockWithBiometrics()
+        }
+    }, [isLoading, isLockedOut, clearError, unlockWithBiometrics])
+
+    const BiometricIcon = biometricType === 'face' ? IconFaceId : IconFingerprint
 
     // Countdown timer for lockout - sync and update remaining time
     useEffect(() => {
@@ -59,8 +85,6 @@ export default function LockScreen() {
             clearInterval(interval)
         }
     }, [lockoutUntil, refreshLockoutStatus])
-
-    const isLockedOut = remainingTime > 0
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -122,13 +146,36 @@ export default function LockScreen() {
                             color="cyan"
                             fullWidth
                             disabled={!password.trim() || isLockedOut}
-                            loading={isLoading}
+                            loading={isLoading && !biometricsEnabled}
                         >
                             {isLockedOut
                                 ? formatRemainingTime(remainingTime)
                                 : t('lockScreen.unlock')
                             }
                         </Button>
+
+                        {biometricsEnabled && (
+                            <>
+                                <Divider label={t('common.or', 'or')} labelPosition="center" />
+                                <Button
+                                    variant="light"
+                                    size="lg"
+                                    color="cyan"
+                                    fullWidth
+                                    disabled={isLockedOut}
+                                    loading={isLoading}
+                                    onClick={handleBiometricUnlock}
+                                    leftSection={<BiometricIcon size={24} />}
+                                >
+                                    {biometricType === 'face'
+                                        ? t('lockScreen.unlockWithFace', 'Unlock with Face')
+                                        : biometricType === 'webauthn'
+                                            ? t('lockScreen.unlockWithPasskey', 'Unlock with Passkey')
+                                            : t('lockScreen.unlockWithFingerprint', 'Unlock with Fingerprint')
+                                    }
+                                </Button>
+                            </>
+                        )}
                     </Stack>
                 </form>
             </Stack>

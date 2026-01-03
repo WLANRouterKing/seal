@@ -130,7 +130,7 @@
     "logoutHint": "Keys von diesem Gerät entfernen",
     "language": "Sprache",
     "languageHint": "App-Sprache",
-    "version": "Seal v0.1.0-alpha",
+    "version": "Seal v0.1.7-alpha",
     "footer": "Dezentrales Messaging mit NIP-17"
   },
   "relaySettings": {
@@ -235,14 +235,17 @@
     "relays": "Relays",
     "done": "Fertig",
     "error": "Sync fehlgeschlagen",
+    "notLoggedIn": "Du musst eingeloggt sein um Daten zu synchronisieren",
     "codeInvalid": "Ungültiger Bestätigungscode",
     "cameraError": "Kamerazugriff fehlgeschlagen",
+    "cameraPermissionDenied": "Kamera-Berechtigung verweigert. Bitte erlaube den Kamerazugriff in den Geräteeinstellungen.",
     "retry": "Erneut versuchen",
     "cancel": "Abbrechen",
     "back": "Zurück",
     "connect": "Verbinden",
-    "pasteAnswer": "Verbindungsdaten (für manuelle Einrichtung)",
-    "answerPlaceholder": "Verbindungsdaten hier einfügen..."
+    "next": "Weiter: Antwort scannen",
+    "step1of2": "Schritt 1/2: Lass das andere Gerät diesen Code scannen",
+    "step2of2": "Schritt 2/2: Lass das andere Gerät diesen Code scannen"
   },
   "voiceMessage": {
     "ready": "Bereit zum Senden",

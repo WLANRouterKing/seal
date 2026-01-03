@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { StatusBar, Style } from '@capacitor/status-bar'
+import { Capacitor } from '@capacitor/core'
 
 type Theme = 'dark' | 'light' | 'system'
 
@@ -53,7 +55,13 @@ function applyTheme(theme: Theme) {
   // Update meta theme-color for mobile browsers
   const metaThemeColor = document.querySelector('meta[name="theme-color"]')
   if (metaThemeColor) {
-    metaThemeColor.setAttribute('content', effectiveTheme === 'dark' ? '#0f0f0f' : '#ffffff')
+    metaThemeColor.setAttribute('content', effectiveTheme === 'dark' ? '#1a1b1e' : '#ffffff')
+  }
+
+  // Update native status bar on Android/iOS
+  if (Capacitor.isNativePlatform()) {
+    StatusBar.setStyle({ style: effectiveTheme === 'dark' ? Style.Light : Style.Dark })
+    StatusBar.setBackgroundColor({ color: effectiveTheme === 'dark' ? '#1a1b1e' : '#ffffff' })
   }
 }
 

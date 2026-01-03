@@ -1,8 +1,6 @@
 export interface NostrKeys {
-  privateKey: string
-  publicKey: string
-  npub: string
   nsec: string
+  npub: string
 }
 
 export interface Contact {
@@ -67,5 +65,6 @@ export interface AppSettings {
   notificationsEnabled?: boolean
   relays?: string[]
   setupComplete?: boolean
-  hideIdentity?: boolean // When true, npub/publicKey are also encrypted
+  hideIdentity?: boolean // When true, npub is also encrypted (not visible when locked)
+  biometricsEnabled?: boolean // When true, biometric unlock is enabled
 }

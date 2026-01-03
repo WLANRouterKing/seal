@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Stack, Text, Box, Alert, Button, Loader, Center } from '@mantine/core'
-import { IconAlertTriangle } from '@tabler/icons-react'
+import { Stack, Text, Box, Alert, Button, Loader, Center, Badge } from '@mantine/core'
+import { IconAlertTriangle, IconCamera } from '@tabler/icons-react'
 import { Html5Qrcode } from 'html5-qrcode'
 
 interface QRCodeScannerProps {
@@ -15,6 +15,7 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string>('')
   const [isStarting, setIsStarting] = useState(true)
+  const [isScanning, setIsScanning] = useState(false)
   const hasScanned = useRef(false)
 
   useEffect(() => {
@@ -24,6 +25,24 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
       if (!containerRef.current || hasScanned.current) return
 
       try {
+        console.log('[QRScanner] Starting camera...')
+
+        // Check if getUserMedia is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Camera API not available')
+        }
+
+        // First request camera permission explicitly
+        console.log('[QRScanner] Requesting camera permission...')
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        })
+        console.log('[QRScanner] Camera permission granted, tracks:', stream.getTracks().length)
+
+        // Stop the stream immediately - we just needed to trigger permission
+        stream.getTracks().forEach(track => track.stop())
+
+        console.log('[QRScanner] Initializing Html5Qrcode...')
         // Disable native BarcodeDetector API to avoid Google Play Services dependency
         // This forces the library to use the JavaScript-based ZXing decoder
         const scanner = new Html5Qrcode('qr-reader', {
@@ -32,6 +51,7 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
         })
         scannerRef.current = scanner
 
+        console.log('[QRScanner] Starting scanner...')
         await scanner.start(
           { facingMode: 'environment' },
           {
@@ -52,13 +72,21 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
           () => {}
         )
 
+        console.log('[QRScanner] Scanner started successfully')
         if (mounted) {
           setIsStarting(false)
+          setIsScanning(true)
         }
       } catch (err) {
-        console.error('Failed to start scanner:', err)
+        console.error('[QRScanner] Failed to start scanner:', err)
         if (mounted) {
-          setError(t('sync.cameraError') || 'Failed to access camera')
+          const errorMsg = err instanceof Error ? err.message : String(err)
+          console.error('[QRScanner] Error message:', errorMsg)
+          if (errorMsg.includes('Permission') || errorMsg.includes('NotAllowed') || errorMsg.includes('denied')) {
+            setError(t('sync.cameraPermissionDenied') || 'Camera permission denied. Please allow camera access in your device settings.')
+          } else {
+            setError((t('sync.cameraError') || 'Failed to access camera') + ': ' + errorMsg)
+          }
           setIsStarting(false)
         }
       }
@@ -86,6 +114,13 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
   return (
     <Stack align="center" gap="md">
       <Text c="dimmed" ta="center">{t('sync.scanning')}</Text>
+
+      {isScanning && (
+        <Badge color="green" variant="dot" size="lg">
+          <IconCamera size={14} style={{ marginRight: 4 }} />
+          Kamera aktiv - Scanne...
+        </Badge>
+      )}
 
       <Box
         ref={containerRef}
