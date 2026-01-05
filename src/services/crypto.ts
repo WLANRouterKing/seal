@@ -8,6 +8,7 @@ import {
 } from 'nostr-tools'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { NIP17_KIND, NIP62_KIND } from '../utils/constants'
+import { minePoW, DEFAULT_MESSAGE_DIFFICULTY } from './pow'
 
 // NIP-17 Gift-Wrapped Direct Messages
 // https://github.com/nostr-protocol/nips/blob/master/17.md
@@ -120,13 +121,16 @@ export async function createGiftWrap(
   const encryptedSeal = nip44.v2.encrypt(JSON.stringify(seal), wrapConversationKey)
 
   // 8. Create gift wrap event signed with random key
-  const giftWrapEvent: UnsignedEvent = {
+  let giftWrapEvent: UnsignedEvent = {
     kind: NIP17_KIND.GIFT_WRAP,
     content: encryptedSeal,
     tags: [['p', recipientPubkey]],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
     pubkey: wrapperPubkey
   }
+
+  // 9. Mine Proof of Work (NIP-13) for spam prevention
+  giftWrapEvent = await minePoW(giftWrapEvent, DEFAULT_MESSAGE_DIFFICULTY)
 
   return finalizeEvent(giftWrapEvent, wrapperPrivateKeyBytes) as GiftWrap
 }
@@ -254,13 +258,16 @@ export async function createSelfGiftWrap(
 
   const encryptedSeal = nip44.v2.encrypt(JSON.stringify(seal), wrapConversationKey)
 
-  const giftWrapEvent: UnsignedEvent = {
+  let giftWrapEvent: UnsignedEvent = {
     kind: NIP17_KIND.GIFT_WRAP,
     content: encryptedSeal,
     tags: [['p', senderPubkey]],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
     pubkey: wrapperPubkey
   }
+
+  // Mine Proof of Work (NIP-13) for spam prevention
+  giftWrapEvent = await minePoW(giftWrapEvent, DEFAULT_MESSAGE_DIFFICULTY)
 
   return finalizeEvent(giftWrapEvent, wrapperPrivateKeyBytes) as GiftWrap
 }
@@ -400,13 +407,16 @@ export async function createFileGiftWrap(
   const encryptedSeal = nip44.v2.encrypt(JSON.stringify(seal), wrapConversationKey)
 
   // 8. Create gift wrap event
-  const giftWrapEvent: UnsignedEvent = {
+  let giftWrapEvent: UnsignedEvent = {
     kind: NIP17_KIND.GIFT_WRAP,
     content: encryptedSeal,
     tags: [['p', recipientPubkey]],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
     pubkey: wrapperPubkey
   }
+
+  // 9. Mine Proof of Work (NIP-13) for spam prevention
+  giftWrapEvent = await minePoW(giftWrapEvent, DEFAULT_MESSAGE_DIFFICULTY)
 
   return finalizeEvent(giftWrapEvent, wrapperPrivateKeyBytes) as GiftWrap
 }
