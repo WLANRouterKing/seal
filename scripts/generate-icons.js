@@ -11,6 +11,7 @@ const root = join(__dirname, '..')
 const ICON_COLOR = '#22d3ee' // Cyan-400
 const ANDROID_RES = join(root, 'android/app/src/main/res')
 const PUBLIC_DIR = join(root, 'public')
+const TAURI_ICONS = join(root, 'src-tauri/icons')
 
 // Lock icon SVG with white stroke
 const lockSvg = `
@@ -165,6 +166,89 @@ async function updateAndroidBackgroundColor() {
   console.log('Updated ic_launcher_background.xml')
 }
 
+async function generateTauriIcons() {
+  console.log('Generating Tauri icons...')
+
+  // Tauri PNG icons
+  const sizes = [
+    { name: '32x32.png', size: 32 },
+    { name: '128x128.png', size: 128 },
+    { name: '128x128@2x.png', size: 256 },
+    { name: 'icon.png', size: 512 }
+  ]
+
+  for (const { name, size } of sizes) {
+    const icon = await createBaseIcon(size)
+    writeFileSync(join(TAURI_ICONS, name), icon)
+    console.log(`  ${name}`)
+  }
+
+  // Windows ICO (multi-size)
+  const icoSizes = [16, 24, 32, 48, 64, 128, 256]
+  const icoBuffers = await Promise.all(
+    icoSizes.map(size => createBaseIcon(size))
+  )
+
+  // Create ICO file manually (simple format)
+  const icoBuffer = createIcoFile(icoBuffers, icoSizes)
+  writeFileSync(join(TAURI_ICONS, 'icon.ico'), icoBuffer)
+  console.log('  icon.ico')
+
+  // macOS ICNS - use PNG as fallback (Tauri accepts PNG for icon.icns path)
+  const icnsIcon = await createBaseIcon(512)
+  writeFileSync(join(TAURI_ICONS, 'icon.icns'), icnsIcon)
+  console.log('  icon.icns (PNG fallback)')
+}
+
+function createIcoFile(pngBuffers, sizes) {
+  // ICO header: 6 bytes
+  // ICO entry: 16 bytes each
+  // Then PNG data
+
+  const numImages = pngBuffers.length
+  const headerSize = 6 + (16 * numImages)
+
+  // Calculate total size
+  let totalSize = headerSize
+  for (const buf of pngBuffers) {
+    totalSize += buf.length
+  }
+
+  const ico = Buffer.alloc(totalSize)
+  let offset = 0
+
+  // ICO header
+  ico.writeUInt16LE(0, offset); offset += 2 // Reserved
+  ico.writeUInt16LE(1, offset); offset += 2 // Type: 1 = ICO
+  ico.writeUInt16LE(numImages, offset); offset += 2 // Number of images
+
+  // ICO entries
+  let dataOffset = headerSize
+  for (let i = 0; i < numImages; i++) {
+    const size = sizes[i]
+    const pngBuf = pngBuffers[i]
+
+    ico.writeUInt8(size < 256 ? size : 0, offset); offset += 1 // Width
+    ico.writeUInt8(size < 256 ? size : 0, offset); offset += 1 // Height
+    ico.writeUInt8(0, offset); offset += 1 // Color palette
+    ico.writeUInt8(0, offset); offset += 1 // Reserved
+    ico.writeUInt16LE(1, offset); offset += 2 // Color planes
+    ico.writeUInt16LE(32, offset); offset += 2 // Bits per pixel
+    ico.writeUInt32LE(pngBuf.length, offset); offset += 4 // Size of image data
+    ico.writeUInt32LE(dataOffset, offset); offset += 4 // Offset to image data
+
+    dataOffset += pngBuf.length
+  }
+
+  // PNG data
+  for (const pngBuf of pngBuffers) {
+    pngBuf.copy(ico, offset)
+    offset += pngBuf.length
+  }
+
+  return ico
+}
+
 async function main() {
   console.log('\n🎨 Generating Seal icons...\n')
 
@@ -172,6 +256,7 @@ async function main() {
   await generatePwaIcons()
   await generateFavicon()
   await updateAndroidBackgroundColor()
+  await generateTauriIcons()
 
   console.log('\n✅ All icons generated!\n')
 }

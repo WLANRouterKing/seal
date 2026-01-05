@@ -1,24 +1,53 @@
 // Notifications Service with Capacitor Local Notifications support for Android
+// and Tauri Notifications support for Desktop
 import {Capacitor} from '@capacitor/core'
 import {LocalNotifications} from '@capacitor/local-notifications'
 
 type NotificationCallback = (data: { senderPubkey: string }) => void
 
+// Check if running in Tauri
+const isTauri = (): boolean => {
+    return '__TAURI__' in window || '__TAURI_INTERNALS__' in window
+}
+
 class NotificationService {
     private permission: NotificationPermission = 'default'
     private enabled: boolean = true
     private isNativePlatform: boolean = false
+    private isTauriPlatform: boolean = false
     private onNotificationTap: NotificationCallback | null = null
     private pushToken: string | null = null
     private notificationId: number = 0
 
     async init(): Promise<boolean> {
+        this.isTauriPlatform = isTauri()
         this.isNativePlatform = Capacitor.isNativePlatform()
 
-        if (this.isNativePlatform) {
+        if (this.isTauriPlatform) {
+            return this.initTauriNotifications()
+        } else if (this.isNativePlatform) {
             return this.initNativeNotifications()
         } else {
             return this.initWebNotifications()
+        }
+    }
+
+    private async initTauriNotifications(): Promise<boolean> {
+        try {
+            const { isPermissionGranted, requestPermission } = await import('@tauri-apps/plugin-notification')
+            let granted = await isPermissionGranted()
+
+            if (!granted) {
+                const permission = await requestPermission()
+                granted = permission === 'granted'
+            }
+
+            this.permission = granted ? 'granted' : 'denied'
+            console.log('[Notifications] Tauri permission:', this.permission)
+            return granted
+        } catch (error) {
+            console.error('[Notifications] Failed to initialize Tauri notifications:', error)
+            return false
         }
     }
 
@@ -63,6 +92,14 @@ class NotificationService {
     }
 
     async requestPermission(): Promise<boolean> {
+        if (this.isTauriPlatform) {
+            const { requestPermission } = await import('@tauri-apps/plugin-notification')
+            const permission = await requestPermission()
+            const granted = permission === 'granted'
+            if (granted) this.permission = 'granted'
+            return granted
+        }
+
         if (this.isNativePlatform) {
             const localResult = await LocalNotifications.requestPermissions()
             const granted = localResult.display === 'granted'
@@ -76,7 +113,7 @@ class NotificationService {
     }
 
     isSupported(): boolean {
-        if (this.isNativePlatform) {
+        if (this.isTauriPlatform || this.isNativePlatform) {
             return true
         }
         return 'Notification' in window
@@ -149,8 +186,30 @@ class NotificationService {
             silent?: boolean
         }
     ): Promise<void> {
-        if (!this.isEnabled()) return
+        if (!this.isEnabled()) {
+            console.log('[Notifications] Skipping notification - not enabled:', {
+                enabled: this.enabled,
+                permission: this.permission
+            })
+            return
+        }
 
+        // Tauri platform
+        if (this.isTauriPlatform) {
+            try {
+                const { sendNotification } = await import('@tauri-apps/plugin-notification')
+                await sendNotification({
+                    title: title,
+                    body: options?.body
+                })
+                console.log('[Notifications] Tauri notification sent:', title)
+            } catch (error) {
+                console.error('[Notifications] Failed to show Tauri notification:', error)
+            }
+            return
+        }
+
+        // Capacitor native platform
         if (this.isNativePlatform) {
             await this.showLocalNotification(title, options)
             return
@@ -185,13 +244,20 @@ class NotificationService {
         senderName: string,
         senderPubkey: string
     ): Promise<void> {
-        console.log('[Notifications] Showing message notification:', {
+        console.log('[Notifications] Attempting to show message notification:', {
             senderName,
             permission: this.permission,
             enabled: this.enabled,
             isNative: this.isNativePlatform,
-            hasFocus: typeof document !== 'undefined' ? document.hasFocus() : false
+            isTauri: this.isTauriPlatform,
+            isEnabled: this.isEnabled()
         })
+
+        // If not enabled, try to request permission
+        if (!this.isEnabled() && this.permission !== 'denied') {
+            console.log('[Notifications] Not enabled, requesting permission...')
+            await this.requestPermission()
+        }
 
         // show simple notification without message content (privacy)
         await this.showNotification('Seal', {

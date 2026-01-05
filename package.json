@@ -12,7 +12,10 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "version": "node scripts/bump-version.js",
-    "icons": "node scripts/generate-icons.js"
+    "icons": "node scripts/generate-icons.js",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^9.1.2",
@@ -30,6 +33,7 @@
     "@noble/hashes": "^1.8.0",
     "@nostrify/nostrify": "^0.48.2",
     "@tabler/icons-react": "^3.36.0",
+    "@tauri-apps/plugin-notification": "^2.3.3",
     "html5-qrcode": "^2.3.8",
     "i18next": "^25.7.3",
     "i18next-browser-languagedetector": "^8.2.0",
@@ -46,6 +50,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/cli": "^2.9.6",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@types/node": "^24.10.1",
