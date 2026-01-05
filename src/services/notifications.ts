@@ -1,30 +1,40 @@
 // Notifications Service with Capacitor Local Notifications support for Android
-// and Tauri Notifications support for Desktop
+// and Electron Notifications support for Desktop
 import {Capacitor} from '@capacitor/core'
 import {LocalNotifications} from '@capacitor/local-notifications'
 
+// Electron API type declaration
+declare global {
+    interface Window {
+        electronAPI?: {
+            showNotification: (title: string, body: string) => Promise<void>
+            isElectron: boolean
+        }
+    }
+}
+
 type NotificationCallback = (data: { senderPubkey: string }) => void
 
-// Check if running in Tauri
-const isTauri = (): boolean => {
-    return '__TAURI__' in window || '__TAURI_INTERNALS__' in window
+// Check if running in Electron
+const isElectron = (): boolean => {
+    return window.electronAPI?.isElectron === true
 }
 
 class NotificationService {
     private permission: NotificationPermission = 'default'
     private enabled: boolean = true
     private isNativePlatform: boolean = false
-    private isTauriPlatform: boolean = false
+    private isElectronPlatform: boolean = false
     private onNotificationTap: NotificationCallback | null = null
     private pushToken: string | null = null
     private notificationId: number = 0
 
     async init(): Promise<boolean> {
-        this.isTauriPlatform = isTauri()
+        this.isElectronPlatform = isElectron()
         this.isNativePlatform = Capacitor.isNativePlatform()
 
-        if (this.isTauriPlatform) {
-            return this.initTauriNotifications()
+        if (this.isElectronPlatform) {
+            return this.initElectronNotifications()
         } else if (this.isNativePlatform) {
             return this.initNativeNotifications()
         } else {
@@ -32,23 +42,12 @@ class NotificationService {
         }
     }
 
-    private async initTauriNotifications(): Promise<boolean> {
-        try {
-            const { isPermissionGranted, requestPermission } = await import('@tauri-apps/plugin-notification')
-            let granted = await isPermissionGranted()
-
-            if (!granted) {
-                const permission = await requestPermission()
-                granted = permission === 'granted'
-            }
-
-            this.permission = granted ? 'granted' : 'denied'
-            console.log('[Notifications] Tauri permission:', this.permission)
-            return granted
-        } catch (error) {
-            console.error('[Notifications] Failed to initialize Tauri notifications:', error)
-            return false
-        }
+    private async initElectronNotifications(): Promise<boolean> {
+        // Electron uses native Notification API which is always available
+        // No permission request needed, they just work
+        this.permission = 'granted'
+        console.log('[Notifications] Electron notifications initialized')
+        return true
     }
 
     private async initWebNotifications(): Promise<boolean> {
@@ -92,12 +91,10 @@ class NotificationService {
     }
 
     async requestPermission(): Promise<boolean> {
-        if (this.isTauriPlatform) {
-            const { requestPermission } = await import('@tauri-apps/plugin-notification')
-            const permission = await requestPermission()
-            const granted = permission === 'granted'
-            if (granted) this.permission = 'granted'
-            return granted
+        if (this.isElectronPlatform) {
+            // Electron notifications are always available
+            this.permission = 'granted'
+            return true
         }
 
         if (this.isNativePlatform) {
@@ -113,7 +110,7 @@ class NotificationService {
     }
 
     isSupported(): boolean {
-        if (this.isTauriPlatform || this.isNativePlatform) {
+        if (this.isElectronPlatform || this.isNativePlatform) {
             return true
         }
         return 'Notification' in window
@@ -194,17 +191,13 @@ class NotificationService {
             return
         }
 
-        // Tauri platform
-        if (this.isTauriPlatform) {
+        // Electron platform
+        if (this.isElectronPlatform) {
             try {
-                const { sendNotification } = await import('@tauri-apps/plugin-notification')
-                await sendNotification({
-                    title: title,
-                    body: options?.body
-                })
-                console.log('[Notifications] Tauri notification sent:', title)
+                await window.electronAPI?.showNotification(title, options?.body || '')
+                console.log('[Notifications] Electron notification sent:', title)
             } catch (error) {
-                console.error('[Notifications] Failed to show Tauri notification:', error)
+                console.error('[Notifications] Failed to show Electron notification:', error)
             }
             return
         }
@@ -249,7 +242,7 @@ class NotificationService {
             permission: this.permission,
             enabled: this.enabled,
             isNative: this.isNativePlatform,
-            isTauri: this.isTauriPlatform,
+            isElectron: this.isElectronPlatform,
             isEnabled: this.isEnabled()
         })
 
