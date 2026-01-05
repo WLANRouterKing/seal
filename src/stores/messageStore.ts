@@ -172,6 +172,21 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       // Create self-addressed copy (this is what we store - we can decrypt it with our own key)
       const selfGiftWrap = await createSelfGiftWrap(content, recipientPubkey, senderPrivateKey, giftWrapOptions)
 
+      // Debug logging in dev mode
+      if (import.meta.env.DEV) {
+        const nonceTag = giftWrap.tags.find(t => t[0] === 'nonce')
+        console.log('[Message] Gift-wrap created:', {
+          id: giftWrap.id,
+          recipient: recipientPubkey.slice(0, 12) + '...',
+          kind: giftWrap.kind,
+          powDifficulty: nonceTag ? nonceTag[2] : 'none',
+          powNonce: nonceTag ? nonceTag[1] : 'none',
+          tags: giftWrap.tags,
+          contentLength: giftWrap.content.length,
+          createdAt: new Date(giftWrap.created_at * 1000).toISOString()
+        })
+      }
+
       // Get recipient's preferred DM relays (NIP-17 Kind 10050)
       const recipientDMRelays = await useRelayStore.getState().getDMRelays(recipientPubkey)
 
@@ -183,10 +198,25 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       const newRelays = recipientDMRelays.filter(r => !connectedRelays.includes(r))
       await Promise.all(newRelays.map(r => relayPool.connect(r)))
 
+      if (import.meta.env.DEV) {
+        console.log('[Message] Publishing to relays:', {
+          targetRelays: allTargetRelays,
+          recipientRelays: recipientDMRelays,
+          connectedRelays: connectedRelays
+        })
+      }
+
       const [result1] = await Promise.all([
         relayPool.publish(allTargetRelays, giftWrap as unknown as Event),
         relayPool.publish(connectedRelays, selfGiftWrap as unknown as Event) // Self copy only to our relays
       ])
+
+      if (import.meta.env.DEV) {
+        console.log('[Message] Publish result:', {
+          successes: result1.successes,
+          failures: result1.failures
+        })
+      }
 
       // Update message with self gift wrap (encrypted event we can decrypt)
       const updatedMessage: Message = {
@@ -271,6 +301,19 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       // Create file gift wrap (Kind 15) with expiration
       const giftWrapOptions = expiration ? { expiration } : undefined
       const giftWrap = await createFileGiftWrap(fileMetadata, recipientPubkey, senderPrivateKey, giftWrapOptions)
+
+      // Debug logging in dev mode
+      if (import.meta.env.DEV) {
+        const nonceTag = giftWrap.tags.find(t => t[0] === 'nonce')
+        console.log('[FileMessage] Gift-wrap created:', {
+          id: giftWrap.id,
+          recipient: recipientPubkey.slice(0, 12) + '...',
+          kind: giftWrap.kind,
+          powDifficulty: nonceTag ? nonceTag[2] : 'none',
+          powNonce: nonceTag ? nonceTag[1] : 'none',
+          tags: giftWrap.tags
+        })
+      }
 
       // Create file metadata JSON for storing in content
       const fileData = JSON.stringify({
@@ -359,6 +402,19 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         // Skip if already processed in this session
         if (processedIds.has(event.id)) return
         processedIds.add(event.id)
+
+        // Debug logging in dev mode
+        if (import.meta.env.DEV) {
+          const nonceTag = event.tags.find(t => t[0] === 'nonce')
+          console.log('[Message] Received gift-wrap:', {
+            id: event.id,
+            from: event.pubkey.slice(0, 12) + '...',
+            kind: event.kind,
+            powDifficulty: nonceTag ? nonceTag[2] : 'none',
+            powNonce: nonceTag ? nonceTag[1] : 'none',
+            createdAt: new Date(event.created_at * 1000).toISOString()
+          })
+        }
 
         // Skip if message was previously deleted
         if (await isMessageDeleted(event.id)) return

@@ -40,16 +40,29 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
     return contact?.picture
   }
 
-  const formatPreview = (content: string) => {
-    const hasImage = content.includes('[img:data:image/')
-    const textContent = content.replace(/\[img:data:image\/[^\]]+\]/g, '').trim()
+  const formatPreview = (content: string, maxLength = 40) => {
+    const hasImage = content.includes('[img:data:image/') || content.includes('[file:')
+    const hasAudio = content.includes('"mimeType":"audio/')
+    let textContent = content
+      .replace(/\[img:data:image\/[^\]]+\]/g, '')
+      .replace(/\[file:\{[^\]]+\}\]/g, '')
+      .replace(/\[file:https?:\/\/[^\]]+\]/g, '')
+      .trim()
 
+    if (hasAudio) {
+      return '🎤 Voice message'
+    }
     if (hasImage && textContent) {
-      return `📷 ${textContent}`
+      textContent = `📷 ${textContent}`
     } else if (hasImage) {
       return `📷 ${t('common.photo')}`
     }
-    return content
+
+    // Truncate text
+    if (textContent.length > maxLength) {
+      return textContent.slice(0, maxLength) + '...'
+    }
+    return textContent
   }
 
   if (chats.length === 0) {
@@ -160,10 +173,8 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
                     )}
                   </Group>
                   {chat.lastMessage && (
-                    <Text size="sm" c="dimmed" truncate>
-                      {chat.lastMessage.isOutgoing && (
-                        <Text span c="dimmed">{t('common.you')}: </Text>
-                      )}
+                    <Text size="sm" c="dimmed" truncate style={{ display: 'block' }}>
+                      {chat.lastMessage.isOutgoing && `${t('common.you')}: `}
                       {formatPreview(chat.lastMessage.content)}
                     </Text>
                   )}

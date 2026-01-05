@@ -6,6 +6,7 @@
     "delete": "Löschen",
     "copy": "Kopieren",
     "copied": "Kopiert!",
+    "copyNpub": "npub kopieren",
     "add": "Hinzufügen",
     "show": "Anzeigen",
     "hide": "Verbergen",
@@ -98,6 +99,8 @@
     "noContacts": "Noch keine Kontakte",
     "noContactsHint": "Füge Kontakte mit ihrem Nostr Public Key (npub) hinzu, um zu chatten",
     "addContact": "Kontakt hinzufügen",
+    "contactDetails": "Kontaktdetails",
+    "name": "Name",
     "publicKeyLabel": "Public Key (npub) *",
     "publicKeyHint": "Gib den Nostr Public Key der Person ein, die du hinzufügen möchtest",
     "nameLabel": "Name (optional)",
@@ -130,7 +133,7 @@
     "logoutHint": "Keys von diesem Gerät entfernen",
     "language": "Sprache",
     "languageHint": "App-Sprache",
-    "version": "Seal v0.1.7-alpha",
+    "version": "Seal v0.1.8-alpha",
     "footer": "Dezentrales Messaging mit NIP-17"
   },
   "relaySettings": {

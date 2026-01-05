@@ -6,6 +6,7 @@
     "delete": "Delete",
     "copy": "Copy",
     "copied": "Copied!",
+    "copyNpub": "Copy npub",
     "add": "Add",
     "show": "Show",
     "hide": "Hide",
@@ -98,6 +99,8 @@
     "noContacts": "No Contacts Yet",
     "noContactsHint": "Add contacts using their Nostr public key (npub) to start messaging",
     "addContact": "Add Contact",
+    "contactDetails": "Contact Details",
+    "name": "Name",
     "publicKeyLabel": "Public Key (npub) *",
     "publicKeyHint": "Enter the Nostr public key of the person you want to add",
     "nameLabel": "Name (optional)",
@@ -130,7 +133,7 @@
     "logoutHint": "Remove keys from this device",
     "language": "Language",
     "languageHint": "App language",
-    "version": "Seal v0.1.7-alpha",
+    "version": "Seal v0.1.8-alpha",
     "footer": "Decentralized messaging with NIP-17"
   },
   "relaySettings": {
