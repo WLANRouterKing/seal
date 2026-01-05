@@ -2,18 +2,40 @@ name: Android Build
 
 on:
   push:
-    branches: [master]
+    branches: ['*']
     tags:
       - 'v*'
-  workflow_dispatch:  # Manual trigger
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test:run
+
   build:
     name: Build Android APK
+    needs: test
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write  # Required for uploading to releases
+      contents: write
 
     steps:
       - name: Checkout
@@ -40,11 +62,31 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # Debug build for non-release (branches/PRs)
+      - name: Build Debug APK
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload Debug APK
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: seal-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      # Release build for tags only
       - name: Decode Keystore
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/seal-release.keystore
 
       - name: Create keystore.properties
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           cat > android/keystore.properties << EOF
           storeFile=../seal-release.keystore
@@ -53,22 +95,22 @@ jobs:
           keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           EOF
 
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
-
       - name: Build Release APK
+        if: startsWith(github.ref, 'refs/tags/')
         working-directory: android
         run: ./gradlew assembleRelease
 
-      - name: Rename APK
+      - name: Rename Release APK
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-          VERSION="${GITHUB_REF_NAME:-dev}"
+          VERSION="${GITHUB_REF_NAME}"
           mv android/app/build/outputs/apk/release/app-release.apk seal-${VERSION}.apk
 
-      - name: Upload APK Artifact
+      - name: Upload Release APK Artifact
+        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
         with:
-          name: seal-apk
+          name: seal-release-apk
           path: seal-*.apk
 
       - name: Upload to Release
