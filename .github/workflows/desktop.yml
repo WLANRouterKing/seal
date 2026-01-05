@@ -67,6 +67,7 @@ jobs:
       # Check if current commit on master has a version tag
       - name: Check for version tag
         id: check_tag
+        shell: bash
         run: |
           TAG=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
           if [[ "$TAG" == v* ]] && [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
