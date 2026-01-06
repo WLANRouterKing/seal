@@ -67,7 +67,8 @@ function createGitTag(version, push = false) {
 
 // Main
 const args = process.argv.slice(2)
-const type = args[0] || 'patch'
+const positionalArgs = args.filter(arg => !arg.startsWith('--'))
+const type = positionalArgs[0] || 'patch'
 const shouldTag = args.includes('--tag')
 const shouldPush = args.includes('--push')
 
