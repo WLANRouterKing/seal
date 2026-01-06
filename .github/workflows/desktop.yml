@@ -76,7 +76,9 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "is_release=true" >> $GITHUB_OUTPUT
-            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            # Remove 'v' prefix for electron-builder (requires version without v)
+            VERSION="${{ github.ref_name }}"
+            echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
           else
             echo "is_release=false" >> $GITHUB_OUTPUT
           fi
@@ -91,7 +93,7 @@ jobs:
       # Release builds only on master with version tag
       - name: Build and Publish Electron app (Release)
         if: steps.check_tag.outputs.is_release == 'true'
-        run: npm run ${{ matrix.build_script }} -- --publish always -c.extraMetadata.version=${{ steps.check_tag.outputs.tag }}
+        run: npm run ${{ matrix.build_script }} -- --publish always -c.extraMetadata.version=${{ steps.check_tag.outputs.version }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
