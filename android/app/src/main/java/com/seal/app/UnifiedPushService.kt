@@ -3,8 +3,9 @@ package com.seal.app
 import android.content.Context
 import android.util.Log
 import org.unifiedpush.android.connector.FailedReason
-import org.unifiedpush.android.connector.PushMessage
+import org.unifiedpush.android.connector.PushEndpoint
 import org.unifiedpush.android.connector.PushService
+import org.unifiedpush.android.connector.data.PushMessage
 
 /**
  * UnifiedPush service that receives push notifications from distributors like ntfy.
@@ -15,24 +16,25 @@ class UnifiedPushService : PushService() {
         private const val TAG = "UnifiedPushService"
     }
 
-    override fun onNewEndpoint(endpoint: String, instance: String) {
-        Log.d(TAG, "New endpoint received: $endpoint")
+    override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
+        val endpointUrl = endpoint.url
+        Log.d(TAG, "New endpoint received: $endpointUrl")
         // Store the endpoint to send to our push server
         val prefs = applicationContext.getSharedPreferences("unified_push", Context.MODE_PRIVATE)
         prefs.edit()
-            .putString("endpoint", endpoint)
+            .putString("endpoint", endpointUrl)
             .putString("instance", instance)
             .apply()
 
         // Notify the JavaScript side if the app is running
-        UnifiedPushPlugin.notifyEndpoint(endpoint)
+        UnifiedPushPlugin.notifyEndpoint(endpointUrl)
     }
 
     override fun onMessage(message: PushMessage, instance: String) {
         Log.d(TAG, "Push message received")
 
         // Show notification using Android's notification system
-        val content = message.content.decodeToString()
+        val content = String(message.content)
         UnifiedPushPlugin.handlePushMessage(applicationContext, content)
     }
 

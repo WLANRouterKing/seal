@@ -86,17 +86,9 @@ class UnifiedPushPlugin : Plugin() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            // Parse the message content (expects JSON from push server)
-            val title: String
-            val body: String
-            try {
-                val json = org.json.JSONObject(content)
-                title = json.optString("title", "Seal")
-                body = json.optString("message", "New message")
-            } catch (e: Exception) {
-                title = "Seal"
-                body = "New message"
-            }
+            // Always show generic message for privacy
+            val title = "Seal"
+            val body = "New message"
 
             // Build and show notification
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
