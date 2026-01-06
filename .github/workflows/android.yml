@@ -74,7 +74,12 @@ jobs:
       - name: Build Debug APK
         if: "!startsWith(github.ref, 'refs/tags/')"
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: |
+          for i in 1 2 3; do
+            ./gradlew assembleDebug && break
+            echo "Attempt $i failed, retrying in 30 seconds..."
+            sleep 30
+          done
 
       - name: Upload Debug APK
         if: "!startsWith(github.ref, 'refs/tags/')"
@@ -103,7 +108,12 @@ jobs:
       - name: Build Release APK
         if: startsWith(github.ref, 'refs/tags/')
         working-directory: android
-        run: ./gradlew assembleRelease
+        run: |
+          for i in 1 2 3; do
+            ./gradlew assembleRelease && break
+            echo "Attempt $i failed, retrying in 30 seconds..."
+            sleep 30
+          done
 
       - name: Rename Release APK
         if: startsWith(github.ref, 'refs/tags/')

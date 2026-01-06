@@ -4,6 +4,8 @@ buildscript {
 
     repositories {
         google()
+        // Use Sonatype OSS as primary (more reliable for CI)
+        maven { url 'https://oss.sonatype.org/content/repositories/releases/' }
         mavenCentral()
         gradlePluginPortal()
     }
@@ -21,6 +23,8 @@ apply from: "variables.gradle"
 allprojects {
     repositories {
         google()
+        // Use Sonatype OSS as primary (more reliable for CI)
+        maven { url 'https://oss.sonatype.org/content/repositories/releases/' }
         mavenCentral()
         gradlePluginPortal()
         maven { url 'https://jitpack.io' }
