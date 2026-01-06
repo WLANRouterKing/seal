@@ -98,7 +98,8 @@
     "publish": {
       "provider": "github",
       "owner": "WLANRouterKing",
-      "repo": "seal"
+      "repo": "seal",
+      "releaseType": "release"
     },
     "linux": {
       "target": [
