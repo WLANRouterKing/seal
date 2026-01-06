@@ -2,7 +2,7 @@ name: Android Build
 
 on:
   push:
-    branches: ['*']
+    branches: [master]
     tags:
       - 'v*'
   pull_request:
