@@ -9,6 +9,7 @@ import { useMessageStore } from './stores/messageStore'
 import { nsecToPrivateKey, npubToPubkey } from './services/keys'
 import { notificationService } from './services/notifications'
 import { backgroundService } from './services/backgroundService'
+import { pushService } from './services/pushService'
 import { useAutoLock } from './hooks/useAutoLock'
 import { useLockedNotifications } from './hooks/useLockedNotifications'
 import Layout from './components/Layout'
@@ -51,6 +52,7 @@ function App() {
       initRelays()
       notificationService.init()
       backgroundService.start()
+      pushService.init()
     }
   }, [keys, hasPassword, publicInfo, initRelays])
 

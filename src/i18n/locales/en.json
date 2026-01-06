@@ -11,6 +11,7 @@
     "show": "Show",
     "hide": "Hide",
     "enabled": "Enabled",
+    "disabled": "Disabled",
     "notSet": "Not set",
     "photo": "Photo",
     "you": "You",
@@ -254,6 +255,22 @@
     "ready": "Ready to send",
     "recording": "Recording...",
     "microphoneError": "Microphone access denied"
+  },
+  "pushSettings": {
+    "title": "Push Notifications",
+    "enablePush": "Push Notifications",
+    "statusConnected": "Receiving notifications",
+    "statusDisconnected": "Not active",
+    "registered": "Registered with push server",
+    "notRegistered": "Not registered",
+    "serverConfig": "Server Configuration",
+    "pushServer": "Push Server",
+    "pushServerHint": "URL of your seal-push-server instance",
+    "ntfyServer": "ntfy Server",
+    "ntfyServerHint": "URL of the ntfy.sh server for delivery",
+    "howItWorks": "Push notifications work by connecting to a push server that monitors Nostr relays for new messages. When a message arrives, it sends a notification through ntfy.sh to your device.",
+    "learnMore": "Learn more & self-host",
+    "selfHostHint": "For maximum privacy, you can run your own push server and ntfy instance. The push server only sees your public key - messages remain encrypted."
   },
   "deleteAccount": {
     "title": "Delete Account",
