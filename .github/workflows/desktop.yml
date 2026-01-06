@@ -87,7 +87,7 @@ jobs:
       - name: Set release version
         if: steps.check_tag.outputs.is_release == 'true'
         shell: bash
-        run: npm version ${{ steps.check_tag.outputs.version }} --no-git-tag-version --allow-same-version
+        run: node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); p.version='${{ steps.check_tag.outputs.version }}'; fs.writeFileSync('package.json', JSON.stringify(p, null, 2)+'\n')"
 
       # Debug builds for branches (not master with tag)
       - name: Build Electron app (Debug)
