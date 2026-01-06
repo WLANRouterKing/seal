@@ -8,6 +8,9 @@ interface PushState {
   ntfyServerUrl: string
   ntfyTopic: string | null
 
+  // UnifiedPush (Android)
+  unifiedPushEndpoint: string | null
+
   // State
   isRegistered: boolean
   lastError: string | null
@@ -17,6 +20,7 @@ interface PushState {
   setPushServerUrl: (url: string) => void
   setNtfyServerUrl: (url: string) => void
   setNtfyTopic: (topic: string | null) => void
+  setUnifiedPushEndpoint: (endpoint: string | null) => void
   setRegistered: (registered: boolean) => void
   setError: (error: string | null) => void
   reset: () => void
@@ -42,6 +46,7 @@ export const usePushStore = create<PushState>()(
       pushServerUrl: DEFAULT_PUSH_SERVER,
       ntfyServerUrl: DEFAULT_NTFY_SERVER,
       ntfyTopic: null,
+      unifiedPushEndpoint: null,
       isRegistered: false,
       lastError: null,
 
@@ -56,6 +61,8 @@ export const usePushStore = create<PushState>()(
 
       setNtfyTopic: (topic) => set({ ntfyTopic: topic }),
 
+      setUnifiedPushEndpoint: (endpoint) => set({ unifiedPushEndpoint: endpoint }),
+
       setRegistered: (registered) => set({ isRegistered: registered }),
 
       setError: (error) => set({ lastError: error }),
@@ -65,13 +72,14 @@ export const usePushStore = create<PushState>()(
         pushServerUrl: DEFAULT_PUSH_SERVER,
         ntfyServerUrl: DEFAULT_NTFY_SERVER,
         ntfyTopic: null,
+        unifiedPushEndpoint: null,
         isRegistered: false,
         lastError: null,
       }),
     }),
     {
       name: 'seal-push-storage',
-      version: 1,
+      version: 2,
     }
   )
 )

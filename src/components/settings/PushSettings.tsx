@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Capacitor } from '@capacitor/core'
 import {
   Stack,
   Group,
@@ -26,9 +27,12 @@ import {
   IconX,
   IconInfoCircle,
   IconExternalLink,
+  IconBrandAndroid,
 } from '@tabler/icons-react'
 import { usePushStore, DEFAULT_PUSH_SERVER, DEFAULT_NTFY_SERVER } from '../../stores/pushStore'
 import { pushService } from '../../services/pushService'
+
+const isAndroid = () => Capacitor.getPlatform() === 'android'
 
 interface PushSettingsProps {
   onBack: () => void
@@ -41,6 +45,7 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
     pushServerUrl,
     ntfyServerUrl,
     ntfyTopic,
+    unifiedPushEndpoint,
     isRegistered,
     lastError,
     setPushServerUrl,
@@ -50,6 +55,14 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [localPushServer, setLocalPushServer] = useState(pushServerUrl)
   const [localNtfyServer, setLocalNtfyServer] = useState(ntfyServerUrl)
+  const [hasDistributor, setHasDistributor] = useState<boolean | null>(null)
+
+  // Check for UnifiedPush distributor on Android
+  useEffect(() => {
+    if (isAndroid()) {
+      pushService.hasUnifiedPushDistributor().then(setHasDistributor)
+    }
+  }, [])
 
   const handleToggle = async (checked: boolean) => {
     setIsLoading(true)
@@ -73,7 +86,10 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
     }
   }
 
-  const hasChanges = localPushServer !== pushServerUrl || localNtfyServer !== ntfyServerUrl
+  // On Android, only push server can be changed (ntfy is handled by distributor)
+  const hasChanges = isAndroid()
+    ? localPushServer !== pushServerUrl
+    : localPushServer !== pushServerUrl || localNtfyServer !== ntfyServerUrl
 
   return (
     <Stack h="100%" gap={0}>
@@ -122,6 +138,28 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
             </Group>
           </Box>
 
+          {/* Android: No distributor warning */}
+          {isAndroid() && hasDistributor === false && (
+            <Box px="md" py="xs">
+              <Alert color="orange" icon={<IconBrandAndroid size={16} />}>
+                <Text size="xs" mb="xs">
+                  {t('pushSettings.noDistributor', 'No UnifiedPush distributor found. Please install the ntfy app from F-Droid for push notifications to work when the app is closed.')}
+                </Text>
+                <Text
+                  size="xs"
+                  c="cyan"
+                  component="a"
+                  href="https://f-droid.org/packages/io.heckel.ntfy/"
+                  target="_blank"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  {t('pushSettings.installNtfy', 'Install ntfy from F-Droid')}
+                  <IconExternalLink size={12} />
+                </Text>
+              </Alert>
+            </Box>
+          )}
+
           {/* Status */}
           {enabled && (
             <Box px="md" py="xs">
@@ -138,9 +176,16 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
                   </>
                 )}
               </Group>
-              {ntfyTopic && (
+              {/* Show topic for Web/Electron */}
+              {!isAndroid() && ntfyTopic && (
                 <Text size="xs" c="dimmed" mt={4}>
                   Topic: <Code>{ntfyTopic}</Code>
+                </Text>
+              )}
+              {/* Show endpoint for Android */}
+              {isAndroid() && unifiedPushEndpoint && (
+                <Text size="xs" c="dimmed" mt={4}>
+                  Endpoint: <Code style={{ wordBreak: 'break-all' }}>{unifiedPushEndpoint}</Code>
                 </Text>
               )}
             </Box>
@@ -179,23 +224,26 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
               </Text>
             </Box>
 
-            <Box px="md" py="sm">
-              <Group gap="sm" mb="xs">
-                <ThemeIcon variant="light" color="violet" size={32} radius="md">
-                  <IconCloud size={18} />
-                </ThemeIcon>
-                <Text fw={500} size="sm">{t('pushSettings.ntfyServer')}</Text>
-              </Group>
-              <TextInput
-                placeholder={DEFAULT_NTFY_SERVER}
-                value={localNtfyServer}
-                onChange={(e) => setLocalNtfyServer(e.target.value)}
-                size="sm"
-              />
-              <Text size="xs" c="dimmed" mt={4}>
-                {t('pushSettings.ntfyServerHint')}
-              </Text>
-            </Box>
+            {/* Only show ntfy server config on Web/Electron (Android uses distributor) */}
+            {!isAndroid() && (
+              <Box px="md" py="sm">
+                <Group gap="sm" mb="xs">
+                  <ThemeIcon variant="light" color="violet" size={32} radius="md">
+                    <IconCloud size={18} />
+                  </ThemeIcon>
+                  <Text fw={500} size="sm">{t('pushSettings.ntfyServer')}</Text>
+                </Group>
+                <TextInput
+                  placeholder={DEFAULT_NTFY_SERVER}
+                  value={localNtfyServer}
+                  onChange={(e) => setLocalNtfyServer(e.target.value)}
+                  size="sm"
+                />
+                <Text size="xs" c="dimmed" mt={4}>
+                  {t('pushSettings.ntfyServerHint')}
+                </Text>
+              </Box>
+            )}
 
             {hasChanges && (
               <Box px="md" py="sm">

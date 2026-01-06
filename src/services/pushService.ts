@@ -1,7 +1,8 @@
 // Push Notification Service
-// Handles registration with seal-push-server and ntfy.sh subscription
+// Handles registration with seal-push-server
+// Uses UnifiedPush on Android, SSE on Web/Electron
 
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { usePushStore, generateNtfyTopic } from '../stores/pushStore'
 import { useRelayStore } from '../stores/relayStore'
 import { useAuthStore } from '../stores/authStore'
@@ -12,10 +13,46 @@ const isElectron = (): boolean => {
   return window.electronAPI?.isElectron === true
 }
 
+// Check if running on Android
+const isAndroid = (): boolean => {
+  return Capacitor.getPlatform() === 'android'
+}
+
+// UnifiedPush plugin interface
+interface UnifiedPushPlugin {
+  register(): Promise<{ distributor: string }>
+  unregister(): Promise<void>
+  getEndpoint(): Promise<{ endpoint: string | null }>
+  getDistributors(): Promise<{ distributors: string[]; count: number }>
+  isRegistered(): Promise<{ registered: boolean }>
+  addListener(
+    eventName: 'onEndpoint',
+    callback: (data: { endpoint: string }) => void
+  ): Promise<{ remove: () => void }>
+  addListener(
+    eventName: 'onMessage',
+    callback: (data: { message: string }) => void
+  ): Promise<{ remove: () => void }>
+  addListener(
+    eventName: 'onRegistrationFailed',
+    callback: (data: { reason: string }) => void
+  ): Promise<{ remove: () => void }>
+  addListener(
+    eventName: 'onUnregistered',
+    callback: () => void
+  ): Promise<{ remove: () => void }>
+}
+
+// Register the native plugin (only available on Android)
+const UnifiedPush = isAndroid()
+  ? registerPlugin<UnifiedPushPlugin>('UnifiedPush')
+  : null
+
 class PushService {
   private ntfyEventSource: EventSource | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private isInitialized: boolean = false
+  private listenerRemovers: Array<{ remove: () => void }> = []
 
   async init(): Promise<void> {
     if (this.isInitialized) return
@@ -23,23 +60,116 @@ class PushService {
 
     const { enabled, isRegistered } = usePushStore.getState()
 
-    if (enabled && isRegistered) {
-      // Reconnect to ntfy on app restart
+    if (isAndroid() && UnifiedPush) {
+      // Setup UnifiedPush listeners
+      await this.setupUnifiedPushListeners()
+
+      // Check if already registered with UnifiedPush
+      const { endpoint } = await UnifiedPush.getEndpoint()
+      if (endpoint && enabled) {
+        usePushStore.getState().setUnifiedPushEndpoint(endpoint)
+        console.log('[PushService] UnifiedPush endpoint restored:', endpoint)
+      }
+    } else if (enabled && isRegistered) {
+      // Web/Electron: Reconnect to ntfy on app restart
       await this.connectToNtfy()
     }
 
-    console.log('[PushService] Initialized', { enabled, isRegistered })
+    console.log('[PushService] Initialized', { enabled, isRegistered, platform: Capacitor.getPlatform() })
+  }
+
+  private async setupUnifiedPushListeners(): Promise<void> {
+    if (!UnifiedPush) return
+
+    // Listen for new endpoint
+    const endpointListener = await UnifiedPush.addListener('onEndpoint', async (data) => {
+      console.log('[PushService] UnifiedPush endpoint received:', data.endpoint)
+      usePushStore.getState().setUnifiedPushEndpoint(data.endpoint)
+
+      // Register with push server using the new endpoint
+      await this.registerWithPushServer(data.endpoint)
+    })
+    this.listenerRemovers.push(endpointListener)
+
+    // Listen for messages (when app is in foreground)
+    const messageListener = await UnifiedPush.addListener('onMessage', (data) => {
+      console.log('[PushService] UnifiedPush message received:', data.message)
+      // Notification is already shown by native code
+      // This is just for handling in-app if needed
+    })
+    this.listenerRemovers.push(messageListener)
+
+    // Listen for registration failures
+    const failListener = await UnifiedPush.addListener('onRegistrationFailed', (data) => {
+      console.error('[PushService] UnifiedPush registration failed:', data.reason)
+      usePushStore.getState().setError(`Registration failed: ${data.reason}`)
+    })
+    this.listenerRemovers.push(failListener)
+
+    // Listen for unregistration
+    const unregListener = await UnifiedPush.addListener('onUnregistered', () => {
+      console.log('[PushService] UnifiedPush unregistered')
+      usePushStore.getState().setUnifiedPushEndpoint(null)
+      usePushStore.getState().setRegistered(false)
+    })
+    this.listenerRemovers.push(unregListener)
   }
 
   async enable(): Promise<boolean> {
     const store = usePushStore.getState()
     const authStore = useAuthStore.getState()
-    const relayStore = useRelayStore.getState()
 
     if (!authStore.keys?.npub) {
       store.setError('Not logged in')
       return false
     }
+
+    try {
+      if (isAndroid() && UnifiedPush) {
+        // Android: Use UnifiedPush
+        return await this.enableUnifiedPush()
+      } else {
+        // Web/Electron: Use SSE
+        return await this.enableSSE()
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Registration failed'
+      store.setError(message)
+      console.error('[PushService] Registration failed:', error)
+      return false
+    }
+  }
+
+  private async enableUnifiedPush(): Promise<boolean> {
+    if (!UnifiedPush) return false
+
+    const store = usePushStore.getState()
+
+    // Check for distributors
+    const { distributors, count } = await UnifiedPush.getDistributors()
+    console.log('[PushService] Available distributors:', distributors)
+
+    if (count === 0) {
+      store.setError('No UnifiedPush distributor found. Please install the ntfy app from F-Droid.')
+      return false
+    }
+
+    // Register with UnifiedPush
+    const { distributor } = await UnifiedPush.register()
+    console.log('[PushService] Registered with distributor:', distributor)
+
+    store.setEnabled(true)
+    store.setError(null)
+
+    // The endpoint will come async via the onEndpoint listener
+    // Registration with push server happens there
+    return true
+  }
+
+  private async enableSSE(): Promise<boolean> {
+    const store = usePushStore.getState()
+    const authStore = useAuthStore.getState()
+    const relayStore = useRelayStore.getState()
 
     // Generate topic if not exists
     let topic = store.ntfyTopic
@@ -49,45 +179,77 @@ class PushService {
     }
 
     // Register with push server
-    try {
-      const response = await fetch(`${store.pushServerUrl}/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          npub: authStore.keys.npub,
-          ntfy_topic: topic,
-          relays: relayStore.activeRelayUrls
-        })
+    const response = await fetch(`${store.pushServerUrl}/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        npub: authStore.keys!.npub,
+        ntfy_topic: topic,
+        relays: relayStore.activeRelayUrls
       })
+    })
 
-      if (!response.ok) {
-        const error = await response.text()
-        throw new Error(error || `HTTP ${response.status}`)
-      }
-
-      store.setRegistered(true)
-      store.setEnabled(true)
-      store.setError(null)
-
-      // Connect to ntfy for foreground notifications
-      await this.connectToNtfy()
-
-      console.log('[PushService] Registered successfully', { topic })
-      return true
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Registration failed'
-      store.setError(message)
-      console.error('[PushService] Registration failed:', error)
-      return false
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(error || `HTTP ${response.status}`)
     }
+
+    store.setRegistered(true)
+    store.setEnabled(true)
+    store.setError(null)
+
+    // Connect to ntfy for foreground notifications
+    await this.connectToNtfy()
+
+    console.log('[PushService] SSE registered successfully', { topic })
+    return true
+  }
+
+  private async registerWithPushServer(endpoint: string): Promise<void> {
+    const store = usePushStore.getState()
+    const authStore = useAuthStore.getState()
+    const relayStore = useRelayStore.getState()
+
+    if (!authStore.keys?.npub) {
+      throw new Error('Not logged in')
+    }
+
+    // Register with push server using UnifiedPush endpoint
+    const response = await fetch(`${store.pushServerUrl}/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        npub: authStore.keys.npub,
+        endpoint: endpoint, // UnifiedPush endpoint URL
+        relays: relayStore.activeRelayUrls
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(error || `HTTP ${response.status}`)
+    }
+
+    store.setRegistered(true)
+    console.log('[PushService] Registered with push server using UnifiedPush endpoint')
   }
 
   async disable(): Promise<void> {
     const store = usePushStore.getState()
     const authStore = useAuthStore.getState()
 
-    // Disconnect from ntfy
-    this.disconnectFromNtfy()
+    if (isAndroid() && UnifiedPush) {
+      // Android: Unregister from UnifiedPush
+      try {
+        await UnifiedPush.unregister()
+      } catch (error) {
+        console.warn('[PushService] UnifiedPush unregister failed:', error)
+      }
+      store.setUnifiedPushEndpoint(null)
+    } else {
+      // Web/Electron: Disconnect from ntfy
+      this.disconnectFromNtfy()
+    }
 
     // Unregister from push server
     if (store.isRegistered && authStore.keys?.npub) {
@@ -195,7 +357,11 @@ class PushService {
     if (!store.enabled || !store.isRegistered) return
 
     // Re-register with updated relay list
-    await this.enable()
+    if (isAndroid() && store.unifiedPushEndpoint) {
+      await this.registerWithPushServer(store.unifiedPushEndpoint)
+    } else {
+      await this.enable()
+    }
   }
 
   getStatus(): { enabled: boolean; registered: boolean; error: string | null } {
@@ -205,6 +371,14 @@ class PushService {
       registered: store.isRegistered,
       error: store.lastError
     }
+  }
+
+  // Check if UnifiedPush is available (Android only)
+  async hasUnifiedPushDistributor(): Promise<boolean> {
+    if (!isAndroid() || !UnifiedPush) return false
+
+    const { count } = await UnifiedPush.getDistributors()
+    return count > 0
   }
 }
 
