@@ -26,21 +26,24 @@ import {
   IconCopy,
   IconCheck,
   IconQrcode,
+  IconBell,
 } from '@tabler/icons-react'
 import { useAuthStore } from '../stores/authStore'
 import { useRelayStore } from '../stores/relayStore'
 import { useThemeStore } from '../stores/themeStore'
+import { usePushStore } from '../stores/pushStore'
 import { truncateKey } from '../utils/format'
 import RelaySettings from '../components/settings/RelaySettings'
 import KeyExport from '../components/settings/KeyExport'
 import ThemeSettings from '../components/settings/ThemeSettings'
 import SecuritySettings from '../components/settings/SecuritySettings'
 import LanguageSettings from '../components/settings/LanguageSettings'
+import PushSettings from '../components/settings/PushSettings'
 import { SyncModal } from '../components/sync/SyncModal'
 import MyQRCode from '../components/settings/MyQRCode'
 import DeleteAccountModal from '../components/settings/DeleteAccountModal'
 
-type SettingsView = 'main' | 'relays' | 'keys' | 'theme' | 'security' | 'language' | 'sync' | 'myqr'
+type SettingsView = 'main' | 'relays' | 'keys' | 'theme' | 'security' | 'language' | 'sync' | 'myqr' | 'push'
 
 export default function Settings() {
   const { t, i18n } = useTranslation()
@@ -49,10 +52,12 @@ export default function Settings() {
   const { keys, hasPassword } = useAuthStore()
   const { relays } = useRelayStore()
   const { theme } = useThemeStore()
+  const { enabled: pushEnabled, isRegistered: pushRegistered } = usePushStore()
 
   const connectedCount = relays.filter(r => r.status === 'connected').length
 
   if (view === 'relays') return <RelaySettings onBack={() => setView('main')} />
+  if (view === 'push') return <PushSettings onBack={() => setView('main')} />
   if (view === 'keys') return <KeyExport onBack={() => setView('main')} />
   if (view === 'theme') return <ThemeSettings onBack={() => setView('main')} />
   if (view === 'security') return <SecuritySettings onBack={() => setView('main')} />
@@ -119,6 +124,14 @@ export default function Settings() {
             title={t('sync.title')}
             subtitle={t('sync.description')}
             onClick={() => setView('sync')}
+          />
+
+          <SettingsItem
+            icon={<IconBell size={20} />}
+            iconColor={pushEnabled && pushRegistered ? 'green' : 'orange'}
+            title={t('pushSettings.title')}
+            subtitle={pushEnabled && pushRegistered ? t('common.enabled') : t('common.disabled')}
+            onClick={() => setView('push')}
           />
         </Box>
 

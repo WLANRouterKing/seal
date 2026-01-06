@@ -11,8 +11,6 @@ const root = join(__dirname, '..')
 const PACKAGE_JSON = join(root, 'package.json')
 const LOCALE_DE = join(root, 'src/i18n/locales/de.json')
 const LOCALE_EN = join(root, 'src/i18n/locales/en.json')
-const TAURI_CONF = join(root, 'src-tauri/tauri.conf.json')
-const CARGO_TOML = join(root, 'src-tauri/Cargo.toml')
 
 function getCurrentVersion() {
   const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8'))
@@ -52,20 +50,6 @@ function updateLocaleFile(filePath, version) {
   console.log(`Updated ${filePath.split('/').pop()} to v${version}-alpha`)
 }
 
-function updateTauriConf(version) {
-  const conf = JSON.parse(readFileSync(TAURI_CONF, 'utf8'))
-  conf.version = version
-  writeFileSync(TAURI_CONF, JSON.stringify(conf, null, 2) + '\n')
-  console.log(`Updated tauri.conf.json to ${version}`)
-}
-
-function updateCargoToml(version) {
-  let content = readFileSync(CARGO_TOML, 'utf8')
-  content = content.replace(/^version = ".*"$/m, `version = "${version}"`)
-  writeFileSync(CARGO_TOML, content)
-  console.log(`Updated Cargo.toml to ${version}`)
-}
-
 function createGitTag(version, push = false) {
   const tag = `v${version}`
   try {
@@ -83,7 +67,8 @@ function createGitTag(version, push = false) {
 
 // Main
 const args = process.argv.slice(2)
-const type = args[0] || 'patch'
+const positionalArgs = args.filter(arg => !arg.startsWith('--'))
+const type = positionalArgs[0] || 'patch'
 const shouldTag = args.includes('--tag')
 const shouldPush = args.includes('--push')
 
@@ -95,8 +80,6 @@ console.log(`\nBumping version: ${currentVersion} -> ${newVersion}\n`)
 updatePackageJson(newVersion)
 updateLocaleFile(LOCALE_DE, newVersion)
 updateLocaleFile(LOCALE_EN, newVersion)
-updateTauriConf(newVersion)
-updateCargoToml(newVersion)
 
 if (shouldTag) {
   console.log('')

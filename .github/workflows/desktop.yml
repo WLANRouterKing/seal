@@ -80,7 +80,7 @@ jobs:
       # Debug builds for branches (not master with tag)
       - name: Build Electron app (Debug)
         if: steps.check_tag.outputs.is_release != 'true'
-        run: npm run ${{ matrix.build_script }}
+        run: npm run ${{ matrix.build_script }} -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
