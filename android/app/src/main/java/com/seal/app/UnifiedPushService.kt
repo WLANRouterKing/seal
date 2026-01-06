@@ -3,8 +3,8 @@ package com.seal.app
 import android.content.Context
 import android.util.Log
 import org.unifiedpush.android.connector.FailedReason
-import org.unifiedpush.android.connector.PushEndpoint
 import org.unifiedpush.android.connector.PushService
+import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
 
 /**
