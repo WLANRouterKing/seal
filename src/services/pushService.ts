@@ -87,7 +87,13 @@ class PushService {
       usePushStore.getState().setUnifiedPushEndpoint(data.endpoint)
 
       // Register with push server using the new endpoint
-      await this.registerWithPushServer(data.endpoint)
+      try {
+        await this.registerWithPushServer(data.endpoint)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to register with push server'
+        console.error('[PushService] Push server registration failed:', error)
+        usePushStore.getState().setError(message)
+      }
     })
     this.listenerRemovers.push(endpointListener)
 

@@ -91,7 +91,7 @@ jobs:
       # Release builds only on master with version tag
       - name: Build and Publish Electron app (Release)
         if: steps.check_tag.outputs.is_release == 'true'
-        run: npm run ${{ matrix.build_script }} -- --publish always
+        run: npm run ${{ matrix.build_script }} -- --publish always -c.extraMetadata.version=${{ steps.check_tag.outputs.tag }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
