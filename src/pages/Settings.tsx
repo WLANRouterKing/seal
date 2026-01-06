@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Capacitor } from '@capacitor/core'
 import {
   Stack,
   Group,
@@ -126,13 +127,15 @@ export default function Settings() {
             onClick={() => setView('sync')}
           />
 
-          <SettingsItem
-            icon={<IconBell size={20} />}
-            iconColor={pushEnabled && pushRegistered ? 'green' : 'orange'}
-            title={t('pushSettings.title')}
-            subtitle={pushEnabled && pushRegistered ? t('common.enabled') : t('common.disabled')}
-            onClick={() => setView('push')}
-          />
+          {Capacitor.getPlatform() === 'android' && (
+            <SettingsItem
+              icon={<IconBell size={20} />}
+              iconColor={pushEnabled && pushRegistered ? 'green' : 'orange'}
+              title={t('pushSettings.title')}
+              subtitle={pushEnabled && pushRegistered ? t('common.enabled') : t('common.disabled')}
+              onClick={() => setView('push')}
+            />
+          )}
         </Box>
 
         {/* Appearance Section */}

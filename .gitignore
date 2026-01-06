@@ -28,4 +28,6 @@ release
 *.sln
 *.sw?
 .claude
+.claude-context.md
+CLAUDE.md
 .notizen
