@@ -83,6 +83,12 @@ jobs:
             echo "is_release=false" >> $GITHUB_OUTPUT
           fi
 
+      # Set version in package.json for release builds
+      - name: Set release version
+        if: steps.check_tag.outputs.is_release == 'true'
+        shell: bash
+        run: npm version ${{ steps.check_tag.outputs.version }} --no-git-tag-version --allow-same-version
+
       # Debug builds for branches (not master with tag)
       - name: Build Electron app (Debug)
         if: steps.check_tag.outputs.is_release != 'true'
@@ -93,7 +99,7 @@ jobs:
       # Release builds only on master with version tag
       - name: Build and Publish Electron app (Release)
         if: steps.check_tag.outputs.is_release == 'true'
-        run: npm run ${{ matrix.build_script }} -- --publish always -c.extraMetadata.version=${{ steps.check_tag.outputs.version }}
+        run: npm run ${{ matrix.build_script }} -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
