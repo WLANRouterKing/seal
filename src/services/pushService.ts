@@ -220,19 +220,29 @@ class PushService {
       throw new Error('Not logged in')
     }
 
+    const requestBody = {
+      npub: authStore.keys.npub,
+      endpoint: endpoint, // UnifiedPush endpoint URL
+      relays: relayStore.activeRelayUrls
+    }
+
+    console.log('[PushService] Registering with push server:', {
+      pushServerUrl: store.pushServerUrl,
+      endpoint: endpoint,
+      relayCount: relayStore.activeRelayUrls.length,
+      relays: relayStore.activeRelayUrls
+    })
+
     // Register with push server using UnifiedPush endpoint
     const response = await fetch(`${store.pushServerUrl}/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        npub: authStore.keys.npub,
-        endpoint: endpoint, // UnifiedPush endpoint URL
-        relays: relayStore.activeRelayUrls
-      })
+      body: JSON.stringify(requestBody)
     })
 
     if (!response.ok) {
       const error = await response.text()
+      console.error('[PushService] Push server error:', response.status, error)
       throw new Error(error || `HTTP ${response.status}`)
     }
 
