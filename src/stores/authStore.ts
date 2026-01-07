@@ -89,7 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isInitialized: false,
   hasPassword: false,
   setupComplete: true,
-  hideIdentity: false,
+  hideIdentity: true,  // Default to hiding identity for privacy
   publicInfo: null,
   error: null,
   lockoutUntil: null,
@@ -158,11 +158,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           encryptedNsec,
           slots: [passwordSlot],
           dbSalt: uint8ArrayToBase64(dbSalt),
-          npub: keys.npub
+          // npub not stored by default for privacy (hideIdentity=true)
+          identityHidden: true
         }
 
         await saveKeys(encryptedKeys)
-        set({ keys, hasPassword: true, setupComplete: false, isLoading: false })
+        set({ keys, hasPassword: true, hideIdentity: true, setupComplete: false, isLoading: false })
       } else {
         await saveKeys(keys)
         set({ keys, hasPassword: false, setupComplete: false, isLoading: false })
@@ -196,11 +197,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           encryptedNsec,
           slots: [passwordSlot],
           dbSalt: uint8ArrayToBase64(dbSalt),
-          npub: keys.npub
+          // npub not stored by default for privacy (hideIdentity=true)
+          identityHidden: true
         }
 
         await saveKeys(encryptedKeys)
-        set({ keys, hasPassword: true, isLoading: false })
+        set({ keys, hasPassword: true, hideIdentity: true, isLoading: false })
       } else {
         await saveKeys(keys)
         set({ keys, hasPassword: false, isLoading: false })
