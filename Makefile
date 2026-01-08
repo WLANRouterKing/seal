@@ -1,4 +1,4 @@
-.PHONY: help dev build test lint release release-patch release-minor release-major tauri tauri-dev android icons
+.PHONY: help dev build test lint release release-patch release-minor release-major release-alpha tauri tauri-dev android icons
 
 # Default target
 help:
@@ -18,10 +18,11 @@ help:
 	@echo "    make android      - Build Android APK"
 	@echo ""
 	@echo "  Release:"
-	@echo "    make release      - Bump patch version, commit, tag, and push"
+	@echo "    make release       - Bump patch version, commit, tag, and push"
 	@echo "    make release-patch - Same as 'make release'"
 	@echo "    make release-minor - Bump minor version and release"
 	@echo "    make release-major - Bump major version and release"
+	@echo "    make release-alpha - Bump alpha version and release"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "    make icons        - Generate app icons"
@@ -71,6 +72,14 @@ release-minor:
 
 release-major:
 	@npm run version -- major
+	@git add -A
+	@git commit -m "bump: v$$(node -p "require('./package.json').version")"
+	@git tag -a "v$$(node -p "require('./package.json').version")" -m "Release v$$(node -p "require('./package.json').version")"
+	@git push && git push --tags
+	@echo "\n✅ Released v$$(node -p "require('./package.json').version")"
+
+release-alpha:
+	@npm run version -- alpha
 	@git add -A
 	@git commit -m "bump: v$$(node -p "require('./package.json').version")"
 	@git tag -a "v$$(node -p "require('./package.json').version")" -m "Release v$$(node -p "require('./package.json').version")"
