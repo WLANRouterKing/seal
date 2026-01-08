@@ -19,6 +19,7 @@ import Onboarding from './pages/Onboarding'
 import Chat from './pages/Chat'
 import Contacts from './pages/Contacts'
 import Settings from './pages/Settings'
+import {IconFidgetSpinner} from "@tabler/icons-react";
 
 function App() {
   const { keys, isLocked, hasPassword, publicInfo, isLoading, isInitialized, setupComplete, completeSetup, initialize: initAuth } = useAuthStore()
@@ -85,7 +86,7 @@ function App() {
       <div className="h-full flex items-center justify-center bg-theme-bg">
         <div className="flex flex-col items-center">
           <div className="animate-spin w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full mb-4" />
-          <p className="text-theme-muted">Loading...</p>
+          <p className="text-theme-muted"><IconFidgetSpinner/></p>
         </div>
       </div>
     )

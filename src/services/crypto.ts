@@ -261,7 +261,7 @@ export async function createSelfGiftWrap(
   let giftWrapEvent: UnsignedEvent = {
     kind: NIP17_KIND.GIFT_WRAP,
     content: encryptedSeal,
-    tags: [['p', senderPubkey]],
+    tags: [['p', senderPubkey], ['self', '1']],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
     pubkey: wrapperPubkey
   }
