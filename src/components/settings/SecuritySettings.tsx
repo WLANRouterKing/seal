@@ -13,7 +13,6 @@ import {
   Alert,
   Button,
   PasswordInput,
-  Anchor,
   Switch,
   Modal,
 } from '@mantine/core'
@@ -22,8 +21,6 @@ import {
   IconLock,
   IconLockOpen,
   IconShield,
-  IconWorld,
-  IconExternalLink,
   IconAlertTriangle,
   IconInfoCircle,
   IconEyeOff,
@@ -270,29 +267,6 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
               )}
             </Stack>
           )}
-        </Box>
-
-        {/* Tor Recommendation */}
-        <Box py="md" px="md">
-          <Text size="xs" fw={500} c="dimmed" tt="uppercase" pb="xs">
-            {t('securitySettings.networkPrivacy')}
-          </Text>
-          <Alert
-            color="violet"
-            icon={<IconWorld size={16} />}
-          >
-            <Text size="xs" mb="xs">{t('securitySettings.torHint')}</Text>
-            <Anchor
-              href="https://www.torproject.org/download/"
-              target="_blank"
-              size="xs"
-            >
-              <Group gap={4}>
-                {t('securitySettings.downloadTor')}
-                <IconExternalLink size={12} />
-              </Group>
-            </Anchor>
-          </Alert>
         </Box>
 
         {/* Info Alert */}
