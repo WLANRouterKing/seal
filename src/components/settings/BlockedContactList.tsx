@@ -58,7 +58,7 @@ export default function BlockedContactList({onBack, blockedContacts, onUnblockCo
             <ScrollArea h="100%">
                 <Stack gap={0}>
                     {/* Header */}
-                    <Paper p="sm" radius={0}>
+                    <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
                         <Group gap="sm">
                             <ActionIcon variant="subtle" onClick={onBack}>
                                 <IconArrowLeft size={24} />
