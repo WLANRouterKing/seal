@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import { App } from '@capacitor/app'
+import { Capacitor } from '@capacitor/core'
 import { useAuthStore } from '../stores/authStore'
 
 // Auto-lock timeout in milliseconds (default: 5 minutes)
@@ -7,14 +9,11 @@ const DEFAULT_TIMEOUT = 5 * 60 * 1000
 export function useAutoLock(timeout: number = DEFAULT_TIMEOUT) {
   const { hasPassword, lock, keys } = useAuthStore()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastActivityRef = useRef<number>(0)
+  const lastActivityRef = useRef<number>(Date.now())
 
   useEffect(() => {
     // Only enable auto-lock if password protection is on and user is logged in
     if (!hasPassword || !keys) return
-
-    // Initialize last activity time on mount
-    lastActivityRef.current = Date.now()
 
     const resetTimer = () => {
       lastActivityRef.current = Date.now()
@@ -28,6 +27,22 @@ export function useAutoLock(timeout: number = DEFAULT_TIMEOUT) {
       }, timeout)
     }
 
+    // Check if we should lock based on last activity
+    const checkAndLock = () => {
+      const inactiveTime = Date.now() - lastActivityRef.current
+      if (inactiveTime >= timeout) {
+        lock()
+      } else {
+        // Restart timer for remaining time
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+        }
+        timeoutRef.current = setTimeout(() => {
+          lock()
+        }, timeout - inactiveTime)
+      }
+    }
+
     // Events to track user activity
     const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click']
 
@@ -36,17 +51,24 @@ export function useAutoLock(timeout: number = DEFAULT_TIMEOUT) {
       document.addEventListener(event, resetTimer, { passive: true })
     })
 
-    // Handle visibility change (lock when tab becomes hidden)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Check if user was inactive for more than 1 minute before hiding
-        const inactiveTime = Date.now() - lastActivityRef.current
-        if (inactiveTime > 60000) {
-          lock()
+    // Handle app state change on native platforms
+    let appStateListener: { remove: () => void } | null = null
+    if (Capacitor.isNativePlatform()) {
+      App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          // App came to foreground - check if we should lock
+          checkAndLock()
         }
-      } else {
-        // Reset timer when becoming visible
-        resetTimer()
+      }).then(listener => {
+        appStateListener = listener
+      })
+    }
+
+    // Handle visibility change for web
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Tab became visible - check if we should lock
+        checkAndLock()
       }
     }
 
@@ -60,6 +82,10 @@ export function useAutoLock(timeout: number = DEFAULT_TIMEOUT) {
         document.removeEventListener(event, resetTimer)
       })
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+
+      if (appStateListener) {
+        appStateListener.remove()
+      }
 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)

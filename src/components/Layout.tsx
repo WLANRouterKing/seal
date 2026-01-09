@@ -60,9 +60,9 @@ export default function Layout() {
         <Outlet />
       </AppShell.Main>
 
-      <AppShell.Footer>
+      <AppShell.Footer style={{marginBottom: '10px'}}>
         <Group h="100%" grow>
-          <NavButton to="/" icon={<IconMessageCircle size={24} />} label={t('nav.chats')} />
+          <NavButton  to="/" icon={<IconMessageCircle size={24} />} label={t('nav.chats')} />
           <NavButton to="/contacts" icon={<IconUsers size={24} />} label={t('nav.contacts')} />
           <NavButton to="/settings" icon={<IconSettings size={24} />} label={t('nav.settings')} />
         </Group>
