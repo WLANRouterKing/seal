@@ -6,6 +6,7 @@ import { useAuthStore } from './stores/authStore'
 import { useRelayStore } from './stores/relayStore'
 import { useContactStore } from './stores/contactStore'
 import { useMessageStore } from './stores/messageStore'
+import { useBlockedContactStore } from './stores/blockedContactStore'
 import { nsecToPrivateKey, npubToPubkey } from './services/keys'
 import { notificationService } from './services/notifications'
 import { backgroundService } from './services/backgroundService'
@@ -26,6 +27,7 @@ function App() {
   const { initialize: initRelays, relays } = useRelayStore()
   const { initialize: initContacts } = useContactStore()
   const { initialize: initMessages, subscribeToMessages } = useMessageStore()
+  const { initialize: initBlockedContacts } = useBlockedContactStore()
 
   // Count connected relays to re-subscribe when connections change
   const connectedCount = relays.filter(r => r.status === 'connected').length
@@ -64,10 +66,11 @@ function App() {
       const privateKey = nsecToPrivateKey(keys.nsec)
       if (pubkey && privateKey) {
         initContacts()
+        initBlockedContacts()
         initMessages(pubkey, privateKey)
       }
     }
-  }, [keys, initContacts, initMessages])
+  }, [keys, initContacts, initBlockedContacts, initMessages])
 
   // Subscribe to messages when unlocked and relays are connected
   useEffect(() => {

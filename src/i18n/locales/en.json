@@ -16,7 +16,8 @@
     "photo": "Photo",
     "you": "You",
     "important": "Important",
-    "warning": "Warning"
+    "warning": "Warning",
+    "contactBlocked": "You have blocked this contact"
   },
   "nav": {
     "chats": "Chats",
@@ -109,6 +110,9 @@
     "displayNamePlaceholder": "Display name",
     "startChat": "Start Chat",
     "removeContact": "Remove Contact",
+    "blockContact": "Block Contact",
+    "noContactsBlocked": "No Contacts blocked",
+    "unblockContact": "Unblock Contact",
     "enterManually": "Enter",
     "scanQR": "Scan QR",
     "scanQRHint": "Scan the QR code containing your contact's public key",
@@ -134,7 +138,8 @@
     "logoutHint": "Remove keys from this device",
     "language": "Language",
     "languageHint": "App language",
-    "version": "Seal v0.1.10-alpha.1-alpha",
+    "blockedContacts": "Blocked Contacts",
+    "version": "Seal v0.1.10-alpha",
     "footer": "Decentralized messaging with NIP-17"
   },
   "relaySettings": {
