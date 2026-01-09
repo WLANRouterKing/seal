@@ -394,6 +394,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     if (connectedRelays.length === 0) return () => {}
 
     const processedIds = new Set<string>()
+    // Track if initial sync is complete - only show notifications after EOSE
+    let initialSyncDone = false
 
     return relayPool.subscribe(
       connectedRelays,
@@ -460,7 +462,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           updateChats(get, set, unwrapped.senderPubkey, message)
 
           // Show notification for new message (if not in active chat)
-          if (get().activeChat !== unwrapped.senderPubkey) {
+          // Only show notifications after initial sync (EOSE) to avoid duplicate notifications
+          // for messages that already triggered push notifications
+          if (initialSyncDone && get().activeChat !== unwrapped.senderPubkey) {
             // Get contact name if available
             const contact = await getContact(unwrapped.senderPubkey)
             const senderName = contact?.name || truncateKey(unwrapped.senderPubkey, 8)
@@ -473,6 +477,10 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         } catch (error) {
           console.error('Failed to process message:', error)
         }
+      },
+      () => {
+        // EOSE callback - initial sync complete, now allow notifications
+        initialSyncDone = true
       }
     )
   },

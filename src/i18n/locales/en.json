@@ -134,7 +134,7 @@
     "logoutHint": "Remove keys from this device",
     "language": "Language",
     "languageHint": "App language",
-    "version": "Seal v0.1.9-alpha",
+    "version": "Seal v0.1.10-alpha.1-alpha",
     "footer": "Decentralized messaging with NIP-17"
   },
   "relaySettings": {
