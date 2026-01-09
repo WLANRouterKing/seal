@@ -39,7 +39,7 @@
     "@noble/hashes": "^1.8.0",
     "@nostrify/nostrify": "^0.48.2",
     "@tabler/icons-react": "^3.36.1",
-    "electron-updater": "^6.6.2",
+    "electron-updater": "^6.7.3",
     "html5-qrcode": "^2.3.8",
     "i18next": "^25.7.3",
     "i18next-browser-languagedetector": "^8.2.0",
