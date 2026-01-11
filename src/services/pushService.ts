@@ -69,9 +69,41 @@ class PushService {
       if (endpoint && enabled) {
         usePushStore.getState().setUnifiedPushEndpoint(endpoint)
         console.log('[PushService] UnifiedPush endpoint restored:', endpoint)
+
+        // Re-register with push server to ensure subscription is still valid
+        try {
+          await this.registerWithPushServer(endpoint)
+          console.log('[PushService] Re-registered with push server on startup')
+        } catch (error) {
+          console.warn('[PushService] Failed to re-register with push server:', error)
+          // Don't set error state - user can still try manually
+        }
       }
     } else if (enabled && isRegistered) {
-      // Web/Electron: Reconnect to ntfy on app restart
+      // Web/Electron: Re-register with push server and reconnect to ntfy on app restart
+      const store = usePushStore.getState()
+      const authStore = useAuthStore.getState()
+      const relayStore = useRelayStore.getState()
+
+      if (store.ntfyTopic && authStore.keys?.npub) {
+        try {
+          const response = await fetch(`${store.pushServerUrl}/subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              npub: authStore.keys.npub,
+              ntfy_topic: store.ntfyTopic,
+              relays: relayStore.activeRelayUrls
+            })
+          })
+          if (response.ok) {
+            console.log('[PushService] Re-registered with push server on startup')
+          }
+        } catch (error) {
+          console.warn('[PushService] Failed to re-register with push server:', error)
+        }
+      }
+
       await this.connectToNtfy()
     }
 

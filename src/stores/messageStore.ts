@@ -463,13 +463,15 @@ export const useMessageStore = create<MessageState>((set, get) => ({
                     }
 
                     // Store the encrypted event (the original gift-wrap we received)
+                    // Mark as 'read' immediately if user is viewing this chat
+                    const isActiveChat = get().activeChat === unwrapped.senderPubkey
                     const message: Message = {
                         id: event.id,
                         pubkey: unwrapped.senderPubkey,
                         recipientPubkey: userPubkey,
                         content: unwrapped.content,
                         createdAt: unwrapped.createdAt,
-                        status: 'delivered',
+                        status: isActiveChat ? 'read' : 'delivered',
                         isOutgoing: false,
                         encryptedEvent: JSON.stringify(event), // Store the gift-wrap event
                         expiration: unwrapped.expiration // NIP-40: Store expiration for filtering
@@ -618,19 +620,23 @@ function updateChats(
     const chats = get().chats
     const existingIndex = chats.findIndex(c => c.pubkey === pubkey)
 
+    // Don't increment unread if message is from active chat (user sees it immediately)
+    const isActiveChat = get().activeChat === pubkey
+    const shouldIncrementUnread = !message.isOutgoing && !isActiveChat
+
     if (existingIndex >= 0) {
         const chat = chats[existingIndex]
         chats[existingIndex] = {
             ...chat,
             lastMessage: message,
-            unreadCount: message.isOutgoing ? chat.unreadCount : chat.unreadCount + 1,
+            unreadCount: shouldIncrementUnread ? chat.unreadCount + 1 : chat.unreadCount,
             updatedAt: message.createdAt
         }
     } else {
         chats.push({
             pubkey,
             lastMessage: message,
-            unreadCount: message.isOutgoing ? 0 : 1,
+            unreadCount: shouldIncrementUnread ? 1 : 0,
             updatedAt: message.createdAt
         })
     }
