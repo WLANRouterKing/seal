@@ -18,17 +18,17 @@ function getCurrentVersion() {
 }
 
 function bumpVersion(current, type) {
-  // Parse version: could be "1.2.3" or "1.2.3-alpha.1"
-  const match = current.match(/^(\d+)\.(\d+)\.(\d+)(?:-alpha\.(\d+))?$/)
+  // Parse version: could be "1.2.3" or "1.2.3-alpha"
+  const match = current.match(/^(\d+)\.(\d+)\.(\d+)(-alpha)?$/)
   if (!match) {
     throw new Error(`Invalid current version: ${current}`)
   }
 
-  const [, majorStr, minorStr, patchStr, alphaNumStr] = match
+  const [, majorStr, minorStr, patchStr, alphaSuffix] = match
   const major = Number(majorStr)
   const minor = Number(minorStr)
   const patch = Number(patchStr)
-  const alphaNum = alphaNumStr ? Number(alphaNumStr) : null
+  const isAlpha = alphaSuffix !== undefined
 
   switch (type) {
     case 'major':
@@ -37,20 +37,20 @@ function bumpVersion(current, type) {
       return `${major}.${minor + 1}.0`
     case 'patch':
       // If currently alpha, drop the alpha suffix
-      if (alphaNum !== null) {
+      if (isAlpha) {
         return `${major}.${minor}.${patch}`
       }
       return `${major}.${minor}.${patch + 1}`
     case 'alpha':
-      // If already alpha, increment alpha number
-      if (alphaNum !== null) {
-        return `${major}.${minor}.${patch}-alpha.${alphaNum + 1}`
+      // If already alpha, bump patch and stay alpha
+      if (isAlpha) {
+        return `${major}.${minor}.${patch + 1}-alpha`
       }
-      // Otherwise bump patch and start alpha.1
-      return `${major}.${minor}.${patch + 1}-alpha.1`
+      // Otherwise bump patch and add alpha
+      return `${major}.${minor}.${patch + 1}-alpha`
     default:
       // Assume it's a specific version
-      if (/^\d+\.\d+\.\d+(-alpha\.\d+)?$/.test(type)) {
+      if (/^\d+\.\d+\.\d+(-alpha)?$/.test(type)) {
         return type
       }
       throw new Error(`Invalid version type: ${type}`)
@@ -66,9 +66,10 @@ function updatePackageJson(version) {
 
 function updateLocaleFile(filePath, version) {
   const locale = JSON.parse(readFileSync(filePath, 'utf8'))
-  locale.settings.version = `Seal v${version}-alpha`
+  const displayVersion = version.includes('-alpha') ? `Seal v${version}` : `Seal v${version}-alpha`
+  locale.settings.version = displayVersion
   writeFileSync(filePath, JSON.stringify(locale, null, 2) + '\n')
-  console.log(`Updated ${filePath.split('/').pop()} to v${version}-alpha`)
+  console.log(`Updated ${filePath.split('/').pop()} to ${displayVersion}`)
 }
 
 function createGitTag(version, push = false) {

@@ -4,11 +4,13 @@ import { AppShell, Group, Text, Indicator, UnstyledButton, Stack, ActionIcon, To
 import { IconMessageCircle, IconUsers, IconSettings, IconLock } from '@tabler/icons-react'
 import { useRelayStore } from '../stores/relayStore'
 import { useAuthStore } from '../stores/authStore'
+import { useMessageStore } from '../stores/messageStore'
 
 export default function Layout() {
   const { t } = useTranslation()
   const { relays } = useRelayStore()
   const { hasPassword, lock } = useAuthStore()
+  const { activeChat } = useMessageStore()
   const location = useLocation()
 
   const connectedCount = relays.filter(r => r.status === 'connected').length
@@ -21,7 +23,7 @@ export default function Layout() {
   return (
     <AppShell
       header={{ height: 56 }}
-      footer={{ height: 64 }}
+      footer={activeChat ? undefined : { height: 64 }}
       padding={0}
     >
       <AppShell.Header>
@@ -56,17 +58,19 @@ export default function Layout() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Main style={{ height: 'calc(100vh - 56px - 64px)', overflow: 'hidden' }}>
+      <AppShell.Main style={{ height: activeChat ? 'calc(100vh - 56px)' : 'calc(100vh - 56px - 64px)', overflow: 'hidden' }}>
         <Outlet />
       </AppShell.Main>
 
-      <AppShell.Footer>
-        <Group h="100%" grow>
-          <NavButton to="/" icon={<IconMessageCircle size={24} />} label={t('nav.chats')} />
-          <NavButton to="/contacts" icon={<IconUsers size={24} />} label={t('nav.contacts')} />
-          <NavButton to="/settings" icon={<IconSettings size={24} />} label={t('nav.settings')} />
-        </Group>
-      </AppShell.Footer>
+      {!activeChat && (
+        <AppShell.Footer style={{marginBottom: '10px'}}>
+          <Group h="100%" grow>
+            <NavButton  to="/" icon={<IconMessageCircle size={24} />} label={t('nav.chats')} />
+            <NavButton to="/contacts" icon={<IconUsers size={24} />} label={t('nav.contacts')} />
+            <NavButton to="/settings" icon={<IconSettings size={24} />} label={t('nav.settings')} />
+          </Group>
+        </AppShell.Footer>
+      )}
     </AppShell>
   )
 }

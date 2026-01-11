@@ -13,44 +13,41 @@ import {
     Modal,
     CopyButton,
     Button,
-    Tooltip, Menu,
+    Tooltip, Menu, Paper,
 } from '@mantine/core'
 import {
     IconUsers,
-    IconMessageCircle,
-    IconTrash,
     IconCopy,
     IconCheck,
-    IconDotsVertical, IconCancel, IconArrowBackUp
+    IconDotsVertical, IconArrowBackUp, IconArrowLeft
 } from '@tabler/icons-react'
 import type {Contact} from '../../types'
 import {truncateKey} from '../../utils/format'
 
-interface ContactListProps {
-    contacts: Contact[]
+interface BlockedContactListProps {
+    onBack: () => void
     blockedContacts: Contact[]
-    onStartChat: (pubkey: string) => void
-    onRemoveContact: (pubkey: string) => void
-    onBlockContact: (pubkey: string, name?: string) => void
     onUnblockContact: (pubkey: string) => void
 }
 
-export default function ContactList({contacts,blockedContacts, onStartChat, onRemoveContact, onBlockContact,onUnblockContact}: ContactListProps) {
+export default function BlockedContactList({onBack, blockedContacts, onUnblockContact}: BlockedContactListProps) {
     const {t} = useTranslation()
     const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
-    const blockedPubkeys = new Set(blockedContacts.map(c => c.pubkey))
 
-    if (contacts.length === 0) {
+    if (blockedContacts.length === 0) {
         return (
             <Center h="100%" px="xl">
                 <Stack align="center" gap="md">
                     <ThemeIcon size={64} radius="xl" variant="light" color="gray">
                         <IconUsers size={32}/>
                     </ThemeIcon>
-                    <Text fw={500} size="lg">{t('contacts.noContacts')}</Text>
-                    <Text c="dimmed" size="sm" ta="center" maw={280}>
-                        {t('contacts.noContactsHint')}
-                    </Text>
+                    <Text fw={500} size="lg">{t('contacts.noContactsBlocked')}</Text>
+                    <Group gap="sm">
+                        <ActionIcon variant="subtle" onClick={onBack}>
+                            <IconArrowLeft size={24}/>
+                        </ActionIcon>
+                        <Text fw={500} size="lg">{t('common.back')}</Text>
+                    </Group>
                 </Stack>
             </Center>
         )
@@ -60,7 +57,16 @@ export default function ContactList({contacts,blockedContacts, onStartChat, onRe
         <>
             <ScrollArea h="100%">
                 <Stack gap={0}>
-                    {contacts.map((contact) => (
+                    {/* Header */}
+                    <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+                        <Group gap="sm">
+                            <ActionIcon variant="subtle" onClick={onBack}>
+                                <IconArrowLeft size={24} />
+                            </ActionIcon>
+                            <Text fw={500} size="lg">{t('settings.blockedContacts')}</Text>
+                        </Group>
+                    </Paper>
+                    {blockedContacts.map((contact) => (
                         <Box
                             key={contact.pubkey}
                             p="sm"
@@ -97,39 +103,16 @@ export default function ContactList({contacts,blockedContacts, onStartChat, onRe
                                 <Menu shadow="md" width={220} position="bottom-end">
                                     <Menu.Target>
                                         <ActionIcon variant="subtle">
-                                            <IconDotsVertical size={20} />
+                                            <IconDotsVertical size={20}/>
                                         </ActionIcon>
                                     </Menu.Target>
                                     <Menu.Dropdown>
                                         <Menu.Item
-                                            color="cyan"
-                                            leftSection={<IconMessageCircle size={16} />}
-                                            onClick={() => onStartChat(contact.pubkey)}
+                                            color="green"
+                                            leftSection={<IconArrowBackUp size={16}/>}
+                                            onClick={() => onUnblockContact(contact.pubkey)}
                                         >
-                                            {t('contacts.startChat')}
-                                        </Menu.Item>
-                                        {blockedPubkeys.has(contact.pubkey) && (
-                                            <Menu.Item
-                                                color="green"
-                                                leftSection={<IconArrowBackUp size={16} />}
-                                                onClick={() => onUnblockContact(contact.pubkey)}
-                                            >
-                                                {t('contacts.unblockContact')}
-                                            </Menu.Item>
-                                        )}
-                                        <Menu.Item
-                                            color="red"
-                                            leftSection={<IconCancel size={16} />}
-                                            onClick={() => onBlockContact(contact.pubkey, contact.name)}
-                                        >
-                                            {t('contacts.blockContact')}
-                                        </Menu.Item>
-                                        <Menu.Item
-                                            color="red"
-                                            leftSection={<IconTrash size={16} />}
-                                            onClick={() => onRemoveContact(contact.pubkey)}
-                                        >
-                                            {t('contacts.removeContact')}
+                                            {t('contacts.unblockContact')}
                                         </Menu.Item>
                                     </Menu.Dropdown>
                                 </Menu>
@@ -194,20 +177,6 @@ export default function ContactList({contacts,blockedContacts, onStartChat, onRe
                                 )}
                             </CopyButton>
                         </Box>
-
-                        <Group justify="center" mt="md">
-                            <Button
-                                variant="light"
-                                color="cyan"
-                                leftSection={<IconMessageCircle size={18}/>}
-                                onClick={() => {
-                                    onStartChat(selectedContact.pubkey)
-                                    setSelectedContact(null)
-                                }}
-                            >
-                                {t('contacts.startChat')}
-                            </Button>
-                        </Group>
                     </Stack>
                 )}
             </Modal>

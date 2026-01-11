@@ -18,6 +18,7 @@ import {IconMessageCircle, IconTrash} from '@tabler/icons-react'
 import {useMessageStore} from '../../stores/messageStore'
 import {useContactStore} from '../../stores/contactStore'
 import {formatTimestamp, truncateKey} from '../../utils/format'
+import {useBlockedContactStore} from "../../stores/blockedContactStore";
 
 interface ChatListProps {
     onSelectChat: (pubkey: string) => void
@@ -29,6 +30,8 @@ export default function ChatList({onSelectChat}: ChatListProps) {
     const {contacts} = useContactStore()
     const [swipedChat, setSwipedChat] = useState<string | null>(null)
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+    const {blockedContacts} = useBlockedContactStore()
+    const blockedPubkeys = new Set(blockedContacts.map(c => c.pubkey))
 
     const getContactName = (pubkey: string) => {
         const contact = contacts.find(c => c.pubkey === pubkey)
@@ -181,6 +184,11 @@ export default function ChatList({onSelectChat}: ChatListProps) {
                                     )}
                                 </Box>
                                 <Group justify="space-between" align="center" wrap="nowrap" mb={4}>
+                                    {blockedPubkeys.has(chat.pubkey) && (
+                                        <Text size="xs" c="red" >
+                                            {t('common.contactBlocked')}
+                                        </Text>
+                                    )}
                                     {chat.unreadCount > 0 && (
                                         <Badge circle size="md" color="cyan">
                                             {chat.unreadCount > 9 ? '9+' : chat.unreadCount}

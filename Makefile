@@ -1,4 +1,4 @@
-.PHONY: help dev build test lint release release-patch release-minor release-major release-alpha tauri tauri-dev android icons
+.PHONY: help dev build test lint release release-patch release-minor release-major release-alpha electron electron-dev electron-linux electron-win android icons
 
 # Default target
 help:
@@ -10,9 +10,11 @@ help:
 	@echo "    make test         - Run tests"
 	@echo "    make lint         - Run linter"
 	@echo ""
-	@echo "  Desktop (Tauri):"
-	@echo "    make tauri-dev    - Start Tauri development"
-	@echo "    make tauri        - Build Tauri desktop app"
+	@echo "  Desktop (Electron):"
+	@echo "    make electron-dev   - Start Electron development"
+	@echo "    make electron       - Build Electron desktop app"
+	@echo "    make electron-linux - Build for Linux"
+	@echo "    make electron-win   - Build for Windows"
 	@echo ""
 	@echo "  Mobile:"
 	@echo "    make android      - Build Android APK"
@@ -40,16 +42,24 @@ test:
 lint:
 	npm run lint
 
-# Desktop (Tauri)
-tauri-dev:
-	npm run tauri:dev
+# Desktop (Electron)
+electron-dev:
+	npm run electron:dev
 
-tauri:
-	npm run tauri:build
+electron:
+	npm run electron:build
+
+electron-linux:
+	npm run electron:build:linux
+
+electron-win:
+	npm run electron:build:win
 
 # Mobile
 android:
-	cd android && ./gradlew assembleRelease
+	npm run build
+	npx cap sync android
+	JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./android/gradlew -p android assembleRelease
 
 # Release - bump version, commit, tag, push
 release: release-patch

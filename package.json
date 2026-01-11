@@ -1,7 +1,7 @@
 {
   "name": "seal",
   "private": true,
-  "version": "0.1.10-alpha.1",
+  "version": "0.1.10-alpha",
   "description": "Private messaging sealed with Nostr",
   "author": "WLANRouterKing",
   "homepage": "https://github.com/WLANRouterKing/seal",
@@ -51,6 +51,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^16.5.1",
+    "react-loader-spinner": "^8.0.0",
     "react-router-dom": "^7.12.0",
     "zustand": "^5.0.9"
   },
