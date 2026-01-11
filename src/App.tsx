@@ -62,9 +62,11 @@ function App() {
     useEffect(() => {
         if (keys || (hasPassword && publicInfo)) {
             initRelays()
-            notificationService.init()
-            backgroundService.start()
-            pushService.init()
+            notificationService.init().then(() => {
+                backgroundService.start().then(() => {
+                    pushService.init()
+                })
+            })
         }
     }, [keys, hasPassword, publicInfo, initRelays])
 
@@ -74,8 +76,7 @@ function App() {
             const pubkey = npubToPubkey(keys.npub)
             const privateKey = nsecToPrivateKey(keys.nsec)
             if (pubkey && privateKey) {
-                initContacts()
-                initMessages(pubkey, privateKey)
+                initContacts().then(() => initMessages(pubkey, privateKey))
             }
         }
     }, [keys, initContacts, initMessages])
@@ -99,7 +100,8 @@ function App() {
                     alignItems: 'center',
                     justifyContent: 'center',
                 }}>
-                    <Group style={{flex: 1, alignItems: 'center', justifyContent: 'center', height: '100vh', minWidth: 0}}>
+                    <Group
+                        style={{flex: 1, alignItems: 'center', justifyContent: 'center', height: '100vh', minWidth: 0}}>
                         <Rings
                             visible={true}
                             height="80"
@@ -116,7 +118,7 @@ function App() {
     }
 
     if (isLocked) {
-        return <LockScreen />
+        return <LockScreen/>
     }
 
     if (!keys) {
