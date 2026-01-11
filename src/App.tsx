@@ -105,10 +105,9 @@ function App() {
             const pubkey = npubToPubkey(keys.npub)
             const privateKey = nsecToPrivateKey(keys.nsec)
             if (pubkey && privateKey) {
-                initBlockedContacts().then(() => {
-                    initContacts().then(() => initMessages(pubkey, privateKey))
-                })
-
+                initContacts()
+                initBlockedContacts()
+                initMessages(pubkey, privateKey)
             }
         }
     }, [keys, initBlockedContacts, initContacts, initMessages])
