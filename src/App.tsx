@@ -111,7 +111,7 @@ function App() {
 
             }
         }
-    }, [keys, initContacts, initMessages])
+    }, [keys, initBlockedContacts, initContacts, initMessages])
 
     // Subscribe to messages when unlocked and relays are connected
     useEffect(() => {

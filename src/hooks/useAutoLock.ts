@@ -9,7 +9,7 @@ const DEFAULT_TIMEOUT = 5 * 60 * 1000
 export function useAutoLock(timeout: number = DEFAULT_TIMEOUT) {
   const { hasPassword, lock, keys } = useAuthStore()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastActivityRef = useRef<number>(Date.now())
+  const lastActivityRef = useRef<number>(0)
 
   useEffect(() => {
     // Only enable auto-lock if password protection is on and user is logged in
