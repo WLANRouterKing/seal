@@ -115,4 +115,4 @@ export const POW_DIFFICULTY = {
 } as const
 
 // Default difficulty for Seal messages
-export const DEFAULT_MESSAGE_DIFFICULTY = POW_DIFFICULTY.MEDIUM
+export const DEFAULT_MESSAGE_DIFFICULTY = POW_DIFFICULTY.LOW

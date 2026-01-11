@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { StatusBar } from '@capacitor/status-bar'
 import { Capacitor } from '@capacitor/core'
+import { App as CapApp } from '@capacitor/app'
 import { useAuthStore } from './stores/authStore'
 import { useRelayStore } from './stores/relayStore'
 import { useContactStore } from './stores/contactStore'
@@ -27,7 +28,7 @@ function App() {
   const { keys, isLocked, hasPassword, publicInfo, isLoading, isInitialized, setupComplete, completeSetup, initialize: initAuth } = useAuthStore()
   const { initialize: initRelays, relays } = useRelayStore()
   const { initialize: initContacts } = useContactStore()
-  const { initialize: initMessages, subscribeToMessages } = useMessageStore()
+  const { initialize: initMessages, subscribeToMessages, setActiveChat } = useMessageStore()
   const { initialize: initBlockedContacts } = useBlockedContactStore()
 
   // Count connected relays to re-subscribe when connections change
@@ -45,6 +46,42 @@ function App() {
       StatusBar.setOverlaysWebView({ overlay: false })
     }
   }, [])
+
+  // Handle deeplinks (e.g. com.seal.app://chat/{pubkey})
+  useEffect(() => {
+    const handleDeeplink = (event: { url: string }) => {
+      console.log('[Deeplink] Received:', event.url)
+      try {
+        // Parse URL - handle both com.seal.app:// and seal:// schemes
+        const url = new URL(event.url)
+        const path = url.hostname + url.pathname // hostname contains first path segment for custom schemes
+
+        if (path.startsWith('chat/')) {
+          const pubkey = path.replace('chat/', '')
+          if (pubkey) {
+            console.log('[Deeplink] Opening chat with:', pubkey)
+            setActiveChat(pubkey)
+          }
+        }
+      } catch (error) {
+        console.error('[Deeplink] Failed to parse URL:', error)
+      }
+    }
+
+    // Listen for deeplinks when app is already running
+    const listener = CapApp.addListener('appUrlOpen', handleDeeplink)
+
+    // Check if app was opened via deeplink (cold start)
+    CapApp.getLaunchUrl().then((result) => {
+      if (result?.url) {
+        handleDeeplink({ url: result.url })
+      }
+    })
+
+    return () => {
+      listener.then(l => l.remove())
+    }
+  }, [setActiveChat])
 
   useEffect(() => {
     initAuth()
