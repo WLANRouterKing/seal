@@ -1,0 +1,1 @@
+Private messaging sealed with Nostr

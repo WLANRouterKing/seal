@@ -1,0 +1,10 @@
+Seal ist eine private Messaging-App auf Basis des Nostr-Protokolls. Deine Nachrichten sind Ende-zu-Ende verschlüsselt und dezentralisiert.
+
+Funktionen:
+• Ende-zu-Ende verschlüsselte Direktnachrichten mit NIP-17
+• Dezentralisiert - kein zentraler Server kann deine Nachrichten lesen
+• Funktioniert mit deiner bestehenden Nostr-Identität
+• Push-Benachrichtigungen via UnifiedPush
+• Plattformübergreifend: Android, iOS, Web und Desktop
+
+Seal nutzt das Nostr-Protokoll für dezentrale, zensurresistente Kommunikation. Deine privaten Schlüssel verlassen niemals dein Gerät.

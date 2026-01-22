@@ -1,0 +1,4 @@
+• Initial F-Droid release
+• End-to-end encrypted messaging with NIP-17
+• UnifiedPush support for notifications
+• Cross-platform support (Android, iOS, Web, Desktop)

@@ -9,9 +9,9 @@ const { autoUpdater } = electronUpdater
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Disable hardware acceleration for better compatibility on Linux
-// Can be removed if you need WebGL
-// app.disableHardwareAcceleration()
+// Disable hardware acceleration for better compatibility on Linux/Windows
+// Prevents black screen issues on some Windows systems
+app.disableHardwareAcceleration()
 
 let mainWindow: BrowserWindow | null = null
 
@@ -61,7 +61,9 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools()
   } else {
     // In production, load from built files
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    // Use app.getAppPath() for correct path resolution in packaged app
+    const appPath = app.getAppPath()
+    mainWindow.loadFile(path.join(appPath, 'dist/index.html'))
   }
 
   mainWindow.on('closed', () => {

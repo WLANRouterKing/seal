@@ -1,0 +1,18 @@
+# App Store Connect
+app_identifier("com.seal.app")
+apple_id(ENV["APPLE_ID"]) # Your Apple email address
+
+# Team ID from Apple Developer Portal
+team_id(ENV["APPLE_TEAM_ID"])
+
+# App Store Connect Team ID (may be different from Developer Team ID)
+itc_team_id(ENV["APPLE_ITC_TEAM_ID"])
+
+# For CI/CD - use App Store Connect API Key
+for_platform :ios do
+  # API Key authentication (preferred for CI)
+  # Set these environment variables in your CI/CD:
+  # - APP_STORE_CONNECT_API_KEY_ID
+  # - APP_STORE_CONNECT_API_ISSUER_ID
+  # - APP_STORE_CONNECT_API_KEY_CONTENT (base64 encoded .p8 file)
+end

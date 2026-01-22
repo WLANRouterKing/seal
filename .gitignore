@@ -17,6 +17,21 @@ dist-ssr
 electron-dist
 release
 
+# iOS
+ios/App/App/public
+ios/App/App/capacitor.config.json
+ios/App/Pods
+*.xcworkspace
+!ios/App/App.xcworkspace
+build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+vendor/bundle
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

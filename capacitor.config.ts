@@ -5,11 +5,17 @@ const config: CapacitorConfig = {
   appName: 'Seal',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    iosScheme: 'https'
   },
   android: {
     allowMixedContent: true,
     backgroundColor: '#1A1B1E'
+  },
+  ios: {
+    backgroundColor: '#1A1B1E',
+    contentInset: 'automatic',
+    preferredContentMode: 'mobile'
   }
 };
 
