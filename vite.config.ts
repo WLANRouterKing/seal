@@ -33,7 +33,8 @@ export default defineConfig({
     // Use relative paths for Electron (loads from file system)
     base: isElectron ? './' : '/',
     define: {
-        __APP_VERSION__: JSON.stringify(getVersion())
+        __APP_VERSION__: JSON.stringify(getVersion()),
+        'import.meta.env.ELECTRON': JSON.stringify(isElectron)
     },
     esbuild: {
         // Remove console.log and debugger in production builds
@@ -41,7 +42,7 @@ export default defineConfig({
     },
     plugins: [
         react(),
-        VitePWA({
+        (isElectron ? []: VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
             manifest: {
@@ -97,7 +98,7 @@ export default defineConfig({
                     }
                 ]
             }
-        })
+        }))
     ],
     resolve: {
         alias: {

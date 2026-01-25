@@ -1,7 +1,7 @@
 {
   "name": "seal",
   "private": true,
-  "version": "0.1.10-alpha",
+  "version": "0.2.0",
   "description": "Private messaging sealed with Nostr",
   "author": "WLANRouterKing",
   "homepage": "https://github.com/WLANRouterKing/seal",
@@ -17,7 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "version": "node scripts/bump-version.js",
     "icons": "node scripts/generate-icons.js",
-    "electron:compile": "tsc -p electron/tsconfig.json",
+    "electron:compile": "tsc -p electron/tsconfig.json && tsc -p electron/tsconfig.preload.json",
     "electron:dev": "npm run electron:compile && concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "cross-env ELECTRON=true npm run build && npm run electron:compile && electron-builder",
     "electron:build:linux": "cross-env ELECTRON=true npm run build && npm run electron:compile && electron-builder --linux",
@@ -89,6 +89,7 @@
   "build": {
     "appId": "dev.seal.messenger",
     "productName": "Seal",
+    "asar": false,
     "directories": {
       "output": "release"
     },

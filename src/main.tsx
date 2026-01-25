@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { MantineProvider, createTheme } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import App from './App'
@@ -14,7 +14,29 @@ import { useThemeStore } from './stores/themeStore'
 if (import.meta.env.DEV) {
   import('./utils/devTools')
 }
-import { registerSW } from 'virtual:pwa-register'
+
+// Register PWA service worker only for web builds (not Electron)
+if (!import.meta.env.ELECTRON) {
+  const { registerSW } = await import('virtual:pwa-register')
+
+  registerSW({
+    onNeedRefresh() {
+      // Auto-update when new content is available
+      window.location.reload()
+    },
+    onOfflineReady() {
+      console.log('App ready to work offline')
+    },
+    onRegisteredSW(_swUrl, registration) {
+      // Check for updates every hour
+      if (registration) {
+        setInterval(() => {
+          registration.update()
+        }, 60 * 60 * 1000)
+      }
+    }
+  })
+}
 
 const theme = createTheme({
   primaryColor: 'cyan',
@@ -37,41 +59,26 @@ const theme = createTheme({
   cursorType: 'pointer',
 })
 
-// Register service worker with auto-update
-const updateSW = registerSW({
-  onNeedRefresh() {
-    // Auto-update when new content is available
-    updateSW(true)
-  },
-  onOfflineReady() {
-    console.log('App ready to work offline')
-  },
-  onRegisteredSW(_swUrl, registration) {
-    // Check for updates every hour
-    if (registration) {
-      setInterval(() => {
-        registration.update()
-      }, 60 * 60 * 1000)
-    }
-  }
-})
+// Use HashRouter for Electron/Capacitor (file:// protocol)
+// Use BrowserRouter for web (http:// protocol)
+const Router = import.meta.env.ELECTRON ? HashRouter : BrowserRouter
 
 // Extracted to separate component for fast refresh compatibility
 export function Root() {
   const effectiveTheme = useThemeStore(state => state.getEffectiveTheme())
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme={effectiveTheme} forceColorScheme={effectiveTheme}>
-      <Notifications position="top-right" />
-      <App />
-    </MantineProvider>
+      <MantineProvider theme={theme} defaultColorScheme={effectiveTheme} forceColorScheme={effectiveTheme}>
+        <Notifications position="top-right" />
+        <App />
+      </MantineProvider>
   )
 }
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <Root />
-    </BrowserRouter>
-  </StrictMode>
+    <StrictMode>
+      <Router>
+        <Root />
+      </Router>
+    </StrictMode>
 )

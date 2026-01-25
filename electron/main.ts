@@ -60,10 +60,36 @@ function createWindow(): void {
     // Open DevTools in development
     mainWindow.webContents.openDevTools()
   } else {
-    // In production, load from built files
-    // Use app.getAppPath() for correct path resolution in packaged app
-    const appPath = app.getAppPath()
-    mainWindow.loadFile(path.join(appPath, 'dist/index.html'))
+// In production, load from built files
+    const distPath = path.join(__dirname, '../dist')
+    const indexPath = path.join(distPath, 'index.html')
+
+    console.log('Loading from:', indexPath)
+
+    // Disable web security temporär zum Testen
+    mainWindow = new BrowserWindow({
+      // ... alle anderen settings
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        webSecurity: false,  // ← TEMPORÄR ZUM DEBUG
+      },
+    })
+
+    mainWindow.loadURL(`file://${indexPath.replace(/\\/g, '/')}`)
+
+    mainWindow.webContents.on('console-message', (event, level, message) => {
+      console.log(`[App Console] ${message}`)
+    })
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+      console.log(`[${level}] ${sourceId}:${line} - ${message}`)
+    })
+    mainWindow.webContents.on('did-finish-load', () => {
+      console.log('✓ Page loaded')
+    })
+
+    mainWindow.webContents.openDevTools()
   }
 
   mainWindow.on('closed', () => {
