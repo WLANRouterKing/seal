@@ -76,7 +76,6 @@ function createWindow(): void {
     mainWindow.webContents.on('did-finish-load', () => {
       console.log('✓ Page loaded')
       mainWindow?.show()
-      mainWindow?.webContents.openDevTools()
     })
   }
 
