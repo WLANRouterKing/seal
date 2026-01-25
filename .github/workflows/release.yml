@@ -3,21 +3,49 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'  # Triggers on version tags like v0.1.0, v1.0.0, etc.
+      - 'v*'
 
 jobs:
-  build:
-    name: Build and Release
+  # Check if tag is on master branch
+  check-branch:
+    name: Verify Release Branch
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write  # Required for creating releases
+    outputs:
+      is_master: ${{ steps.check.outputs.is_master }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for changelog generation
+          fetch-depth: 0
+
+      - name: Check if tag is on master
+        id: check
+        run: |
+          # Get the commit the tag points to
+          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref }})
+
+          # Check if this commit is in master's history
+          if git merge-base --is-ancestor $TAG_COMMIT origin/master; then
+            echo "Tag is on master branch"
+            echo "is_master=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag is NOT on master branch - skipping release"
+            echo "is_master=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Run tests
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: check-branch
+    if: needs.check-branch.outputs.is_master == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -30,6 +58,31 @@ jobs:
 
       - name: Run tests
         run: npm run test:run
+
+  # Web Release + Deploy to sealchat.app
+  release-web:
+    name: Release Web
+    runs-on: ubuntu-latest
+    needs: test
+    environment: production
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build
         run: npm run build
@@ -53,3 +106,137 @@ jobs:
           body: ${{ steps.changelog.outputs.content }}
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: unnecessary
+          if_key_exists: replace
+
+      - name: Add Known Hosts
+        run: ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Production
+        run: |
+          rsync -avz --delete --chmod=D755,F644 \
+            dist/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/home/${{ secrets.DEPLOY_USER }}/web/${{ secrets.DEPLOY_DOMAIN }}/public_html/
+
+  # Android Release Build
+  release-android:
+    name: Release Android
+    runs-on: ubuntu-latest
+    needs: test
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/seal-release.keystore
+
+      - name: Create keystore.properties
+        run: |
+          cat > android/keystore.properties << EOF
+          storeFile=../seal-release.keystore
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=seal
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          EOF
+
+      - name: Build Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Rename Release APK
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          mv android/app/build/outputs/apk/release/app-release.apk seal-${VERSION}.apk
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: seal-*.apk
+
+  # Desktop Release Builds
+  release-desktop:
+    name: Release Desktop
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            target: linux
+            build_script: electron:build:linux
+          - platform: windows-latest
+            target: windows
+            build_script: electron:build:win
+
+    runs-on: ${{ matrix.platform }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Linux dependencies
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and Publish Electron app
+        run: npm run ${{ matrix.build_script }} -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
