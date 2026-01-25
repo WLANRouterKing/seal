@@ -97,10 +97,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     initialize: async () => {
         try {
+            console.log('[Auth] Starting initialize...')
+            console.log('[Auth] Loading keys and settings...')
             const [storedKeys, settings] = await Promise.all([loadKeys(), loadSettings()])
+            console.log('[Auth] Loaded:', { storedKeys: !!storedKeys, settings })
             const setupComplete = settings?.setupComplete !== false
 
             if (!storedKeys) {
+                console.log('[Auth] No stored keys, setting initialized')
                 set({isLoading: false, isInitialized: true, setupComplete: true, hideIdentity: false})
                 return
             }

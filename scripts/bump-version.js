@@ -11,6 +11,8 @@ const root = join(__dirname, '..')
 const PACKAGE_JSON = join(root, 'package.json')
 const LOCALE_DE = join(root, 'src/i18n/locales/de.json')
 const LOCALE_EN = join(root, 'src/i18n/locales/en.json')
+const ANDROID_BUILD_GRADLE = join(root, 'android/app/build.gradle')
+const IOS_PROJECT = join(root, 'ios/App/App.xcodeproj/project.pbxproj')
 
 function getCurrentVersion() {
   const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8'))
@@ -66,10 +68,51 @@ function updatePackageJson(version) {
 
 function updateLocaleFile(filePath, version) {
   const locale = JSON.parse(readFileSync(filePath, 'utf8'))
-  const displayVersion = version.includes('-alpha') ? `Seal v${version}` : `Seal v${version}-alpha`
+  const displayVersion = `Seal v${version}`
   locale.settings.version = displayVersion
   writeFileSync(filePath, JSON.stringify(locale, null, 2) + '\n')
   console.log(`Updated ${filePath.split('/').pop()} to ${displayVersion}`)
+}
+
+function getVersionCode(version) {
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)/)
+  if (!match) return 1
+  const [, major, minor, patch] = match
+  return Number(major) * 10000 + Number(minor) * 100 + Number(patch)
+}
+
+function updateAndroidVersion(version) {
+  let content = readFileSync(ANDROID_BUILD_GRADLE, 'utf8')
+  const versionCode = getVersionCode(version)
+
+  content = content.replace(
+    /versionCode \d+/,
+    `versionCode ${versionCode}`
+  )
+  content = content.replace(
+    /versionName "[^"]+"/,
+    `versionName "${version}"`
+  )
+
+  writeFileSync(ANDROID_BUILD_GRADLE, content)
+  console.log(`Updated Android to ${version} (versionCode: ${versionCode})`)
+}
+
+function updateIOSVersion(version) {
+  let content = readFileSync(IOS_PROJECT, 'utf8')
+  const versionCode = getVersionCode(version)
+
+  content = content.replace(
+    /CURRENT_PROJECT_VERSION = \d+;/g,
+    `CURRENT_PROJECT_VERSION = ${versionCode};`
+  )
+  content = content.replace(
+    /MARKETING_VERSION = [\d.]+;/g,
+    `MARKETING_VERSION = ${version};`
+  )
+
+  writeFileSync(IOS_PROJECT, content)
+  console.log(`Updated iOS to ${version} (build: ${versionCode})`)
 }
 
 function createGitTag(version, push = false) {
@@ -102,6 +145,8 @@ console.log(`\nBumping version: ${currentVersion} -> ${newVersion}\n`)
 updatePackageJson(newVersion)
 updateLocaleFile(LOCALE_DE, newVersion)
 updateLocaleFile(LOCALE_EN, newVersion)
+updateAndroidVersion(newVersion)
+updateIOSVersion(newVersion)
 
 if (shouldTag) {
   console.log('')

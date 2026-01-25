@@ -139,7 +139,7 @@
     "language": "Language",
     "languageHint": "App language",
     "blockedContacts": "Blocked Contacts",
-    "version": "Seal v0.1.10-alpha",
+    "version": "Seal v0.2.2",
     "footer": "Decentralized messaging with NIP-17"
   },
   "relaySettings": {

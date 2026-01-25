@@ -31,8 +31,9 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      // Required for audio/video recording
-      webSecurity: true,
+      webSecurity: !isDev,
+      // Use persist partition for IndexedDB
+      partition: 'persist:seal',
     },
     icon: path.join(__dirname, '../public/pwa-512x512.png'),
     // Hide until ready to prevent flash
@@ -60,24 +61,11 @@ function createWindow(): void {
     // Open DevTools in development
     mainWindow.webContents.openDevTools()
   } else {
-// In production, load from built files
-    const distPath = path.join(__dirname, '../dist')
-    const indexPath = path.join(distPath, 'index.html')
-
+    // In production, load from built files
+    const indexPath = path.join(__dirname, '../dist/index.html')
     console.log('Loading from:', indexPath)
 
-    // Disable web security temporär zum Testen
-    mainWindow = new BrowserWindow({
-      // ... alle anderen settings
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        contextIsolation: true,
-        nodeIntegration: false,
-        webSecurity: false,  // ← TEMPORÄR ZUM DEBUG
-      },
-    })
-
-    mainWindow.loadURL(`file://${indexPath.replace(/\\/g, '/')}`)
+    mainWindow.loadFile(indexPath)
 
     mainWindow.webContents.on('console-message', (event, level, message) => {
       console.log(`[App Console] ${message}`)
@@ -87,9 +75,9 @@ function createWindow(): void {
     })
     mainWindow.webContents.on('did-finish-load', () => {
       console.log('✓ Page loaded')
+      mainWindow?.show()
+      mainWindow?.webContents.openDevTools()
     })
-
-    mainWindow.webContents.openDevTools()
   }
 
   mainWindow.on('closed', () => {

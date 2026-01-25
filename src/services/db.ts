@@ -93,6 +93,27 @@ let dbPromise: Promise<IDBPDatabase<SealChatDB>> | null = null
 
 export async function getDB(): Promise<IDBPDatabase<SealChatDB>> {
     if (!dbPromise) {
+        console.log('[DB] Opening IndexedDB...')
+        console.log('[DB] indexedDB available:', typeof indexedDB !== 'undefined')
+
+        // Test raw IndexedDB first
+        try {
+            const testReq = indexedDB.open('_test_', 1)
+            testReq.onsuccess = () => {
+                console.log('[DB] Raw IndexedDB test: SUCCESS')
+                testReq.result.close()
+                indexedDB.deleteDatabase('_test_')
+            }
+            testReq.onerror = (e) => {
+                console.error('[DB] Raw IndexedDB test: FAILED', e)
+            }
+            testReq.onblocked = () => {
+                console.warn('[DB] Raw IndexedDB test: BLOCKED')
+            }
+        } catch (e) {
+            console.error('[DB] Raw IndexedDB test exception:', e)
+        }
+
         dbPromise = openDB<SealChatDB>(DB_NAME, DB_VERSION, {
             upgrade(db, oldVersion, newVersion) {
                 console.log('IndexedDB upgrade:', oldVersion, '->', newVersion)
@@ -157,8 +178,12 @@ export async function saveKeys(keys: NostrKeys | EncryptedKeys): Promise<void> {
 }
 
 export async function loadKeys(): Promise<NostrKeys | EncryptedKeys | undefined> {
+    console.log('[DB] loadKeys called')
     const db = await getDB()
-    return db.get(STORES.KEYS, 'primary')
+    console.log('[DB] Got DB, fetching keys...')
+    const keys = await db.get(STORES.KEYS, 'primary')
+    console.log('[DB] loadKeys done:', !!keys)
+    return keys
 }
 
 // =============================================================================
