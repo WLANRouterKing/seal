@@ -39,7 +39,7 @@
     "@mantine/core": "^8.3.13",
     "@mantine/hooks": "^8.3.13",
     "@mantine/notifications": "^8.3.13",
-    "@noble/hashes": "^1.8.0",
+    "@noble/hashes": "^2.0.1",
     "@nostrify/nostrify": "^0.48.2",
     "@tabler/icons-react": "^3.36.1",
     "electron-updater": "^6.7.3",
