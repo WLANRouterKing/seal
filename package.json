@@ -29,7 +29,6 @@
     "@aparajita/capacitor-biometric-auth": "^9.1.2",
     "@capacitor/android": "^8.0.1",
     "@capacitor/app": "^8.0.0",
-    "@capacitor/cli": "^8.0.1",
     "@capacitor/core": "^8.0.1",
     "@capacitor/ios": "^8.0.1",
     "@capacitor/local-notifications": "^8.0.0",
@@ -59,6 +58,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.0.1",
     "@eslint/js": "^9.39.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
