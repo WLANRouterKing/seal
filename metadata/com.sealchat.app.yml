@@ -1,0 +1,61 @@
+# F-Droid metadata file
+# Submit this to https://gitlab.com/fdroid/fdroiddata
+
+Categories:
+  - Internet
+  - Security
+
+License: MIT
+
+AuthorName: WLANRouterKing
+AuthorWebSite: https://github.com/WLANRouterKing
+
+SourceCode: https://github.com/WLANRouterKing/seal
+IssueTracker: https://github.com/WLANRouterKing/seal/issues
+
+RepoType: git
+Repo: https://github.com/WLANRouterKing/seal.git
+
+Builds:
+  - versionName: 0.1.10-alpha
+    versionCode: 11010
+    commit: v0.1.10-alpha
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y npm
+    init: npm ci
+    gradle:
+      - yes
+    prebuild:
+      - cd ../..
+      - npm run build
+      - npx cap sync android
+    scanignore:
+      - node_modules
+
+  - versionName: 0.2.2
+    versionCode: 202
+    commit: v0.2.2
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y npm nodejs
+    init: npm ci
+    gradle:
+      - yes
+    prebuild:
+      - cd ../..
+      - npm run build
+      - npx cap sync android
+    scanignore:
+      - node_modules
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.2.2
+CurrentVersionCode: 202
+
+AntiFeatures:
+  NonFreeNet:
+    en-US: Uses ntfy.sh for push notifications (can be self-hosted)

@@ -54,7 +54,7 @@ export default function Layout() {
       </AppShell.Main>
 
       {!activeChat && (
-        <AppShell.Footer>
+        <AppShell.Footer style={{paddingBottom: '70px'}}>
           <Group h="100%" grow>
             <NavButton to="/" icon={<IconMessageCircle size={24} />} label={t('nav.chats')} />
             <NavButton to="/contacts" icon={<IconUsers size={24} />} label={t('nav.contacts')} />
