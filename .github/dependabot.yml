@@ -15,8 +15,17 @@ updates:
         dependency-type: "production"
         update-types:
           - "patch"
+    # Ignore security updates for dev dependencies (not in production build)
+    ignore:
+      - dependency-name: "*"
+        dependency-type: "development"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
