@@ -1,19 +1,19 @@
-import {useEffect} from 'react'
-import {Routes, Route, Navigate} from 'react-router-dom'
-import {StatusBar} from '@capacitor/status-bar'
-import {Capacitor} from '@capacitor/core'
-import {App as CapApp} from '@capacitor/app'
-import {useAuthStore} from './stores/authStore'
-import {useRelayStore} from './stores/relayStore'
-import {useContactStore} from './stores/contactStore'
-import {useMessageStore} from './stores/messageStore'
-import {useBlockedContactStore} from './stores/blockedContactStore'
-import {nsecToPrivateKey, npubToPubkey} from './services/keys'
-import {notificationService} from './services/notifications'
-import {backgroundService} from './services/backgroundService'
-import {pushService} from './services/pushService'
-import {useAutoLock} from './hooks/useAutoLock'
-import {useLockedNotifications} from './hooks/useLockedNotifications'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { StatusBar } from '@capacitor/status-bar'
+import { Capacitor } from '@capacitor/core'
+import { App as CapApp } from '@capacitor/app'
+import { useAuthStore } from './stores/authStore'
+import { useRelayStore } from './stores/relayStore'
+import { useContactStore } from './stores/contactStore'
+import { useMessageStore } from './stores/messageStore'
+import { useBlockedContactStore } from './stores/blockedContactStore'
+import { nsecToPrivateKey, npubToPubkey } from './services/keys'
+import { notificationService } from './services/notifications'
+import { backgroundService } from './services/backgroundService'
+import { pushService } from './services/pushService'
+import { useAutoLock } from './hooks/useAutoLock'
+import { useLockedNotifications } from './hooks/useLockedNotifications'
 import Layout from './components/Layout'
 import LockScreen from './components/LockScreen'
 import SetupPassword from './components/SetupPassword'
@@ -22,8 +22,8 @@ import Chat from './pages/Chat'
 import Contacts from './pages/Contacts'
 import Settings from './pages/Settings'
 import Privacy from './pages/Privacy'
-import {Group, Paper, Stack} from "@mantine/core";
-import {Rings} from "react-loader-spinner";
+import { Group, Paper, Stack } from '@mantine/core'
+import { Rings } from 'react-loader-spinner'
 
 function App() {
   const {
@@ -168,8 +168,8 @@ function App() {
     return (
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/privacy" element={<Privacy/>}/>
-                <Route path="*" element={<Navigate to="/onboarding" replace />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="*" element={<Navigate to="/onboarding" replace />} />
       </Routes>
     )
   }
@@ -186,8 +186,8 @@ function App() {
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
-      <Route path="/privacy" element={<Privacy/>}/>
-            <Route path="/onboarding" element={<Navigate to="/" replace />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/onboarding" element={<Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
