@@ -56,7 +56,9 @@ export default function AddContact({ onAdd, onCancel, error }: AddContactProps) 
           <ActionIcon variant="subtle" onClick={onCancel}>
             <IconX size={24} />
           </ActionIcon>
-          <Text fw={500} size="lg">{t('contacts.addContact')}</Text>
+          <Text fw={500} size="lg">
+            {t('contacts.addContact')}
+          </Text>
         </Group>
       </Paper>
 
@@ -105,12 +107,7 @@ export default function AddContact({ onAdd, onCancel, error }: AddContactProps) 
               </Alert>
             )}
 
-            <Button
-              type="submit"
-              fullWidth
-              color="cyan"
-              disabled={!npub.trim()}
-            >
+            <Button type="submit" fullWidth color="cyan" disabled={!npub.trim()}>
               {t('contacts.addContact')}
             </Button>
           </Stack>
@@ -127,10 +124,7 @@ export default function AddContact({ onAdd, onCancel, error }: AddContactProps) 
             </Alert>
           )}
 
-          <QRCodeScanner
-            onScan={handleScan}
-            onCancel={() => setMode('manual')}
-          />
+          <QRCodeScanner onScan={handleScan} onCancel={() => setMode('manual')} />
         </Box>
       )}
     </Stack>

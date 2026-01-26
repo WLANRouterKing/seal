@@ -26,7 +26,7 @@ function getVersion(): string {
     }
 }
 
-//const isProduction = process.env.NODE_ENV === 'production'
+const isProduction = process.env.NODE_ENV === 'production'
 const isElectron = process.env.ELECTRON === 'true'
 
 export default defineConfig({
@@ -38,7 +38,7 @@ export default defineConfig({
     },
     esbuild: {
         // Remove console.log and debugger in production builds
-        //drop: isProduction ? ['console', 'debugger'] : []
+        drop: isProduction ? ['console', 'debugger'] : []
     },
     plugins: [
         react(),

@@ -1,8 +1,5 @@
 import { Capacitor } from '@capacitor/core'
-import {
-  BiometricAuth,
-  BiometryType,
-} from '@aparajita/capacitor-biometric-auth'
+import { BiometricAuth, BiometryType } from '@aparajita/capacitor-biometric-auth'
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -45,8 +42,7 @@ class BiometricsService {
       }
 
       let type: BiometricsState['type'] = 'fingerprint'
-      if (result.biometryType === BiometryType.faceAuthentication ||
-          result.biometryType === BiometryType.faceId) {
+      if (result.biometryType === BiometryType.faceAuthentication || result.biometryType === BiometryType.faceId) {
         type = 'face'
       } else if (result.biometryType === BiometryType.irisAuthentication) {
         type = 'iris'
@@ -55,7 +51,7 @@ class BiometricsService {
       return {
         available: true,
         type,
-        strongAuth: result.strongBiometryIsAvailable ?? true
+        strongAuth: result.strongBiometryIsAvailable ?? true,
       }
     } catch (error) {
       console.error('Failed to check native biometrics:', error)
@@ -103,7 +99,7 @@ class BiometricsService {
       await BiometricAuth.authenticate({
         reason,
         allowDeviceCredential: true,
-        cancelTitle: 'Cancel'
+        cancelTitle: 'Cancel',
       })
 
       const deviceKey = await this.getOrCreateDeviceKey()
@@ -125,16 +121,18 @@ class BiometricsService {
         return this.registerWebAuthn()
       }
 
-      const credential = await navigator.credentials.get({
+      const credential = (await navigator.credentials.get({
         publicKey: {
           challenge: crypto.getRandomValues(new Uint8Array(32)),
-          allowCredentials: [{
-            id: this.base64ToArrayBuffer(storedCred.credentialId),
-            type: 'public-key'
-          }],
+          allowCredentials: [
+            {
+              id: this.base64ToArrayBuffer(storedCred.credentialId),
+              type: 'public-key',
+            },
+          ],
           userVerification: 'required',
-        }
-      }) as PublicKeyCredential | null
+        },
+      })) as PublicKeyCredential | null
 
       if (!credential) {
         return null
@@ -154,29 +152,29 @@ class BiometricsService {
     try {
       const userId = crypto.getRandomValues(new Uint8Array(16))
 
-      const credential = await navigator.credentials.create({
+      const credential = (await navigator.credentials.create({
         publicKey: {
           challenge: crypto.getRandomValues(new Uint8Array(32)),
           rp: {
             name: 'Seal',
-            id: window.location.hostname
+            id: window.location.hostname,
           },
           user: {
             id: userId,
             name: 'Seal User',
-            displayName: 'Seal User'
+            displayName: 'Seal User',
           },
           pubKeyCredParams: [
             { type: 'public-key', alg: -7 },
-            { type: 'public-key', alg: -257 }
+            { type: 'public-key', alg: -257 },
           ],
           authenticatorSelection: {
             authenticatorAttachment: 'platform',
             userVerification: 'required',
-            residentKey: 'preferred'
+            residentKey: 'preferred',
           },
-        }
-      }) as PublicKeyCredential | null
+        },
+      })) as PublicKeyCredential | null
 
       if (!credential) {
         return null
@@ -187,7 +185,7 @@ class BiometricsService {
 
       const storedCred: StoredCredential = {
         credentialId: this.arrayBufferToBase64(credential.rawId),
-        publicKey: publicKey ? this.arrayBufferToBase64(publicKey) : ''
+        publicKey: publicKey ? this.arrayBufferToBase64(publicKey) : '',
       }
       localStorage.setItem(CREDENTIAL_KEY, JSON.stringify(storedCred))
 
@@ -202,20 +200,16 @@ class BiometricsService {
    * Derive encryption key from credential ID
    */
   private async deriveKeyFromCredential(credentialId: ArrayBuffer): Promise<Uint8Array> {
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw',
-      new Uint8Array(credentialId),
-      'HKDF',
-      false,
-      ['deriveBits']
-    )
+    const keyMaterial = await crypto.subtle.importKey('raw', new Uint8Array(credentialId), 'HKDF', false, [
+      'deriveBits',
+    ])
 
     const derivedBits = await crypto.subtle.deriveBits(
       {
         name: 'HKDF',
         salt: encoder.encode('seal-biometric-key'),
         info: encoder.encode('encryption'),
-        hash: 'SHA-256'
+        hash: 'SHA-256',
       },
       keyMaterial,
       256
@@ -244,19 +238,9 @@ class BiometricsService {
   async encrypt(data: string, key: Uint8Array): Promise<string> {
     const iv = crypto.getRandomValues(new Uint8Array(12))
     const keyBuffer = new Uint8Array(key).buffer
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      keyBuffer,
-      'AES-GCM',
-      false,
-      ['encrypt']
-    )
+    const cryptoKey = await crypto.subtle.importKey('raw', keyBuffer, 'AES-GCM', false, ['encrypt'])
 
-    const encrypted = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
-      cryptoKey,
-      encoder.encode(data)
-    )
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, encoder.encode(data))
 
     const combined = new Uint8Array(iv.length + encrypted.byteLength)
     combined.set(iv)
@@ -275,19 +259,9 @@ class BiometricsService {
       const ciphertext = combined.slice(12)
 
       const keyBuffer = new Uint8Array(key).buffer
-      const cryptoKey = await crypto.subtle.importKey(
-        'raw',
-        keyBuffer,
-        'AES-GCM',
-        false,
-        ['decrypt']
-      )
+      const cryptoKey = await crypto.subtle.importKey('raw', keyBuffer, 'AES-GCM', false, ['decrypt'])
 
-      const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        cryptoKey,
-        ciphertext
-      )
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, ciphertext)
 
       return decoder.decode(decrypted)
     } catch (error) {

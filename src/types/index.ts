@@ -42,7 +42,7 @@ export const EXPIRATION_OPTIONS = [
   { label: '1 week', value: 604800 },
 ] as const
 
-export type ExpirationValue = typeof EXPIRATION_OPTIONS[number]['value']
+export type ExpirationValue = (typeof EXPIRATION_OPTIONS)[number]['value']
 
 export interface Chat {
   pubkey: string

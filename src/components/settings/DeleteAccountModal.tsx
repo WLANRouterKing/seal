@@ -1,17 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Modal,
-  Stack,
-  Text,
-  Button,
-  Group,
-  Alert,
-  Checkbox,
-  Loader,
-  ThemeIcon,
-  Box,
-} from '@mantine/core'
+import { Modal, Stack, Text, Button, Group, Alert, Checkbox, Loader, ThemeIcon, Box } from '@mantine/core'
 import { IconAlertTriangle, IconTrash, IconCheck, IconX } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useRelayStore } from '../../stores/relayStore'
@@ -40,7 +29,7 @@ export default function DeleteAccountModal({ opened, onClose }: DeleteAccountMod
   const [state, setState] = useState<DeleteState>('confirm')
   const [publishResult, setPublishResult] = useState<PublishResult | null>(null)
 
-  const connectedRelays = relays.filter(r => r.status === 'connected')
+  const connectedRelays = relays.filter((r) => r.status === 'connected')
 
   const handleDelete = async () => {
     if (!keys) return
@@ -53,13 +42,13 @@ export default function DeleteAccountModal({ opened, onClose }: DeleteAccountMod
       if (sendVanish) {
         // Create and publish NIP-62 vanish request
         const vanishEvent = createVanishRequest(privateKey)
-        const connectedUrls = connectedRelays.map(r => r.url)
+        const connectedUrls = connectedRelays.map((r) => r.url)
 
         if (connectedUrls.length > 0) {
           const result = await relayPool.publish(connectedUrls, vanishEvent)
           setPublishResult({
             successes: result.successes.length,
-            failures: result.failures.length
+            failures: result.failures.length,
           })
         }
       }
@@ -98,7 +87,9 @@ export default function DeleteAccountModal({ opened, onClose }: DeleteAccountMod
       {state === 'confirm' && (
         <Stack gap="md">
           <Alert color="red" icon={<IconAlertTriangle size={16} />}>
-            <Text size="sm" fw={500}>{t('deleteAccount.warning')}</Text>
+            <Text size="sm" fw={500}>
+              {t('deleteAccount.warning')}
+            </Text>
           </Alert>
 
           <Text size="sm" c="dimmed">
@@ -144,7 +135,9 @@ export default function DeleteAccountModal({ opened, onClose }: DeleteAccountMod
         <Stack align="center" gap="md" py="xl">
           <Loader color="red" size="lg" />
           <Text>{t('deleteAccount.publishing')}</Text>
-          <Text size="sm" c="dimmed">{t('deleteAccount.doNotClose')}</Text>
+          <Text size="sm" c="dimmed">
+            {t('deleteAccount.doNotClose')}
+          </Text>
         </Stack>
       )}
 
@@ -158,11 +151,13 @@ export default function DeleteAccountModal({ opened, onClose }: DeleteAccountMod
             <Text size="sm" c="dimmed">
               {t('deleteAccount.publishResult', {
                 successes: publishResult.successes,
-                failures: publishResult.failures
+                failures: publishResult.failures,
               })}
             </Text>
           )}
-          <Text size="sm" c="dimmed">{t('deleteAccount.redirecting')}</Text>
+          <Text size="sm" c="dimmed">
+            {t('deleteAccount.redirecting')}
+          </Text>
         </Stack>
       )}
 
@@ -172,7 +167,9 @@ export default function DeleteAccountModal({ opened, onClose }: DeleteAccountMod
             <IconX size={32} />
           </ThemeIcon>
           <Text fw={500}>{t('deleteAccount.error')}</Text>
-          <Text size="sm" c="dimmed">{t('deleteAccount.errorHint')}</Text>
+          <Text size="sm" c="dimmed">
+            {t('deleteAccount.errorHint')}
+          </Text>
           <Group>
             <Button variant="default" onClick={handleClose}>
               {t('common.cancel')}

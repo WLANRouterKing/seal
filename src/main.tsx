@@ -30,11 +30,14 @@ if (!import.meta.env.ELECTRON) {
     onRegisteredSW(_swUrl, registration) {
       // Check for updates every hour
       if (registration) {
-        setInterval(() => {
-          registration.update()
-        }, 60 * 60 * 1000)
+        setInterval(
+          () => {
+            registration.update()
+          },
+          60 * 60 * 1000
+        )
       }
-    }
+    },
   })
 }
 
@@ -65,20 +68,20 @@ const Router = import.meta.env.ELECTRON ? HashRouter : BrowserRouter
 
 // Extracted to separate component for fast refresh compatibility
 export function Root() {
-  const effectiveTheme = useThemeStore(state => state.getEffectiveTheme())
+  const effectiveTheme = useThemeStore((state) => state.getEffectiveTheme())
 
   return (
-      <MantineProvider theme={theme} defaultColorScheme={effectiveTheme} forceColorScheme={effectiveTheme}>
-        <Notifications position="top-right" />
-        <App />
-      </MantineProvider>
+    <MantineProvider theme={theme} defaultColorScheme={effectiveTheme} forceColorScheme={effectiveTheme}>
+      <Notifications position="top-right" />
+      <App />
+    </MantineProvider>
   )
 }
 
 createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <Router>
-        <Root />
-      </Router>
-    </StrictMode>
+  <StrictMode>
+    <Router>
+      <Root />
+    </Router>
+  </StrictMode>
 )

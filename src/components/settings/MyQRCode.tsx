@@ -1,14 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import {
-  Stack,
-  Group,
-  Text,
-  Paper,
-  Box,
-  ActionIcon,
-  CopyButton,
-  Tooltip,
-} from '@mantine/core'
+import { Stack, Group, Text, Paper, Box, ActionIcon, CopyButton, Tooltip } from '@mantine/core'
 import { IconArrowLeft, IconCopy, IconCheck } from '@tabler/icons-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuthStore } from '../../stores/authStore'
@@ -30,7 +21,9 @@ export default function MyQRCode({ onBack }: MyQRCodeProps) {
           <ActionIcon variant="subtle" onClick={onBack}>
             <IconArrowLeft size={24} />
           </ActionIcon>
-          <Text fw={500} size="lg">{t('myQR.title')}</Text>
+          <Text fw={500} size="lg">
+            {t('myQR.title')}
+          </Text>
         </Group>
       </Paper>
 

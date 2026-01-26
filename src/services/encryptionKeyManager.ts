@@ -8,7 +8,7 @@ interface EncryptionKeyState {
 
 const state: EncryptionKeyState = {
   key: null,
-  salt: null
+  salt: null,
 }
 
 export function setEncryptionKey(key: CryptoKey, salt: Uint8Array): void {

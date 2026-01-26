@@ -52,10 +52,11 @@ export const usePushStore = create<PushState>()(
 
       setEnabled: (enabled) => set({ enabled }),
 
-      setPushServerUrl: (url) => set({
-        pushServerUrl: url,
-        isRegistered: false // Need to re-register with new server
-      }),
+      setPushServerUrl: (url) =>
+        set({
+          pushServerUrl: url,
+          isRegistered: false, // Need to re-register with new server
+        }),
 
       setNtfyServerUrl: (url) => set({ ntfyServerUrl: url }),
 
@@ -67,15 +68,16 @@ export const usePushStore = create<PushState>()(
 
       setError: (error) => set({ lastError: error }),
 
-      reset: () => set({
-        enabled: false,
-        pushServerUrl: DEFAULT_PUSH_SERVER,
-        ntfyServerUrl: DEFAULT_NTFY_SERVER,
-        ntfyTopic: null,
-        unifiedPushEndpoint: null,
-        isRegistered: false,
-        lastError: null,
-      }),
+      reset: () =>
+        set({
+          enabled: false,
+          pushServerUrl: DEFAULT_PUSH_SERVER,
+          ntfyServerUrl: DEFAULT_NTFY_SERVER,
+          ntfyTopic: null,
+          unifiedPushEndpoint: null,
+          isRegistered: false,
+          lastError: null,
+        }),
     }),
     {
       name: 'seal-push-storage',

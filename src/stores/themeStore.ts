@@ -27,7 +27,7 @@ export const useThemeStore = create<ThemeState>()(
           return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
         }
         return theme
-      }
+      },
     }),
     {
       name: 'nostr-chat-theme',
@@ -35,16 +35,15 @@ export const useThemeStore = create<ThemeState>()(
         if (state) {
           applyTheme(state.theme)
         }
-      }
+      },
     }
   )
 )
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement
-  const effectiveTheme = theme === 'system'
-    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    : theme
+  const effectiveTheme =
+    theme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme
 
   root.classList.remove('dark', 'light')
   root.classList.add(effectiveTheme)

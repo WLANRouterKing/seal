@@ -37,7 +37,7 @@ function createWindow(): void {
     },
     icon: path.join(__dirname, '../public/pwa-512x512.png'),
     // Hide until ready to prevent flash
-    show: false,
+    show: true,
     // Use native frame
     frame: true,
     titleBarStyle: 'default',
@@ -76,7 +76,6 @@ function createWindow(): void {
     mainWindow.webContents.on('did-finish-load', () => {
       console.log('✓ Page loaded')
       mainWindow?.show()
-      mainWindow?.webContents.openDevTools()
     })
   }
 
@@ -109,7 +108,7 @@ function setupAutoUpdater(): void {
     // Show native notification
     new Notification({
       title: 'Update Available',
-      body: `Version ${info.version} is available and will be installed on restart.`
+      body: `Version ${info.version} is available and will be installed on restart.`,
     }).show()
   })
 
@@ -128,7 +127,7 @@ function setupAutoUpdater(): void {
 
     new Notification({
       title: 'Update Ready',
-      body: `Version ${info.version} has been downloaded. Restart to apply.`
+      body: `Version ${info.version} has been downloaded. Restart to apply.`,
     }).show()
   })
 
@@ -144,11 +143,14 @@ function setupAutoUpdater(): void {
   }, 3000)
 
   // Check for updates every 4 hours
-  setInterval(() => {
-    autoUpdater.checkForUpdates().catch((err: Error) => {
-      console.error('[AutoUpdater] Periodic check failed:', err)
-    })
-  }, 4 * 60 * 60 * 1000)
+  setInterval(
+    () => {
+      autoUpdater.checkForUpdates().catch((err: Error) => {
+        console.error('[AutoUpdater] Periodic check failed:', err)
+      })
+    },
+    4 * 60 * 60 * 1000
+  )
 }
 
 // IPC handlers

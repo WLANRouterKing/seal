@@ -45,7 +45,7 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
     biometricType,
     checkBiometrics,
     enableBiometrics,
-    disableBiometrics
+    disableBiometrics,
   } = useAuthStore()
   const [showSetPassword, setShowSetPassword] = useState(false)
   const [showRemovePassword, setShowRemovePassword] = useState(false)
@@ -84,16 +84,19 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
     if (success) {
       setShowBiometricsModal(false)
     } else {
-      setBiometricsError(t('securitySettings.errors.biometricsFailed', 'Failed to enable biometrics. Check your password.'))
+      setBiometricsError(
+        t('securitySettings.errors.biometricsFailed', 'Failed to enable biometrics. Check your password.')
+      )
     }
   }
 
   const BiometricIcon = biometricType === 'face' ? IconFaceId : IconFingerprint
-  const biometricLabel = biometricType === 'face'
-    ? t('securitySettings.faceId', 'Face ID')
-    : biometricType === 'webauthn'
-      ? t('securitySettings.passkey', 'Passkey')
-      : t('securitySettings.fingerprint', 'Fingerprint')
+  const biometricLabel =
+    biometricType === 'face'
+      ? t('securitySettings.faceId', 'Face ID')
+      : biometricType === 'webauthn'
+        ? t('securitySettings.passkey', 'Passkey')
+        : t('securitySettings.fingerprint', 'Fingerprint')
 
   const handleHideIdentityToggle = (checked: boolean) => {
     setPendingHideIdentity(checked)
@@ -122,13 +125,12 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
             <ActionIcon variant="subtle" onClick={() => setShowSetPassword(false)}>
               <IconArrowLeft size={24} />
             </ActionIcon>
-            <Text fw={500} size="lg">{t('securitySettings.title')}</Text>
+            <Text fw={500} size="lg">
+              {t('securitySettings.title')}
+            </Text>
           </Group>
         </Paper>
-        <SetPasswordForm
-          onSuccess={() => setShowSetPassword(false)}
-          onCancel={() => setShowSetPassword(false)}
-        />
+        <SetPasswordForm onSuccess={() => setShowSetPassword(false)} onCancel={() => setShowSetPassword(false)} />
       </Stack>
     )
   }
@@ -141,7 +143,9 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
             <ActionIcon variant="subtle" onClick={() => setShowRemovePassword(false)}>
               <IconArrowLeft size={24} />
             </ActionIcon>
-            <Text fw={500} size="lg">{t('securitySettings.title')}</Text>
+            <Text fw={500} size="lg">
+              {t('securitySettings.title')}
+            </Text>
           </Group>
         </Paper>
         <RemovePasswordForm
@@ -160,7 +164,9 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
           <ActionIcon variant="subtle" onClick={onBack}>
             <IconArrowLeft size={24} />
           </ActionIcon>
-          <Text fw={500} size="lg">{t('securitySettings.title')}</Text>
+          <Text fw={500} size="lg">
+            {t('securitySettings.title')}
+          </Text>
         </Group>
       </Paper>
 
@@ -179,7 +185,9 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
                   </ThemeIcon>
                   <Box>
                     <Text fw={500}>{t('securitySettings.setPassword')}</Text>
-                    <Text size="xs" c="dimmed">{t('securitySettings.setPasswordHint')}</Text>
+                    <Text size="xs" c="dimmed">
+                      {t('securitySettings.setPasswordHint')}
+                    </Text>
                   </Box>
                 </Group>
               </Group>
@@ -193,7 +201,9 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
                   </ThemeIcon>
                   <Box>
                     <Text fw={500}>{t('securitySettings.passwordEnabled')}</Text>
-                    <Text size="xs" c="green">{t('securitySettings.keysProtected')}</Text>
+                    <Text size="xs" c="green">
+                      {t('securitySettings.keysProtected')}
+                    </Text>
                   </Box>
                 </Group>
               </Box>
@@ -205,7 +215,9 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
                   </ThemeIcon>
                   <Box>
                     <Text fw={500}>{t('securitySettings.lockNow')}</Text>
-                    <Text size="xs" c="dimmed">{t('securitySettings.lockNowHint')}</Text>
+                    <Text size="xs" c="dimmed">
+                      {t('securitySettings.lockNowHint')}
+                    </Text>
                   </Box>
                 </Group>
               </UnstyledButton>
@@ -216,8 +228,12 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
                     <IconLockOpen size={20} />
                   </ThemeIcon>
                   <Box>
-                    <Text fw={500} c="red">{t('securitySettings.removePassword')}</Text>
-                    <Text size="xs" c="dimmed">{t('securitySettings.removePasswordHint')}</Text>
+                    <Text fw={500} c="red">
+                      {t('securitySettings.removePassword')}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {t('securitySettings.removePasswordHint')}
+                    </Text>
                   </Box>
                 </Group>
               </UnstyledButton>
@@ -231,7 +247,9 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
                     </ThemeIcon>
                     <Box>
                       <Text fw={500}>{t('securitySettings.hideIdentity')}</Text>
-                      <Text size="xs" c="dimmed">{t('securitySettings.hideIdentityHint')}</Text>
+                      <Text size="xs" c="dimmed">
+                        {t('securitySettings.hideIdentityHint')}
+                      </Text>
                     </Box>
                   </Group>
                   <Switch
@@ -271,11 +289,7 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
 
         {/* Info Alert */}
         <Box px="md" pb="md">
-          <Alert
-            color="yellow"
-            icon={<IconInfoCircle size={16} />}
-            title={t('common.important')}
-          >
+          <Alert color="yellow" icon={<IconInfoCircle size={16} />} title={t('common.important')}>
             <Text size="xs">
               {hasPassword
                 ? t('securitySettings.importantWithPassword')
@@ -368,13 +382,7 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
   )
 }
 
-function SetPasswordForm({
-  onSuccess,
-  onCancel
-}: {
-  onSuccess: () => void
-  onCancel: () => void
-}) {
+function SetPasswordForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
   const { t } = useTranslation()
   const [password, setPasswordValue] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -409,8 +417,12 @@ function SetPasswordForm({
 
   return (
     <Box component="form" onSubmit={handleSubmit} p="md" style={{ flex: 1 }}>
-      <Text size="xl" fw={600} mb="xs">{t('securitySettings.createPasswordTitle')}</Text>
-      <Text size="sm" c="dimmed" mb="lg">{t('securitySettings.createPasswordHint')}</Text>
+      <Text size="xl" fw={600} mb="xs">
+        {t('securitySettings.createPasswordTitle')}
+      </Text>
+      <Text size="sm" c="dimmed" mb="lg">
+        {t('securitySettings.createPasswordHint')}
+      </Text>
 
       <Stack gap="md">
         <PasswordInput
@@ -454,13 +466,7 @@ function SetPasswordForm({
   )
 }
 
-function RemovePasswordForm({
-  onSuccess,
-  onCancel
-}: {
-  onSuccess: () => void
-  onCancel: () => void
-}) {
+function RemovePasswordForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
   const { t } = useTranslation()
   const [password, setPasswordValue] = useState('')
   const [error, setError] = useState('')
@@ -484,8 +490,12 @@ function RemovePasswordForm({
 
   return (
     <Box component="form" onSubmit={handleSubmit} p="md" style={{ flex: 1 }}>
-      <Text size="xl" fw={600} mb="xs">{t('securitySettings.removePasswordTitle')}</Text>
-      <Text size="sm" c="dimmed" mb="lg">{t('securitySettings.removePasswordHint2')}</Text>
+      <Text size="xl" fw={600} mb="xs">
+        {t('securitySettings.removePasswordTitle')}
+      </Text>
+      <Text size="sm" c="dimmed" mb="lg">
+        {t('securitySettings.removePasswordHint2')}
+      </Text>
 
       <Stack gap="md">
         <PasswordInput
@@ -506,13 +516,7 @@ function RemovePasswordForm({
           <Button variant="default" onClick={onCancel} style={{ flex: 1 }}>
             {t('common.cancel')}
           </Button>
-          <Button
-            type="submit"
-            color="red"
-            loading={isLoading}
-            disabled={!password}
-            style={{ flex: 1 }}
-          >
+          <Button type="submit" color="red" loading={isLoading} disabled={!password} style={{ flex: 1 }}>
             {t('securitySettings.removePasswordButton')}
           </Button>
         </Group>

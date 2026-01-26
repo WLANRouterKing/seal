@@ -1,11 +1,4 @@
-import {
-  generateSecretKey,
-  getPublicKey,
-  finalizeEvent,
-  nip44,
-  type UnsignedEvent,
-  type Event
-} from 'nostr-tools'
+import { generateSecretKey, getPublicKey, finalizeEvent, nip44, type UnsignedEvent, type Event } from 'nostr-tools'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { NIP17_KIND, NIP62_KIND } from '../utils/constants'
 import { minePoW, DEFAULT_MESSAGE_DIFFICULTY } from './pow'
@@ -30,17 +23,12 @@ interface GiftWrap extends Event {
 }
 
 interface RumorOptions {
-  replyTo?: string  // Event ID to reply to
-  subject?: string  // Conversation subject
-  expiration?: number  // NIP-40: Unix timestamp when message expires
+  replyTo?: string // Event ID to reply to
+  subject?: string // Conversation subject
+  expiration?: number // NIP-40: Unix timestamp when message expires
 }
 
-function createRumor(
-  content: string,
-  recipientPubkey: string,
-  senderPubkey: string,
-  options?: RumorOptions
-): Rumor {
+function createRumor(content: string, recipientPubkey: string, senderPubkey: string, options?: RumorOptions): Rumor {
   const tags: string[][] = [['p', recipientPubkey]]
 
   // Add reply tag if replying to a specific message
@@ -63,7 +51,7 @@ function createRumor(
     content,
     tags,
     created_at: Math.floor(Date.now() / 1000),
-    pubkey: senderPubkey
+    pubkey: senderPubkey,
   }
 }
 
@@ -89,10 +77,7 @@ export async function createGiftWrap(
   const rumor = createRumor(content, recipientPubkey, senderPubkey, options)
 
   // 2. Create conversation key for seal encryption (sender -> recipient)
-  const sealConversationKey = nip44.v2.utils.getConversationKey(
-    senderPrivateKeyBytes,
-    recipientPubkey
-  )
+  const sealConversationKey = nip44.v2.utils.getConversationKey(senderPrivateKeyBytes, recipientPubkey)
 
   // 3. Encrypt rumor to create seal
   const encryptedRumor = nip44.v2.encrypt(JSON.stringify(rumor), sealConversationKey)
@@ -103,7 +88,7 @@ export async function createGiftWrap(
     content: encryptedRumor,
     tags: [],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
-    pubkey: senderPubkey
+    pubkey: senderPubkey,
   }
   const seal = finalizeEvent(sealEvent, senderPrivateKeyBytes) as Seal
 
@@ -112,10 +97,7 @@ export async function createGiftWrap(
   const wrapperPubkey = getPublicKey(wrapperPrivateKeyBytes)
 
   // 6. Create conversation key for gift wrap (random key -> recipient)
-  const wrapConversationKey = nip44.v2.utils.getConversationKey(
-    wrapperPrivateKeyBytes,
-    recipientPubkey
-  )
+  const wrapConversationKey = nip44.v2.utils.getConversationKey(wrapperPrivateKeyBytes, recipientPubkey)
 
   // 7. Encrypt seal to create gift wrap
   const encryptedSeal = nip44.v2.encrypt(JSON.stringify(seal), wrapConversationKey)
@@ -126,7 +108,7 @@ export async function createGiftWrap(
     content: encryptedSeal,
     tags: [['p', recipientPubkey]],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
-    pubkey: wrapperPubkey
+    pubkey: wrapperPubkey,
   }
 
   // 9. Mine Proof of Work (NIP-13) for spam prevention
@@ -140,7 +122,7 @@ export interface UnwrappedMessage {
   senderPubkey: string
   createdAt: number
   replyTo?: string
-  expiration?: number  // NIP-40: Unix timestamp when message expires
+  expiration?: number // NIP-40: Unix timestamp when message expires
 }
 
 export async function unwrapGiftWrap(
@@ -151,18 +133,12 @@ export async function unwrapGiftWrap(
     const recipientPrivateKeyBytes = hexToBytes(recipientPrivateKey)
 
     // 1. Decrypt gift wrap to get seal
-    const wrapConversationKey = nip44.v2.utils.getConversationKey(
-      recipientPrivateKeyBytes,
-      giftWrap.pubkey
-    )
+    const wrapConversationKey = nip44.v2.utils.getConversationKey(recipientPrivateKeyBytes, giftWrap.pubkey)
     const sealJson = nip44.v2.decrypt(giftWrap.content, wrapConversationKey)
     const seal: Seal = JSON.parse(sealJson)
 
     // 2. Decrypt seal to get rumor
-    const sealConversationKey = nip44.v2.utils.getConversationKey(
-      recipientPrivateKeyBytes,
-      seal.pubkey
-    )
+    const sealConversationKey = nip44.v2.utils.getConversationKey(recipientPrivateKeyBytes, seal.pubkey)
     const rumorJson = nip44.v2.decrypt(seal.content, sealConversationKey)
     const rumor: Rumor = JSON.parse(rumorJson)
 
@@ -174,18 +150,18 @@ export async function unwrapGiftWrap(
     }
 
     // 4. Extract reply tag if present
-    const replyTag = rumor.tags?.find(tag => tag[0] === 'e')
+    const replyTag = rumor.tags?.find((tag) => tag[0] === 'e')
     const replyTo = replyTag ? replyTag[1] : undefined
 
     // 5. Extract expiration tag (NIP-40)
-    const expirationTag = rumor.tags?.find(tag => tag[0] === 'expiration')
+    const expirationTag = rumor.tags?.find((tag) => tag[0] === 'expiration')
     const expiration = expirationTag ? parseInt(expirationTag[1], 10) : undefined
 
     // 6. Handle Kind 15 file messages - extract file metadata from tags
     let content = rumor.content
     if (rumor.kind === NIP17_KIND.FILE_MESSAGE) {
       const getTag = (name: string): string | undefined => {
-        const tag = rumor.tags?.find(t => t[0] === name)
+        const tag = rumor.tags?.find((t) => t[0] === name)
         return tag ? tag[1] : undefined
       }
 
@@ -196,13 +172,11 @@ export async function unwrapGiftWrap(
         const fileData = JSON.stringify({
           url,
           mimeType,
-          encrypted: true
+          encrypted: true,
         })
 
         // Format: caption + file metadata (matching sent format)
-        content = rumor.content
-          ? `${rumor.content}\n[file:${fileData}]`
-          : `[file:${fileData}]`
+        content = rumor.content ? `${rumor.content}\n[file:${fileData}]` : `[file:${fileData}]`
       }
     }
 
@@ -211,7 +185,7 @@ export async function unwrapGiftWrap(
       senderPubkey: rumor.pubkey,
       createdAt: rumor.created_at,
       replyTo,
-      expiration
+      expiration,
     }
   } catch (error) {
     console.error('Failed to unwrap gift wrap:', error)
@@ -244,7 +218,7 @@ export async function createSelfGiftWrap(
     content: encryptedRumor,
     tags: [],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
-    pubkey: senderPubkey
+    pubkey: senderPubkey,
   }
   const seal = finalizeEvent(sealEvent, senderPrivateKeyBytes) as Seal
 
@@ -261,9 +235,12 @@ export async function createSelfGiftWrap(
   let giftWrapEvent: UnsignedEvent = {
     kind: NIP17_KIND.GIFT_WRAP,
     content: encryptedSeal,
-    tags: [['p', senderPubkey], ['self', '1']],
+    tags: [
+      ['p', senderPubkey],
+      ['self', '1'],
+    ],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
-    pubkey: wrapperPubkey
+    pubkey: wrapperPubkey,
   }
 
   // Mine Proof of Work (NIP-13) for spam prevention
@@ -280,19 +257,16 @@ export interface DMRelayList {
   pubkey: string
 }
 
-export function createDMRelayListEvent(
-  relays: string[],
-  privateKey: string
-): Event {
+export function createDMRelayListEvent(relays: string[], privateKey: string): Event {
   const privateKeyBytes = hexToBytes(privateKey)
   const pubkey = getPublicKey(privateKeyBytes)
 
   const event: UnsignedEvent = {
     kind: NIP17_KIND.DM_RELAYS,
     content: '',
-    tags: relays.map(relay => ['relay', relay]),
+    tags: relays.map((relay) => ['relay', relay]),
     created_at: Math.floor(Date.now() / 1000),
-    pubkey
+    pubkey,
   }
 
   return finalizeEvent(event, privateKeyBytes)
@@ -301,13 +275,11 @@ export function createDMRelayListEvent(
 export function parseDMRelayListEvent(event: Event): DMRelayList | null {
   if (event.kind !== NIP17_KIND.DM_RELAYS) return null
 
-  const relays = event.tags
-    .filter(tag => tag[0] === 'relay' && tag[1])
-    .map(tag => tag[1])
+  const relays = event.tags.filter((tag) => tag[0] === 'relay' && tag[1]).map((tag) => tag[1])
 
   return {
     relays,
-    pubkey: event.pubkey
+    pubkey: event.pubkey,
   }
 }
 
@@ -315,15 +287,15 @@ export function parseDMRelayListEvent(event: Event): DMRelayList | null {
 // For sending encrypted files/images
 
 export interface FileMetadata {
-  url: string           // Encrypted file URL
-  mimeType: string      // File MIME type
-  hash: string          // SHA-256 hash of decrypted file
-  size?: number         // File size in bytes
-  dimensions?: { width: number; height: number }  // For images
-  blurhash?: string     // Blurhash for image preview
-  thumb?: string        // Thumbnail URL
-  caption?: string      // Optional caption
-  encrypted?: boolean   // Whether file is encrypted with NIP-44
+  url: string // Encrypted file URL
+  mimeType: string // File MIME type
+  hash: string // SHA-256 hash of decrypted file
+  size?: number // File size in bytes
+  dimensions?: { width: number; height: number } // For images
+  blurhash?: string // Blurhash for image preview
+  thumb?: string // Thumbnail URL
+  caption?: string // Optional caption
+  encrypted?: boolean // Whether file is encrypted with NIP-44
 }
 
 export function createFileRumor(
@@ -336,7 +308,7 @@ export function createFileRumor(
     ['p', recipientPubkey],
     ['url', file.url],
     ['file-type', file.mimeType],
-    ['x', file.hash]  // SHA-256 hash
+    ['x', file.hash], // SHA-256 hash
   ]
 
   if (file.size) tags.push(['size', file.size.toString()])
@@ -358,7 +330,7 @@ export function createFileRumor(
     content: file.caption || '',
     tags,
     created_at: Math.floor(Date.now() / 1000),
-    pubkey: senderPubkey
+    pubkey: senderPubkey,
   }
 }
 
@@ -375,10 +347,7 @@ export async function createFileGiftWrap(
   const rumor = createFileRumor(file, recipientPubkey, senderPubkey, options)
 
   // 2. Create conversation key for seal encryption
-  const sealConversationKey = nip44.v2.utils.getConversationKey(
-    senderPrivateKeyBytes,
-    recipientPubkey
-  )
+  const sealConversationKey = nip44.v2.utils.getConversationKey(senderPrivateKeyBytes, recipientPubkey)
 
   // 3. Encrypt rumor to create seal
   const encryptedRumor = nip44.v2.encrypt(JSON.stringify(rumor), sealConversationKey)
@@ -389,7 +358,7 @@ export async function createFileGiftWrap(
     content: encryptedRumor,
     tags: [],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
-    pubkey: senderPubkey
+    pubkey: senderPubkey,
   }
   const seal = finalizeEvent(sealEvent, senderPrivateKeyBytes) as Seal
 
@@ -398,10 +367,7 @@ export async function createFileGiftWrap(
   const wrapperPubkey = getPublicKey(wrapperPrivateKeyBytes)
 
   // 6. Create conversation key for gift wrap
-  const wrapConversationKey = nip44.v2.utils.getConversationKey(
-    wrapperPrivateKeyBytes,
-    recipientPubkey
-  )
+  const wrapConversationKey = nip44.v2.utils.getConversationKey(wrapperPrivateKeyBytes, recipientPubkey)
 
   // 7. Encrypt seal to create gift wrap
   const encryptedSeal = nip44.v2.encrypt(JSON.stringify(seal), wrapConversationKey)
@@ -412,7 +378,7 @@ export async function createFileGiftWrap(
     content: encryptedSeal,
     tags: [['p', recipientPubkey]],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
-    pubkey: wrapperPubkey
+    pubkey: wrapperPubkey,
   }
 
   // 9. Mine Proof of Work (NIP-13) for spam prevention
@@ -426,7 +392,7 @@ export function parseFileMetadata(rumor: Rumor): FileMetadata | null {
   if (rumor.kind !== NIP17_KIND.FILE_MESSAGE) return null
 
   const getTag = (name: string): string | undefined => {
-    const tag = rumor.tags.find(t => t[0] === name)
+    const tag = rumor.tags.find((t) => t[0] === name)
     return tag ? tag[1] : undefined
   }
 
@@ -451,7 +417,7 @@ export function parseFileMetadata(rumor: Rumor): FileMetadata | null {
     dimensions,
     blurhash: getTag('blurhash'),
     thumb: getTag('thumb'),
-    caption: rumor.content || undefined
+    caption: rumor.content || undefined,
   }
 }
 
@@ -460,20 +426,17 @@ export function parseFileMetadata(rumor: Rumor): FileMetadata | null {
 // Requests relays to delete all events from this pubkey
 
 export interface VanishRequestOptions {
-  relays?: string[]  // Specific relays to request deletion from, or empty for ALL_RELAYS
-  reason?: string    // Optional reason for the vanish request
+  relays?: string[] // Specific relays to request deletion from, or empty for ALL_RELAYS
+  reason?: string // Optional reason for the vanish request
 }
 
-export function createVanishRequest(
-  privateKey: string,
-  options?: VanishRequestOptions
-): Event {
+export function createVanishRequest(privateKey: string, options?: VanishRequestOptions): Event {
   const privateKeyBytes = hexToBytes(privateKey)
   const pubkey = getPublicKey(privateKeyBytes)
 
   // Build relay tags - either specific relays or ALL_RELAYS
   const relayTags: string[][] = options?.relays?.length
-    ? options.relays.map(relay => ['relay', relay])
+    ? options.relays.map((relay) => ['relay', relay])
     : [['relay', 'ALL_RELAYS']]
 
   const event: UnsignedEvent = {
@@ -481,7 +444,7 @@ export function createVanishRequest(
     content: options?.reason || '',
     tags: relayTags,
     created_at: Math.floor(Date.now() / 1000),
-    pubkey
+    pubkey,
   }
 
   return finalizeEvent(event, privateKeyBytes)
