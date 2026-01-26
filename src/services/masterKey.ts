@@ -25,7 +25,7 @@
 import { deriveKey, generateSalt } from './encryption'
 
 const MASTER_KEY_LENGTH = 32 // 256 bits
-const WRAP_IV_LENGTH = 12    // 96 bits for AES-GCM
+const WRAP_IV_LENGTH = 12 // 96 bits for AES-GCM
 
 // Helper to convert Uint8Array to ArrayBuffer (fixes TypeScript crypto.subtle type issues)
 function toBuffer(arr: Uint8Array): ArrayBuffer {
@@ -34,8 +34,8 @@ function toBuffer(arr: Uint8Array): ArrayBuffer {
 
 export interface KeySlot {
   type: 'password' | 'passkey'
-  salt: string        // Base64-encoded salt for key derivation
-  wrappedKey: string  // Base64-encoded wrapped master key (IV + ciphertext)
+  salt: string // Base64-encoded salt for key derivation
+  wrappedKey: string // Base64-encoded wrapped master key (IV + ciphertext)
 }
 
 /**
@@ -48,28 +48,16 @@ export function generateMasterKey(): Uint8Array {
 /**
  * Derive a wrapping key from a password
  */
-export async function deriveWrappingKeyFromPassword(
-  password: string,
-  salt: Uint8Array
-): Promise<CryptoKey> {
+export async function deriveWrappingKeyFromPassword(password: string, salt: Uint8Array): Promise<CryptoKey> {
   return deriveKey(password, salt)
 }
 
 /**
  * Derive a wrapping key from passkey authentication result
  */
-export async function deriveWrappingKeyFromPasskey(
-  passkeyKey: Uint8Array,
-  salt: Uint8Array
-): Promise<CryptoKey> {
+export async function deriveWrappingKeyFromPasskey(passkeyKey: Uint8Array, salt: Uint8Array): Promise<CryptoKey> {
   // Import the passkey-derived bytes as key material
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    toBuffer(passkeyKey),
-    'HKDF',
-    false,
-    ['deriveKey']
-  )
+  const keyMaterial = await crypto.subtle.importKey('raw', toBuffer(passkeyKey), 'HKDF', false, ['deriveKey'])
 
   // Derive AES-GCM key using HKDF
   return crypto.subtle.deriveKey(
@@ -77,7 +65,7 @@ export async function deriveWrappingKeyFromPasskey(
       name: 'HKDF',
       salt: toBuffer(salt),
       info: new TextEncoder().encode('seal-master-key-wrap'),
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
@@ -89,10 +77,7 @@ export async function deriveWrappingKeyFromPasskey(
 /**
  * Wrap (encrypt) the master key with a derived key
  */
-export async function wrapMasterKey(
-  masterKey: Uint8Array,
-  wrappingKey: CryptoKey
-): Promise<string> {
+export async function wrapMasterKey(masterKey: Uint8Array, wrappingKey: CryptoKey): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(WRAP_IV_LENGTH))
 
   // Import master key as CryptoKey for wrapping
@@ -105,12 +90,10 @@ export async function wrapMasterKey(
   )
 
   // Wrap the key
-  const wrapped = await crypto.subtle.wrapKey(
-    'raw',
-    masterCryptoKey,
-    wrappingKey,
-    { name: 'AES-GCM', iv: toBuffer(iv) }
-  )
+  const wrapped = await crypto.subtle.wrapKey('raw', masterCryptoKey, wrappingKey, {
+    name: 'AES-GCM',
+    iv: toBuffer(iv),
+  })
 
   // Combine IV + wrapped key
   const combined = new Uint8Array(iv.length + wrapped.byteLength)
@@ -123,10 +106,7 @@ export async function wrapMasterKey(
 /**
  * Unwrap (decrypt) the master key with a derived key
  */
-export async function unwrapMasterKey(
-  wrappedKey: string,
-  wrappingKey: CryptoKey
-): Promise<Uint8Array | null> {
+export async function unwrapMasterKey(wrappedKey: string, wrappingKey: CryptoKey): Promise<Uint8Array | null> {
   try {
     const combined = base64ToUint8Array(wrappedKey)
     const iv = combined.slice(0, WRAP_IV_LENGTH)
@@ -154,10 +134,7 @@ export async function unwrapMasterKey(
 /**
  * Create a password slot for the master key
  */
-export async function createPasswordSlot(
-  masterKey: Uint8Array,
-  password: string
-): Promise<KeySlot> {
+export async function createPasswordSlot(masterKey: Uint8Array, password: string): Promise<KeySlot> {
   const salt = generateSalt()
   const wrappingKey = await deriveWrappingKeyFromPassword(password, salt)
   const wrappedKey = await wrapMasterKey(masterKey, wrappingKey)
@@ -165,17 +142,14 @@ export async function createPasswordSlot(
   return {
     type: 'password',
     salt: uint8ArrayToBase64(salt),
-    wrappedKey
+    wrappedKey,
   }
 }
 
 /**
  * Create a passkey slot for the master key
  */
-export async function createPasskeySlot(
-  masterKey: Uint8Array,
-  passkeyKey: Uint8Array
-): Promise<KeySlot> {
+export async function createPasskeySlot(masterKey: Uint8Array, passkeyKey: Uint8Array): Promise<KeySlot> {
   const salt = generateSalt()
   const wrappingKey = await deriveWrappingKeyFromPasskey(passkeyKey, salt)
   const wrappedKey = await wrapMasterKey(masterKey, wrappingKey)
@@ -183,17 +157,14 @@ export async function createPasskeySlot(
   return {
     type: 'passkey',
     salt: uint8ArrayToBase64(salt),
-    wrappedKey
+    wrappedKey,
   }
 }
 
 /**
  * Unlock master key using a password slot
  */
-export async function unlockWithPasswordSlot(
-  slot: KeySlot,
-  password: string
-): Promise<Uint8Array | null> {
+export async function unlockWithPasswordSlot(slot: KeySlot, password: string): Promise<Uint8Array | null> {
   if (slot.type !== 'password') return null
 
   const salt = base64ToUint8Array(slot.salt)
@@ -204,10 +175,7 @@ export async function unlockWithPasswordSlot(
 /**
  * Unlock master key using a passkey slot
  */
-export async function unlockWithPasskeySlot(
-  slot: KeySlot,
-  passkeyKey: Uint8Array
-): Promise<Uint8Array | null> {
+export async function unlockWithPasskeySlot(slot: KeySlot, passkeyKey: Uint8Array): Promise<Uint8Array | null> {
   if (slot.type !== 'passkey') return null
 
   const salt = base64ToUint8Array(slot.salt)
@@ -219,24 +187,15 @@ export async function unlockWithPasskeySlot(
  * Derive DB encryption key from master key
  * Uses HKDF to derive a separate key for database encryption
  */
-export async function deriveDatabaseKey(
-  masterKey: Uint8Array,
-  salt: Uint8Array
-): Promise<CryptoKey> {
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    toBuffer(masterKey),
-    'HKDF',
-    false,
-    ['deriveKey']
-  )
+export async function deriveDatabaseKey(masterKey: Uint8Array, salt: Uint8Array): Promise<CryptoKey> {
+  const keyMaterial = await crypto.subtle.importKey('raw', toBuffer(masterKey), 'HKDF', false, ['deriveKey'])
 
   return crypto.subtle.deriveKey(
     {
       name: 'HKDF',
       salt: toBuffer(salt),
       info: new TextEncoder().encode('seal-database-encryption'),
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
@@ -262,26 +221,15 @@ function base64ToUint8Array(base64: string): Uint8Array {
 /**
  * Encrypt data with the master key
  */
-export async function encryptWithMasterKey(
-  data: string,
-  masterKey: Uint8Array
-): Promise<string> {
+export async function encryptWithMasterKey(data: string, masterKey: Uint8Array): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const encoder = new TextEncoder()
 
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    toBuffer(masterKey),
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt']
-  )
+  const cryptoKey = await crypto.subtle.importKey('raw', toBuffer(masterKey), { name: 'AES-GCM', length: 256 }, false, [
+    'encrypt',
+  ])
 
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: toBuffer(iv) },
-    cryptoKey,
-    encoder.encode(data)
-  )
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toBuffer(iv) }, cryptoKey, encoder.encode(data))
 
   const combined = new Uint8Array(iv.length + encrypted.byteLength)
   combined.set(iv)
@@ -293,10 +241,7 @@ export async function encryptWithMasterKey(
 /**
  * Decrypt data with the master key
  */
-export async function decryptWithMasterKey(
-  encryptedData: string,
-  masterKey: Uint8Array
-): Promise<string | null> {
+export async function decryptWithMasterKey(encryptedData: string, masterKey: Uint8Array): Promise<string | null> {
   try {
     const combined = base64ToUint8Array(encryptedData)
     const iv = combined.slice(0, 12)

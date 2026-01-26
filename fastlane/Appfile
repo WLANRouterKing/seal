@@ -1,5 +1,5 @@
 # App Store Connect
-app_identifier("com.seal.app")
+app_identifier("com.seal-chat.app")
 apple_id(ENV["APPLE_ID"]) # Your Apple email address
 
 # Team ID from Apple Developer Portal

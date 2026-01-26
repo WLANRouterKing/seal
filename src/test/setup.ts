@@ -9,23 +9,23 @@ const indexedDB = {
         objectStore: () => ({
           get: () => ({ result: null }),
           put: () => ({}),
-          delete: () => ({})
-        })
-      })
+          delete: () => ({}),
+        }),
+      }),
     },
     onsuccess: null,
-    onerror: null
-  })
+    onerror: null,
+  }),
 }
 
 Object.defineProperty(window, 'indexedDB', {
   value: indexedDB,
-  writable: true
+  writable: true,
 })
 
 // Extend File prototype with arrayBuffer if not present
 if (!File.prototype.arrayBuffer) {
-  File.prototype.arrayBuffer = function(): Promise<ArrayBuffer> {
+  File.prototype.arrayBuffer = function (): Promise<ArrayBuffer> {
     return new Promise((resolve) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as ArrayBuffer)
@@ -48,7 +48,7 @@ if (!globalThis.crypto?.subtle) {
             arr[i % 32] ^= view[i]
           }
           return arr.buffer
-        }
+        },
       },
       randomUUID: () => 'test-uuid-' + Math.random().toString(36).substr(2, 9),
       getRandomValues: (arr: Uint8Array) => {
@@ -56,8 +56,8 @@ if (!globalThis.crypto?.subtle) {
           arr[i] = Math.floor(Math.random() * 256)
         }
         return arr
-      }
-    }
+      },
+    },
   })
 }
 
@@ -82,5 +82,5 @@ class MockImage {
 
 Object.defineProperty(globalThis, 'Image', {
   value: MockImage,
-  writable: true
+  writable: true,
 })

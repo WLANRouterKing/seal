@@ -32,7 +32,7 @@ describe('format utilities', () => {
 
     it('should format old timestamps with date', () => {
       // 30 days ago
-      const oldTimestamp = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60)
+      const oldTimestamp = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60
       const result = formatTimestamp(oldTimestamp)
       // Should include date info (e.g. "Dec 1", "1. Dez", etc.)
       expect(result.length).toBeGreaterThanOrEqual(5)

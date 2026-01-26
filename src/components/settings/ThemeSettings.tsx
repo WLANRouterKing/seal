@@ -1,16 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import {
-  Stack,
-  Group,
-  Text,
-  Paper,
-  ActionIcon,
-  Box,
-  ScrollArea,
-  UnstyledButton,
-  ThemeIcon,
-  Radio,
-} from '@mantine/core'
+import { Stack, Group, Text, Paper, ActionIcon, Box, ScrollArea, UnstyledButton, ThemeIcon, Radio } from '@mantine/core'
 import { IconArrowLeft, IconMoon, IconSun, IconDeviceDesktop } from '@tabler/icons-react'
 import { useThemeStore } from '../../stores/themeStore'
 
@@ -54,7 +43,9 @@ export default function ThemeSettings({ onBack }: ThemeSettingsProps) {
           <ActionIcon variant="subtle" onClick={onBack}>
             <IconArrowLeft size={24} />
           </ActionIcon>
-          <Text fw={500} size="lg">{t('themeSettings.title')}</Text>
+          <Text fw={500} size="lg">
+            {t('themeSettings.title')}
+          </Text>
         </Group>
       </Paper>
 
@@ -66,13 +57,7 @@ export default function ThemeSettings({ onBack }: ThemeSettingsProps) {
 
           <Stack gap={0}>
             {themes.map((themeOption) => (
-              <UnstyledButton
-                key={themeOption.id}
-                w="100%"
-                onClick={() => setTheme(themeOption.id)}
-                py="sm"
-                px="md"
-              >
+              <UnstyledButton key={themeOption.id} w="100%" onClick={() => setTheme(themeOption.id)} py="sm" px="md">
                 <Group justify="space-between">
                   <Group gap="sm">
                     <ThemeIcon variant="light" size={40} radius="md" bg={themeOption.bg}>
@@ -80,14 +65,12 @@ export default function ThemeSettings({ onBack }: ThemeSettingsProps) {
                     </ThemeIcon>
                     <Box>
                       <Text fw={500}>{themeOption.label}</Text>
-                      <Text size="xs" c="dimmed">{themeOption.description}</Text>
+                      <Text size="xs" c="dimmed">
+                        {themeOption.description}
+                      </Text>
                     </Box>
                   </Group>
-                  <Radio
-                    checked={theme === themeOption.id}
-                    onChange={() => setTheme(themeOption.id)}
-                    color="cyan"
-                  />
+                  <Radio checked={theme === themeOption.id} onChange={() => setTheme(themeOption.id)} color="cyan" />
                 </Group>
               </UnstyledButton>
             ))}

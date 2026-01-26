@@ -9,7 +9,7 @@ import {
   saveRelay,
   saveSettings,
   saveDeletedMessageId,
-  type StoredMessage
+  type StoredMessage,
 } from './db'
 import { useAuthStore } from '../stores/authStore'
 import { npubToPubkey } from './keys'
@@ -56,7 +56,7 @@ export async function exportSyncData(): Promise<SyncData> {
     getAllMessages(),
     getAllContacts(),
     loadSettings(),
-    getAllRelays()
+    getAllRelays(),
   ])
 
   // Note: We don't export deleted message IDs as they're only for local deduplication
@@ -71,7 +71,7 @@ export async function exportSyncData(): Promise<SyncData> {
     contacts,
     settings,
     relays,
-    deletedMessageIds: []
+    deletedMessageIds: [],
   }
 }
 
@@ -116,7 +116,7 @@ export async function importSyncData(data: SyncData): Promise<SyncStats> {
   const stats: SyncStats = {
     messages: 0,
     contacts: 0,
-    relays: 0
+    relays: 0,
   }
 
   // Import messages (stored as encrypted events)
@@ -125,7 +125,7 @@ export async function importSyncData(data: SyncData): Promise<SyncStats> {
       // Convert StoredMessage to Message format for saveMessage
       const message: Message = {
         ...storedMessage,
-        content: '' // Content is decrypted at runtime from encryptedEvent
+        content: '', // Content is decrypted at runtime from encryptedEvent
       }
       await saveMessage(message)
       stats.messages++

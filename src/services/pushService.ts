@@ -25,28 +25,17 @@ interface UnifiedPushPlugin {
   getEndpoint(): Promise<{ endpoint: string | null }>
   getDistributors(): Promise<{ distributors: string[]; count: number }>
   isRegistered(): Promise<{ registered: boolean }>
-  addListener(
-    eventName: 'onEndpoint',
-    callback: (data: { endpoint: string }) => void
-  ): Promise<{ remove: () => void }>
-  addListener(
-    eventName: 'onMessage',
-    callback: (data: { message: string }) => void
-  ): Promise<{ remove: () => void }>
+  addListener(eventName: 'onEndpoint', callback: (data: { endpoint: string }) => void): Promise<{ remove: () => void }>
+  addListener(eventName: 'onMessage', callback: (data: { message: string }) => void): Promise<{ remove: () => void }>
   addListener(
     eventName: 'onRegistrationFailed',
     callback: (data: { reason: string }) => void
   ): Promise<{ remove: () => void }>
-  addListener(
-    eventName: 'onUnregistered',
-    callback: () => void
-  ): Promise<{ remove: () => void }>
+  addListener(eventName: 'onUnregistered', callback: () => void): Promise<{ remove: () => void }>
 }
 
 // Register the native plugin (only available on Android)
-const UnifiedPush = isAndroid()
-  ? registerPlugin<UnifiedPushPlugin>('UnifiedPush')
-  : null
+const UnifiedPush = isAndroid() ? registerPlugin<UnifiedPushPlugin>('UnifiedPush') : null
 
 class PushService {
   private ntfyEventSource: EventSource | null = null
@@ -93,8 +82,8 @@ class PushService {
             body: JSON.stringify({
               npub: authStore.keys.npub,
               ntfy_topic: store.ntfyTopic,
-              relays: relayStore.activeRelayUrls
-            })
+              relays: relayStore.activeRelayUrls,
+            }),
           })
           if (response.ok) {
             console.log('[PushService] Re-registered with push server on startup')
@@ -223,8 +212,8 @@ class PushService {
       body: JSON.stringify({
         npub: authStore.keys!.npub,
         ntfy_topic: topic,
-        relays: relayStore.activeRelayUrls
-      })
+        relays: relayStore.activeRelayUrls,
+      }),
     })
 
     if (!response.ok) {
@@ -255,21 +244,21 @@ class PushService {
     const requestBody = {
       npub: authStore.keys.npub,
       endpoint: endpoint, // UnifiedPush endpoint URL
-      relays: relayStore.activeRelayUrls
+      relays: relayStore.activeRelayUrls,
     }
 
     console.log('[PushService] Registering with push server:', {
       pushServerUrl: store.pushServerUrl,
       endpoint: endpoint,
       relayCount: relayStore.activeRelayUrls.length,
-      relays: relayStore.activeRelayUrls
+      relays: relayStore.activeRelayUrls,
     })
 
     // Register with push server using UnifiedPush endpoint
     const response = await fetch(`${store.pushServerUrl}/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
@@ -305,7 +294,7 @@ class PushService {
         await fetch(`${store.pushServerUrl}/unsubscribe`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ npub: authStore.keys.npub })
+          body: JSON.stringify({ npub: authStore.keys.npub }),
         })
       } catch (error) {
         console.warn('[PushService] Unsubscribe failed:', error)
@@ -390,10 +379,7 @@ class PushService {
 
     if (!isNative || isElectronApp) {
       // Show notification via our notification service
-      notificationService.showNotification(
-        data.title || 'Seal',
-        { body: data.message || 'New message' }
-      )
+      notificationService.showNotification(data.title || 'Seal', { body: data.message || 'New message' })
     }
 
     console.log('[PushService] Received push notification:', data)
@@ -417,7 +403,7 @@ class PushService {
     return {
       enabled: store.enabled,
       registered: store.isRegistered,
-      error: store.lastError
+      error: store.lastError,
     }
   }
 

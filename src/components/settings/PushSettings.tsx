@@ -99,7 +99,9 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
           <ActionIcon variant="subtle" onClick={onBack}>
             <IconArrowLeft size={24} />
           </ActionIcon>
-          <Text fw={500} size="lg">{t('pushSettings.title')}</Text>
+          <Text fw={500} size="lg">
+            {t('pushSettings.title')}
+          </Text>
         </Group>
       </Paper>
 
@@ -109,31 +111,20 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
           <Box px="md" py="sm">
             <Group justify="space-between">
               <Group gap="sm">
-                <ThemeIcon
-                  variant="light"
-                  color={enabled && isRegistered ? 'green' : 'gray'}
-                  size={40}
-                  radius="md"
-                >
+                <ThemeIcon variant="light" color={enabled && isRegistered ? 'green' : 'gray'} size={40} radius="md">
                   {enabled && isRegistered ? <IconBell size={20} /> : <IconBellOff size={20} />}
                 </ThemeIcon>
                 <Box>
                   <Text fw={500}>{t('pushSettings.enablePush')}</Text>
                   <Text size="xs" c="dimmed">
-                    {enabled && isRegistered
-                      ? t('pushSettings.statusConnected')
-                      : t('pushSettings.statusDisconnected')}
+                    {enabled && isRegistered ? t('pushSettings.statusConnected') : t('pushSettings.statusDisconnected')}
                   </Text>
                 </Box>
               </Group>
               {isLoading ? (
                 <Loader size="sm" />
               ) : (
-                <Switch
-                  checked={enabled}
-                  onChange={(e) => handleToggle(e.currentTarget.checked)}
-                  color="green"
-                />
+                <Switch checked={enabled} onChange={(e) => handleToggle(e.currentTarget.checked)} color="green" />
               )}
             </Group>
           </Box>
@@ -143,7 +134,10 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
             <Box px="md" py="xs">
               <Alert color="orange" icon={<IconBrandAndroid size={16} />}>
                 <Text size="xs" mb="xs">
-                  {t('pushSettings.noDistributor', 'No UnifiedPush distributor found. Please install the ntfy app from F-Droid for push notifications to work when the app is closed.')}
+                  {t(
+                    'pushSettings.noDistributor',
+                    'No UnifiedPush distributor found. Please install the ntfy app from F-Droid for push notifications to work when the app is closed.'
+                  )}
                 </Text>
                 <Text
                   size="xs"
@@ -167,12 +161,16 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
                 {isRegistered ? (
                   <>
                     <IconCheck size={16} color="var(--mantine-color-green-6)" />
-                    <Text size="sm" c="green">{t('pushSettings.registered')}</Text>
+                    <Text size="sm" c="green">
+                      {t('pushSettings.registered')}
+                    </Text>
                   </>
                 ) : (
                   <>
                     <IconX size={16} color="var(--mantine-color-red-6)" />
-                    <Text size="sm" c="red">{t('pushSettings.notRegistered')}</Text>
+                    <Text size="sm" c="red">
+                      {t('pushSettings.notRegistered')}
+                    </Text>
                   </>
                 )}
               </Group>
@@ -211,7 +209,9 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
                 <ThemeIcon variant="light" color="cyan" size={32} radius="md">
                   <IconServer size={18} />
                 </ThemeIcon>
-                <Text fw={500} size="sm">{t('pushSettings.pushServer')}</Text>
+                <Text fw={500} size="sm">
+                  {t('pushSettings.pushServer')}
+                </Text>
               </Group>
               <TextInput
                 placeholder={DEFAULT_PUSH_SERVER}
@@ -231,7 +231,9 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
                   <ThemeIcon variant="light" color="violet" size={32} radius="md">
                     <IconCloud size={18} />
                   </ThemeIcon>
-                  <Text fw={500} size="sm">{t('pushSettings.ntfyServer')}</Text>
+                  <Text fw={500} size="sm">
+                    {t('pushSettings.ntfyServer')}
+                  </Text>
                 </Group>
                 <TextInput
                   placeholder={DEFAULT_NTFY_SERVER}
@@ -247,11 +249,7 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
 
             {hasChanges && (
               <Box px="md" py="sm">
-                <Button
-                  fullWidth
-                  onClick={handleSaveServers}
-                  loading={isLoading}
-                >
+                <Button fullWidth onClick={handleSaveServers} loading={isLoading}>
                   {t('common.save')}
                 </Button>
               </Box>
@@ -281,9 +279,7 @@ export default function PushSettings({ onBack }: PushSettingsProps) {
           {/* Self-host hint */}
           <Box px="md" pb="md">
             <Alert color="violet" variant="light">
-              <Text size="xs">
-                {t('pushSettings.selfHostHint')}
-              </Text>
+              <Text size="xs">{t('pushSettings.selfHostHint')}</Text>
             </Alert>
           </Box>
         </Box>

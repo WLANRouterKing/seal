@@ -47,7 +47,7 @@ export function useAutoLock(timeout: number = DEFAULT_TIMEOUT) {
     const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click']
 
     // Add event listeners
-    events.forEach(event => {
+    events.forEach((event) => {
       document.addEventListener(event, resetTimer, { passive: true })
     })
 
@@ -59,7 +59,7 @@ export function useAutoLock(timeout: number = DEFAULT_TIMEOUT) {
           // App came to foreground - check if we should lock
           checkAndLock()
         }
-      }).then(listener => {
+      }).then((listener) => {
         appStateListener = listener
       })
     }
@@ -78,7 +78,7 @@ export function useAutoLock(timeout: number = DEFAULT_TIMEOUT) {
     resetTimer()
 
     return () => {
-      events.forEach(event => {
+      events.forEach((event) => {
         document.removeEventListener(event, resetTimer)
       })
       document.removeEventListener('visibilitychange', handleVisibilityChange)

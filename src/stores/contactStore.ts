@@ -1,10 +1,6 @@
 import { create } from 'zustand'
 import type { Contact } from '../types'
-import {
-  saveContact as saveContactToDB,
-  getAllContacts,
-  deleteContact as deleteContactFromDB
-} from '../services/db'
+import { saveContact as saveContactToDB, getAllContacts, deleteContact as deleteContactFromDB } from '../services/db'
 import { npubToPubkey, pubkeyToNpub, isValidNpub } from '../services/keys'
 import { relayPool } from '../services/relay'
 
@@ -64,7 +60,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
     }
 
     // Check if contact already exists
-    const existing = get().contacts.find(c => c.pubkey === pubkey)
+    const existing = get().contacts.find((c) => c.pubkey === pubkey)
     if (existing) {
       set({ error: 'Contact already exists' })
       return existing
@@ -74,7 +70,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
       pubkey,
       npub,
       name,
-      createdAt: Math.floor(Date.now() / 1000)
+      createdAt: Math.floor(Date.now() / 1000),
     }
 
     try {
@@ -95,7 +91,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
   removeContact: async (pubkey: string) => {
     try {
       await deleteContactFromDB(pubkey)
-      set({ contacts: get().contacts.filter(c => c.pubkey !== pubkey) })
+      set({ contacts: get().contacts.filter((c) => c.pubkey !== pubkey) })
     } catch (error) {
       console.error('Failed to remove contact:', error)
       set({ error: 'Failed to remove contact' })
@@ -103,16 +99,14 @@ export const useContactStore = create<ContactState>((set, get) => ({
   },
 
   updateContact: async (pubkey: string, updates: Partial<Contact>) => {
-    const contact = get().contacts.find(c => c.pubkey === pubkey)
+    const contact = get().contacts.find((c) => c.pubkey === pubkey)
     if (!contact) return
 
     const updatedContact = { ...contact, ...updates }
     try {
       await saveContactToDB(updatedContact)
       set({
-        contacts: get().contacts.map(c =>
-          c.pubkey === pubkey ? updatedContact : c
-        )
+        contacts: get().contacts.map((c) => (c.pubkey === pubkey ? updatedContact : c)),
       })
     } catch (error) {
       console.error('Failed to update contact:', error)
@@ -123,30 +117,26 @@ export const useContactStore = create<ContactState>((set, get) => ({
     const connectedRelays = relayPool.getConnectedUrls()
     if (connectedRelays.length === 0) return
 
-    relayPool.subscribe(
-      connectedRelays,
-      [{ kinds: [0], authors: [pubkey], limit: 1 }],
-      (event) => {
-        try {
-          const profile = JSON.parse(event.content)
-          get().updateContact(pubkey, {
-            name: profile.name || profile.display_name,
-            picture: profile.picture,
-            about: profile.about,
-            nip05: profile.nip05
-          })
-        } catch {
-          // Invalid profile JSON
-        }
+    relayPool.subscribe(connectedRelays, [{ kinds: [0], authors: [pubkey], limit: 1 }], (event) => {
+      try {
+        const profile = JSON.parse(event.content)
+        get().updateContact(pubkey, {
+          name: profile.name || profile.display_name,
+          picture: profile.picture,
+          about: profile.about,
+          nip05: profile.nip05,
+        })
+      } catch {
+        // Invalid profile JSON
       }
-    )
+    })
   },
 
   clearError: () => set({ error: null }),
 
   // NIP-40: Set message expiration for a contact
   setExpiration: async (pubkey: string, seconds: number) => {
-    const contact = get().contacts.find(c => c.pubkey === pubkey)
+    const contact = get().contacts.find((c) => c.pubkey === pubkey)
     if (contact) {
       await get().updateContact(pubkey, { expirationSeconds: seconds })
     } else {
@@ -156,7 +146,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
         pubkey,
         npub,
         createdAt: Math.floor(Date.now() / 1000),
-        expirationSeconds: seconds
+        expirationSeconds: seconds,
       }
       await saveContactToDB(newContact)
       set({ contacts: [...get().contacts, newContact] })
@@ -167,7 +157,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
 
   // NIP-40: Get message expiration for a contact (0 = no expiration)
   getExpiration: (pubkey: string) => {
-    const contact = get().contacts.find(c => c.pubkey === pubkey)
+    const contact = get().contacts.find((c) => c.pubkey === pubkey)
     return contact?.expirationSeconds ?? 0
-  }
+  },
 }))

@@ -14,8 +14,8 @@ interface RateLimitState {
 }
 
 const LOCKOUT_TIERS = [
-  { attempts: 3, duration: 30 * 1000 },      // 30 seconds after 3 attempts
-  { attempts: 5, duration: 5 * 60 * 1000 },  // 5 minutes after 5 attempts
+  { attempts: 3, duration: 30 * 1000 }, // 30 seconds after 3 attempts
+  { attempts: 5, duration: 5 * 60 * 1000 }, // 5 minutes after 5 attempts
   { attempts: 10, duration: 30 * 60 * 1000 }, // 30 minutes after 10 attempts
   { attempts: 15, duration: 60 * 60 * 1000 }, // 1 hour after 15 attempts
 ]
@@ -105,7 +105,7 @@ export async function checkRateLimit(): Promise<RateLimitCheck> {
     return {
       allowed: false,
       remainingMs: state.lockoutUntil - now,
-      attempts: state.failedAttempts
+      attempts: state.failedAttempts,
     }
   }
 
@@ -113,7 +113,7 @@ export async function checkRateLimit(): Promise<RateLimitCheck> {
   return {
     allowed: true,
     remainingMs: 0,
-    attempts: state.failedAttempts
+    attempts: state.failedAttempts,
   }
 }
 
@@ -128,7 +128,7 @@ export async function recordFailedAttempt(): Promise<RateLimitCheck> {
   const newState: RateLimitState = {
     failedAttempts: newAttempts,
     lastAttempt: now,
-    lockoutUntil
+    lockoutUntil,
   }
 
   await setState(newState)
@@ -136,7 +136,7 @@ export async function recordFailedAttempt(): Promise<RateLimitCheck> {
   return {
     allowed: !lockoutUntil,
     remainingMs: lockoutUntil ? lockoutDuration : 0,
-    attempts: newAttempts
+    attempts: newAttempts,
   }
 }
 
@@ -144,7 +144,7 @@ export async function resetRateLimit(): Promise<void> {
   await setState({
     failedAttempts: 0,
     lastAttempt: 0,
-    lockoutUntil: null
+    lockoutUntil: null,
   })
 }
 

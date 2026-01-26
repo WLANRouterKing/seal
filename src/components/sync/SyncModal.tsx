@@ -1,17 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Stack,
-  Group,
-  Text,
-  Paper,
-  ActionIcon,
-  Button,
-  ThemeIcon,
-  Box,
-  Code,
-  TextInput,
-} from '@mantine/core'
+import { Stack, Group, Text, Paper, ActionIcon, Button, ThemeIcon, Box, Code, TextInput } from '@mantine/core'
 import { IconArrowLeft, IconUpload, IconDownload, IconCheck, IconX } from '@tabler/icons-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { QRCodeScanner } from './QRCodeScanner'
@@ -22,16 +11,16 @@ import {
   importSyncData,
   serializeSyncData,
   deserializeSyncData,
-  type SyncStats
+  type SyncStats,
 } from '../../services/syncService'
 
 type SyncState =
   | 'idle'
-  | 'showing_qr'       // Sender: showing offer QR
-  | 'scanning_answer'  // Sender: scanning answer QR from receiver
-  | 'entering_code'    // Sender: entering confirmation code
-  | 'scanning'         // Receiver: scanning offer QR
-  | 'confirming'       // Receiver: showing answer QR + code
+  | 'showing_qr' // Sender: showing offer QR
+  | 'scanning_answer' // Sender: scanning answer QR from receiver
+  | 'entering_code' // Sender: entering confirmation code
+  | 'scanning' // Receiver: scanning offer QR
+  | 'confirming' // Receiver: showing answer QR + code
   | 'connected'
   | 'transferring'
   | 'complete'
@@ -149,7 +138,7 @@ export function SyncModal({ onBack }: SyncModalProps) {
         setStats({
           messages: data.messages.length,
           contacts: data.contacts.length,
-          relays: data.relays.length
+          relays: data.relays.length,
         })
         setState('complete')
       } else {
@@ -203,14 +192,18 @@ export function SyncModal({ onBack }: SyncModalProps) {
           <ActionIcon variant="subtle" onClick={handleClose}>
             <IconArrowLeft size={24} />
           </ActionIcon>
-          <Text fw={500} size="lg">{t('sync.title')}</Text>
+          <Text fw={500} size="lg">
+            {t('sync.title')}
+          </Text>
         </Group>
       </Paper>
 
       <Box p="md" style={{ flex: 1, overflow: 'auto' }}>
         {state === 'idle' && (
           <Stack gap="lg" align="center">
-            <Text c="dimmed" ta="center">{t('sync.description')}</Text>
+            <Text c="dimmed" ta="center">
+              {t('sync.description')}
+            </Text>
             <Stack w="100%" maw={320}>
               <Button size="lg" color="cyan" leftSection={<IconUpload size={20} />} onClick={startAsSender}>
                 {t('sync.sendData')}
@@ -224,7 +217,9 @@ export function SyncModal({ onBack }: SyncModalProps) {
 
         {state === 'showing_qr' && (
           <Stack align="center" gap="lg">
-            <Text c="dimmed" ta="center">{t('sync.showingQR')}</Text>
+            <Text c="dimmed" ta="center">
+              {t('sync.showingQR')}
+            </Text>
             <Box p="md" bg="white" style={{ borderRadius: 'var(--mantine-radius-lg)' }}>
               <QRCodeSVG value={qrData} size={280} level="L" includeMargin />
             </Box>
@@ -234,13 +229,13 @@ export function SyncModal({ onBack }: SyncModalProps) {
             <Button color="cyan" onClick={handleSenderNextStep}>
               {t('sync.next') || 'Next: Scan Response'}
             </Button>
-            <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
+            <Button variant="default" onClick={handleReset}>
+              {t('sync.cancel')}
+            </Button>
           </Stack>
         )}
 
-        {state === 'scanning_answer' && (
-          <QRCodeScanner onScan={handleAnswerScanned} onCancel={handleReset} />
-        )}
+        {state === 'scanning_answer' && <QRCodeScanner onScan={handleAnswerScanned} onCancel={handleReset} />}
 
         {state === 'entering_code' && (
           <Stack align="center" gap="lg">
@@ -265,7 +260,7 @@ export function SyncModal({ onBack }: SyncModalProps) {
                   fontSize: '2rem',
                   letterSpacing: '0.2em',
                   width: 200,
-                }
+                },
               }}
               autoFocus
             />
@@ -276,13 +271,13 @@ export function SyncModal({ onBack }: SyncModalProps) {
             >
               {t('sync.connect') || 'Connect'}
             </Button>
-            <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
+            <Button variant="default" onClick={handleReset}>
+              {t('sync.cancel')}
+            </Button>
           </Stack>
         )}
 
-        {state === 'scanning' && (
-          <QRCodeScanner onScan={handleQRScanned} onCancel={handleReset} />
-        )}
+        {state === 'scanning' && <QRCodeScanner onScan={handleQRScanned} onCancel={handleReset} />}
 
         {state === 'confirming' && (
           <Stack align="center" gap="lg">
@@ -292,12 +287,20 @@ export function SyncModal({ onBack }: SyncModalProps) {
             <Box p="md" bg="white" style={{ borderRadius: 'var(--mantine-radius-lg)' }}>
               <QRCodeSVG value={answerData} size={280} level="L" includeMargin />
             </Box>
-            <Text size="sm" c="dimmed" ta="center">{t('sync.tellOtherDevice')}</Text>
+            <Text size="sm" c="dimmed" ta="center">
+              {t('sync.tellOtherDevice')}
+            </Text>
             <Paper p="xl" withBorder>
-              <Code fz="2rem" fw={700} style={{ letterSpacing: '0.2em' }}>{confirmCode}</Code>
+              <Code fz="2rem" fw={700} style={{ letterSpacing: '0.2em' }}>
+                {confirmCode}
+              </Code>
             </Paper>
-            <Text c="dimmed" size="sm">{t('sync.waitingForConnection') || 'Waiting for connection...'}</Text>
-            <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
+            <Text c="dimmed" size="sm">
+              {t('sync.waitingForConnection') || 'Waiting for connection...'}
+            </Text>
+            <Button variant="default" onClick={handleReset}>
+              {t('sync.cancel')}
+            </Button>
           </Stack>
         )}
 
@@ -306,10 +309,18 @@ export function SyncModal({ onBack }: SyncModalProps) {
             <ThemeIcon size={64} radius="xl" color="green" variant="light">
               <IconCheck size={32} />
             </ThemeIcon>
-            <Text size="lg" fw={500}>{t('sync.connected') || 'Connected!'}</Text>
-            <Text c="dimmed" ta="center">{t('sync.readyToReceive')}</Text>
-            <Button color="cyan" onClick={handleConfirmReceive}>{t('sync.confirm')}</Button>
-            <Button variant="default" onClick={handleReset}>{t('sync.cancel')}</Button>
+            <Text size="lg" fw={500}>
+              {t('sync.connected') || 'Connected!'}
+            </Text>
+            <Text c="dimmed" ta="center">
+              {t('sync.readyToReceive')}
+            </Text>
+            <Button color="cyan" onClick={handleConfirmReceive}>
+              {t('sync.confirm')}
+            </Button>
+            <Button variant="default" onClick={handleReset}>
+              {t('sync.cancel')}
+            </Button>
           </Stack>
         )}
 
@@ -322,13 +333,23 @@ export function SyncModal({ onBack }: SyncModalProps) {
             <ThemeIcon size={80} radius="xl" color="green" variant="light">
               <IconCheck size={40} />
             </ThemeIcon>
-            <Text size="xl" fw={600}>{t('sync.complete')}</Text>
+            <Text size="xl" fw={600}>
+              {t('sync.complete')}
+            </Text>
             <Stack gap={4} align="center">
-              <Text c="dimmed">{stats.messages} {t('sync.messages') || 'messages'}</Text>
-              <Text c="dimmed">{stats.contacts} {t('sync.contacts') || 'contacts'}</Text>
-              <Text c="dimmed">{stats.relays} {t('sync.relays') || 'relays'}</Text>
+              <Text c="dimmed">
+                {stats.messages} {t('sync.messages') || 'messages'}
+              </Text>
+              <Text c="dimmed">
+                {stats.contacts} {t('sync.contacts') || 'contacts'}
+              </Text>
+              <Text c="dimmed">
+                {stats.relays} {t('sync.relays') || 'relays'}
+              </Text>
             </Stack>
-            <Button color="cyan" onClick={handleClose}>{t('sync.done') || 'Done'}</Button>
+            <Button color="cyan" onClick={handleClose}>
+              {t('sync.done') || 'Done'}
+            </Button>
           </Stack>
         )}
 
@@ -337,10 +358,16 @@ export function SyncModal({ onBack }: SyncModalProps) {
             <ThemeIcon size={80} radius="xl" color="red" variant="light">
               <IconX size={40} />
             </ThemeIcon>
-            <Text size="xl" fw={600} c="red">{t('sync.error')}</Text>
+            <Text size="xl" fw={600} c="red">
+              {t('sync.error')}
+            </Text>
             {error && <Text c="dimmed">{error}</Text>}
-            <Button color="cyan" onClick={handleReset}>{t('sync.retry')}</Button>
-            <Button variant="default" onClick={handleClose}>{t('sync.cancel')}</Button>
+            <Button color="cyan" onClick={handleReset}>
+              {t('sync.retry')}
+            </Button>
+            <Button variant="default" onClick={handleClose}>
+              {t('sync.cancel')}
+            </Button>
           </Stack>
         )}
       </Box>
