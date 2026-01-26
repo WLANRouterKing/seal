@@ -167,5 +167,8 @@
       "category": "public.app-category.social-networking",
       "icon": "public/pwa-512x512.png"
     }
+  },
+  "overrides": {
+    "tar": "^7.5.6"
   }
 }
