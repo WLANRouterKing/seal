@@ -31,12 +31,13 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      // Required for audio/video recording
-      webSecurity: true,
+      webSecurity: !isDev,
+      // Use persist partition for IndexedDB
+      partition: 'persist:seal',
     },
     icon: path.join(__dirname, '../public/pwa-512x512.png'),
     // Hide until ready to prevent flash
-    show: false,
+    show: true,
     // Use native frame
     frame: true,
     titleBarStyle: 'default',
@@ -60,24 +61,11 @@ function createWindow(): void {
     // Open DevTools in development
     mainWindow.webContents.openDevTools()
   } else {
-// In production, load from built files
-    const distPath = path.join(__dirname, '../dist')
-    const indexPath = path.join(distPath, 'index.html')
-
+    // In production, load from built files
+    const indexPath = path.join(__dirname, '../dist/index.html')
     console.log('Loading from:', indexPath)
 
-    // Disable web security temporär zum Testen
-    mainWindow = new BrowserWindow({
-      // ... alle anderen settings
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        contextIsolation: true,
-        nodeIntegration: false,
-        webSecurity: false,  // ← TEMPORÄR ZUM DEBUG
-      },
-    })
-
-    mainWindow.loadURL(`file://${indexPath.replace(/\\/g, '/')}`)
+    mainWindow.loadFile(indexPath)
 
     mainWindow.webContents.on('console-message', (event, level, message) => {
       console.log(`[App Console] ${message}`)
@@ -87,9 +75,8 @@ function createWindow(): void {
     })
     mainWindow.webContents.on('did-finish-load', () => {
       console.log('✓ Page loaded')
+      mainWindow?.show()
     })
-
-    mainWindow.webContents.openDevTools()
   }
 
   mainWindow.on('closed', () => {
@@ -121,7 +108,7 @@ function setupAutoUpdater(): void {
     // Show native notification
     new Notification({
       title: 'Update Available',
-      body: `Version ${info.version} is available and will be installed on restart.`
+      body: `Version ${info.version} is available and will be installed on restart.`,
     }).show()
   })
 
@@ -140,7 +127,7 @@ function setupAutoUpdater(): void {
 
     new Notification({
       title: 'Update Ready',
-      body: `Version ${info.version} has been downloaded. Restart to apply.`
+      body: `Version ${info.version} has been downloaded. Restart to apply.`,
     }).show()
   })
 
@@ -156,11 +143,14 @@ function setupAutoUpdater(): void {
   }, 3000)
 
   // Check for updates every 4 hours
-  setInterval(() => {
-    autoUpdater.checkForUpdates().catch((err: Error) => {
-      console.error('[AutoUpdater] Periodic check failed:', err)
-    })
-  }, 4 * 60 * 60 * 1000)
+  setInterval(
+    () => {
+      autoUpdater.checkForUpdates().catch((err: Error) => {
+        console.error('[AutoUpdater] Periodic check failed:', err)
+      })
+    },
+    4 * 60 * 60 * 1000
+  )
 }
 
 // IPC handlers

@@ -1,4 +1,4 @@
-package com.seal.app
+package com.sealchat.app
 
 import android.content.Context
 import android.util.Log

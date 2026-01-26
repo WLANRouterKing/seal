@@ -1,0 +1,28 @@
+# F-Droid Repository Configuration
+# This is used by fdroidserver to generate the repository index
+
+sdk_path: /opt/android-sdk
+
+repo_url: https://WLANRouterKing.github.io/seal/fdroid/repo
+repo_name: Seal App Repository
+repo_description: |
+  Official F-Droid repository for Seal - secure, private messaging app.
+  Updates are published here immediately after release.
+
+repo_icon: icon.png
+
+archive_older: 3
+archive_name: Seal Archive
+archive_url: https://WLANRouterKing.github.io/seal/fdroid/archive
+archive_description: Older releases of Seal
+
+# Keystore for signing the repo index
+# In CI, these are passed via environment variables
+keystore: keystore.p12
+keystorepass: ${FDROID_KEYSTORE_PASS}
+keypass: ${FDROID_KEY_PASS}
+keydname: CN=Seal F-Droid Repo, OU=F-Droid, O=Seal
+repo_keyalias: fdroid
+
+# Update check settings
+update_stats: false

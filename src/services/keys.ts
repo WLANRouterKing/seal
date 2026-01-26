@@ -9,7 +9,7 @@ export function generateKeyPair(): NostrKeys {
 
   return {
     nsec: nip19.nsecEncode(privateKeyBytes),
-    npub: nip19.npubEncode(publicKey)
+    npub: nip19.npubEncode(publicKey),
   }
 }
 
@@ -24,7 +24,7 @@ export function keysFromNsec(nsec: string): NostrKeys | null {
 
     return {
       nsec,
-      npub: nip19.npubEncode(publicKey)
+      npub: nip19.npubEncode(publicKey),
     }
   } catch {
     return null

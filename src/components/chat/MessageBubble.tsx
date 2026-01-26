@@ -1,18 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Box, Paper, Text, Group, Menu, Loader, Modal, Image, Center, ActionIcon } from '@mantine/core'
 import {
-  Box,
-  Paper,
-  Text,
-  Group,
-  Menu,
-  Loader,
-  Modal,
-  Image,
-  Center,
-  ActionIcon,
-} from '@mantine/core'
-import { IconTrash, IconCheck, IconChecks, IconAlertCircle, IconX, IconClock, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react'
+  IconTrash,
+  IconCheck,
+  IconChecks,
+  IconAlertCircle,
+  IconX,
+  IconClock,
+  IconPlayerPlay,
+  IconPlayerPause,
+} from '@tabler/icons-react'
 import type { Message } from '../../types'
 import { formatTimestamp } from '../../utils/format'
 import { useAuthStore } from '../../stores/authStore'
@@ -43,7 +41,7 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isExpired, setIsExpired] = useState(false)
 
-  const privateKey = keys ? (nsecToPrivateKey(keys.nsec) || '') : ''
+  const privateKey = keys ? nsecToPrivateKey(keys.nsec) || '' : ''
   const otherPubkey = contactPubkey
 
   // Check expiration and auto-hide when expired
@@ -106,30 +104,26 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
             }}
           >
             {/* Legacy base64 images */}
-            {legacyImages.length > 0 && legacyImages.map((src, index) => (
-              <ImageWithLightbox key={`legacy-${index}`} src={src} />
-            ))}
+            {legacyImages.length > 0 &&
+              legacyImages.map((src, index) => <ImageWithLightbox key={`legacy-${index}`} src={src} />)}
 
             {/* Encrypted file images */}
-            {imageFiles.length > 0 && imageFiles.map((file, index) => (
-              <EncryptedImage
-                key={`file-${index}`}
-                file={file}
-                privateKey={privateKey}
-                otherPubkey={otherPubkey}
-              />
-            ))}
+            {imageFiles.length > 0 &&
+              imageFiles.map((file, index) => (
+                <EncryptedImage key={`file-${index}`} file={file} privateKey={privateKey} otherPubkey={otherPubkey} />
+              ))}
 
             {/* Audio messages */}
-            {audioFiles.length > 0 && audioFiles.map((file, index) => (
-              <AudioPlayer
-                key={`audio-${index}`}
-                file={file}
-                privateKey={privateKey}
-                otherPubkey={otherPubkey}
-                isOutgoing={isOutgoing}
-              />
-            ))}
+            {audioFiles.length > 0 &&
+              audioFiles.map((file, index) => (
+                <AudioPlayer
+                  key={`audio-${index}`}
+                  file={file}
+                  privateKey={privateKey}
+                  otherPubkey={otherPubkey}
+                  isOutgoing={isOutgoing}
+                />
+              ))}
 
             {/* Text Content */}
             {textContent && (
@@ -145,7 +139,9 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
               gap={4}
               px="md"
               pb="xs"
-              pt={!textContent && (legacyImages.length > 0 || imageFiles.length > 0 || audioFiles.length > 0) ? 'xs' : 0}
+              pt={
+                !textContent && (legacyImages.length > 0 || imageFiles.length > 0 || audioFiles.length > 0) ? 'xs' : 0
+              }
               justify={isOutgoing ? 'flex-end' : 'flex-start'}
             >
               <Text size="xs" c={isOutgoing ? 'cyan.2' : 'dimmed'}>
@@ -158,11 +154,7 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
         </Menu.Target>
 
         <Menu.Dropdown>
-          <Menu.Item
-            color="red"
-            leftSection={<IconTrash size={14} />}
-            onClick={handleDelete}
-          >
+          <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={handleDelete}>
             {t('message.delete')}
           </Menu.Item>
         </Menu.Dropdown>
@@ -171,7 +163,12 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
   )
 }
 
-function parseContent(content: string): { textContent: string; legacyImages: string[]; imageFiles: FileData[]; audioFiles: FileData[] } {
+function parseContent(content: string): {
+  textContent: string
+  legacyImages: string[]
+  imageFiles: FileData[]
+  audioFiles: FileData[]
+} {
   const legacyImages: string[] = []
   const imageFiles: FileData[] = []
   const audioFiles: FileData[] = []
@@ -198,15 +195,12 @@ function parseContent(content: string): { textContent: string; legacyImages: str
       imageFiles.push({
         url: data,
         mimeType: 'image/jpeg',
-        encrypted: false
+        encrypted: false,
       })
     }
   }
 
-  const textContent = content
-    .replace(IMAGE_REGEX, '')
-    .replace(FILE_DATA_REGEX, '')
-    .trim()
+  const textContent = content.replace(IMAGE_REGEX, '').replace(FILE_DATA_REGEX, '').trim()
 
   return { textContent, legacyImages, imageFiles, audioFiles }
 }
@@ -214,7 +208,7 @@ function parseContent(content: string): { textContent: string; legacyImages: str
 function EncryptedImage({
   file,
   privateKey,
-  otherPubkey
+  otherPubkey,
 }: {
   file: FileData
   privateKey: string
@@ -241,12 +235,7 @@ function EncryptedImage({
       }
 
       try {
-        objectUrl = await getDecryptedFileUrl(
-          file.url,
-          file.mimeType,
-          privateKey,
-          otherPubkey
-        )
+        objectUrl = await getDecryptedFileUrl(file.url, file.mimeType, privateKey, otherPubkey)
         setDecryptedUrl(objectUrl)
       } catch (err) {
         console.error('Failed to decrypt image:', err)
@@ -278,7 +267,9 @@ function EncryptedImage({
       <Center w={192} h={128} bg="dark.6">
         <Group gap="xs">
           <IconAlertCircle size={20} />
-          <Text size="sm" c="dimmed">Failed to load</Text>
+          <Text size="sm" c="dimmed">
+            Failed to load
+          </Text>
         </Group>
       </Center>
     )
@@ -291,7 +282,7 @@ function AudioPlayer({
   file,
   privateKey,
   otherPubkey,
-  isOutgoing
+  isOutgoing,
 }: {
   file: FileData
   privateKey: string
@@ -323,12 +314,7 @@ function AudioPlayer({
       }
 
       try {
-        objectUrl = await getDecryptedFileUrl(
-          file.url,
-          file.mimeType,
-          privateKey,
-          otherPubkey
-        )
+        objectUrl = await getDecryptedFileUrl(file.url, file.mimeType, privateKey, otherPubkey)
         setDecryptedUrl(objectUrl)
       } catch (err) {
         console.error('Failed to decrypt audio:', err)
@@ -460,7 +446,9 @@ function AudioPlayer({
       <Box px="md" py="sm">
         <Group gap="sm">
           <Loader size="sm" color={isOutgoing ? 'white' : 'cyan'} />
-          <Text size="sm" c={isOutgoing ? 'white' : 'dimmed'}>Loading audio...</Text>
+          <Text size="sm" c={isOutgoing ? 'white' : 'dimmed'}>
+            Loading audio...
+          </Text>
         </Group>
       </Box>
     )
@@ -471,7 +459,9 @@ function AudioPlayer({
       <Box px="md" py="sm">
         <Group gap="xs">
           <IconAlertCircle size={20} />
-          <Text size="sm" c="dimmed">Failed to load audio</Text>
+          <Text size="sm" c="dimmed">
+            Failed to load audio
+          </Text>
         </Group>
       </Box>
     )
@@ -480,23 +470,13 @@ function AudioPlayer({
   return (
     <Box px="md" py="sm">
       <Group gap="sm">
-        <ActionIcon
-          variant="filled"
-          color={isOutgoing ? 'cyan.8' : 'cyan'}
-          radius="xl"
-          size="lg"
-          onClick={togglePlay}
-        >
+        <ActionIcon variant="filled" color={isOutgoing ? 'cyan.8' : 'cyan'} radius="xl" size="lg" onClick={togglePlay}>
           {isPlaying ? <IconPlayerPause size={18} /> : <IconPlayerPlay size={18} />}
         </ActionIcon>
 
         <Box style={{ flex: 1 }}>
           {/* Progress bar */}
-          <Box
-            h={4}
-            bg={isOutgoing ? 'cyan.8' : 'dark.4'}
-            style={{ borderRadius: 2, overflow: 'hidden' }}
-          >
+          <Box h={4} bg={isOutgoing ? 'cyan.8' : 'dark.4'} style={{ borderRadius: 2, overflow: 'hidden' }}>
             <Box
               h="100%"
               w={`${progress * 100}%`}
@@ -518,12 +498,7 @@ function ImageWithLightbox({ src }: { src: string }) {
 
   return (
     <>
-      <Image
-        src={src}
-        alt="Shared image"
-        style={{ cursor: 'pointer' }}
-        onClick={() => setIsOpen(true)}
-      />
+      <Image src={src} alt="Shared image" style={{ cursor: 'pointer' }} onClick={() => setIsOpen(true)} />
 
       <Modal
         opened={isOpen}
@@ -563,7 +538,12 @@ function StatusIcon({ status }: { status: Message['status'] }) {
       return <IconCheck size={14} color="var(--mantine-color-cyan-2)" />
     case 'delivered':
     case 'read':
-      return <IconChecks size={14} color={status === 'read' ? 'var(--mantine-color-blue-3)' : 'var(--mantine-color-cyan-2)'} />
+      return (
+        <IconChecks
+          size={14}
+          color={status === 'read' ? 'var(--mantine-color-blue-3)' : 'var(--mantine-color-cyan-2)'}
+        />
+      )
     case 'failed':
       return <IconAlertCircle size={14} color="var(--mantine-color-red-4)" />
     default:

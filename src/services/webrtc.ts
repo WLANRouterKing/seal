@@ -13,10 +13,10 @@ interface SyncPacket {
 
 // Minimal QR payload - using short keys to save bytes
 interface QRPayload {
-  v: number           // Version
-  o: string           // SDP Offer (compressed)
-  k: string           // AES key (base64)
-  f: string           // Fingerprint
+  v: number // Version
+  o: string // SDP Offer (compressed)
+  k: string // AES key (base64)
+  f: string // Fingerprint
 }
 
 type ConnectionState = 'idle' | 'offering' | 'answering' | 'connecting' | 'connected' | 'closed' | 'error'
@@ -35,10 +35,7 @@ export class WebRTCSync {
   private expectedCode: string = ''
 
   private readonly rtcConfig: RTCConfiguration = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }],
   }
 
   constructor() {}
@@ -74,7 +71,7 @@ export class WebRTCSync {
 
   // Import key from base64
   private async importEncryptionKey(keyBase64: string): Promise<void> {
-    this.keyBytes = Uint8Array.from(atob(keyBase64), c => c.charCodeAt(0))
+    this.keyBytes = Uint8Array.from(atob(keyBase64), (c) => c.charCodeAt(0))
     this.encryptionKey = await crypto.subtle.importKey(
       'raw',
       this.keyBytes.buffer as ArrayBuffer,
@@ -88,9 +85,9 @@ export class WebRTCSync {
   private filterSDP(sdp: string): string {
     const lines = sdp.split('\r\n')
     let iceCandidateCount = 0
-    const maxCandidates = 3  // Keep only first 3 ICE candidates
+    const maxCandidates = 3 // Keep only first 3 ICE candidates
 
-    const essential = lines.filter(line => {
+    const essential = lines.filter((line) => {
       // Always keep these essential lines
       if (line.startsWith('v=')) return true
       if (line.startsWith('o=')) return true
@@ -147,7 +144,9 @@ export class WebRTCSync {
   // Extract key parts for confirmation code (deterministic across devices)
   private extractSDPKey(sdp: string): string {
     const lines = sdp.split('\r\n')
-    let ufrag = '', pwd = '', fingerprint = ''
+    let ufrag = '',
+      pwd = '',
+      fingerprint = ''
     for (const line of lines) {
       if (line.startsWith('a=ice-ufrag:')) ufrag = line.slice(12)
       else if (line.startsWith('a=ice-pwd:')) pwd = line.slice(10)
@@ -190,7 +189,7 @@ export class WebRTCSync {
 
     // Create data channel (offerer creates it)
     this.dataChannel = this.peerConnection.createDataChannel('sync', {
-      ordered: true
+      ordered: true,
     })
     this.setupDataChannelHandlers()
 
@@ -208,7 +207,7 @@ export class WebRTCSync {
       v: 3, // Version 3: gzip compressed SDP
       o: compressedOffer,
       k: btoa(String.fromCharCode(...this.keyBytes!)),
-      f: this.generateFingerprint()
+      f: this.generateFingerprint(),
     }
 
     console.log('[WebRTC] Original SDP size:', this.offer.length, 'bytes')
@@ -220,7 +219,7 @@ export class WebRTCSync {
 
   // Wait for some ICE candidates to be gathered
   private waitForICECandidates(timeout: number): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const timer = setTimeout(resolve, timeout)
 
       // Also resolve early if we get enough candidates
@@ -265,7 +264,7 @@ export class WebRTCSync {
     // Set remote description (the offer)
     await this.peerConnection.setRemoteDescription({
       type: 'offer',
-      sdp: this.offer
+      sdp: this.offer,
     })
 
     // Create and set answer
@@ -284,7 +283,7 @@ export class WebRTCSync {
 
     return {
       code: this.expectedCode,
-      answerData: compressedAnswer
+      answerData: compressedAnswer,
     }
   }
 
@@ -315,7 +314,7 @@ export class WebRTCSync {
     // Set remote description (the answer)
     await this.peerConnection.setRemoteDescription({
       type: 'answer',
-      sdp: this.answer
+      sdp: this.answer,
     })
 
     // Wait for connection
@@ -411,11 +410,7 @@ export class WebRTCSync {
     const iv = crypto.getRandomValues(new Uint8Array(12))
     const encoded = new TextEncoder().encode(data)
 
-    const encrypted = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
-      this.encryptionKey,
-      encoded
-    )
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, this.encryptionKey, encoded)
 
     // Combine IV + encrypted data
     const combined = new Uint8Array(iv.length + encrypted.byteLength)
@@ -429,15 +424,11 @@ export class WebRTCSync {
   private async decryptData(encryptedBase64: string): Promise<string> {
     if (!this.encryptionKey) throw new Error('No encryption key')
 
-    const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0))
+    const combined = Uint8Array.from(atob(encryptedBase64), (c) => c.charCodeAt(0))
     const iv = combined.slice(0, 12)
     const encrypted = combined.slice(12)
 
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      this.encryptionKey,
-      encrypted
-    )
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, this.encryptionKey, encrypted)
 
     return new TextDecoder().decode(decrypted)
   }
@@ -453,10 +444,7 @@ export class WebRTCSync {
   }
 
   // Send sync data in chunks
-  async sendSyncData(
-    jsonData: string,
-    onProgress?: (sent: number, total: number) => void
-  ): Promise<void> {
+  async sendSyncData(jsonData: string, onProgress?: (sent: number, total: number) => void): Promise<void> {
     const CHUNK_SIZE = 16000 // 16KB chunks (WebRTC limit is ~16KB)
     const chunks: string[] = []
 
@@ -468,7 +456,7 @@ export class WebRTCSync {
     // Send metadata
     const metaPacket: SyncPacket = {
       type: 'meta',
-      total: chunks.length
+      total: chunks.length,
     }
     await this.sendData(JSON.stringify(metaPacket))
 
@@ -477,13 +465,13 @@ export class WebRTCSync {
       const chunkPacket: SyncPacket = {
         type: 'chunk',
         seq: i,
-        data: chunks[i]
+        data: chunks[i],
       }
       await this.sendData(JSON.stringify(chunkPacket))
       onProgress?.(i + 1, chunks.length)
 
       // Small delay to prevent overwhelming the channel
-      await new Promise(resolve => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 10))
     }
 
     // Send done
@@ -492,9 +480,7 @@ export class WebRTCSync {
   }
 
   // Receive sync data and reassemble
-  receiveSyncData(
-    onProgress?: (received: number, total: number) => void
-  ): Promise<string> {
+  receiveSyncData(onProgress?: (received: number, total: number) => void): Promise<string> {
     return new Promise((resolve, reject) => {
       const chunks: Map<number, string> = new Map()
       let totalChunks = 0

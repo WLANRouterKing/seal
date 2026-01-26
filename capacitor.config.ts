@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.seal.app',
+  appId: 'com.sealchat.app',
   appName: 'Seal',
   webDir: 'dist',
   server: {

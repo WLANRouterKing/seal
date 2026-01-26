@@ -19,8 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
   // Native notifications
-  showNotification: (title: string, body: string) =>
-    ipcRenderer.invoke('show-notification', { title, body }),
+  showNotification: (title: string, body: string) => ipcRenderer.invoke('show-notification', { title, body }),
 
   // Platform detection
   platform: process.platform,

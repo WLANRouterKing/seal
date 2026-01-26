@@ -31,7 +31,7 @@ export function verifyPoW(event: Event, minDifficulty: number): boolean {
  * Get the PoW difficulty from an event's nonce tag
  */
 export function getTargetDifficulty(event: Event): number | null {
-  const nonceTag = event.tags.find(t => t[0] === 'nonce')
+  const nonceTag = event.tags.find((t) => t[0] === 'nonce')
   if (!nonceTag || nonceTag.length < 3) return null
   return parseInt(nonceTag[2], 10)
 }
@@ -48,7 +48,7 @@ export async function minePoW(
   const eventCopy = { ...event, tags: [...event.tags] }
 
   // Remove existing nonce tag if present
-  eventCopy.tags = eventCopy.tags.filter(t => t[0] !== 'nonce')
+  eventCopy.tags = eventCopy.tags.filter((t) => t[0] !== 'nonce')
 
   let nonce = 0
   const startTime = Date.now()
@@ -57,14 +57,14 @@ export async function minePoW(
   while (true) {
     // Update nonce tag
     const tagsWithNonce = [
-      ...eventCopy.tags.filter(t => t[0] !== 'nonce'),
-      ['nonce', nonce.toString(), targetDifficulty.toString()]
+      ...eventCopy.tags.filter((t) => t[0] !== 'nonce'),
+      ['nonce', nonce.toString(), targetDifficulty.toString()],
     ]
 
     // Create temporary event to get hash
     const tempEvent: UnsignedEvent = {
       ...eventCopy,
-      tags: tagsWithNonce
+      tags: tagsWithNonce,
     }
 
     const hash = getEventHash(tempEvent)
@@ -74,7 +74,7 @@ export async function minePoW(
       console.log(`[PoW] Found valid nonce after ${nonce} attempts in ${Date.now() - startTime}ms`)
       return {
         ...eventCopy,
-        tags: tagsWithNonce
+        tags: tagsWithNonce,
       }
     }
 
@@ -87,7 +87,7 @@ export async function minePoW(
 
     // Yield to event loop every 1000 iterations to prevent blocking
     if (nonce % 1000 === 0) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
   }
 }
@@ -96,10 +96,7 @@ export async function minePoW(
  * Mine PoW using Web Workers for better performance (non-blocking)
  * Falls back to main thread if workers not available
  */
-export async function minePoWAsync(
-  event: UnsignedEvent,
-  targetDifficulty: number
-): Promise<UnsignedEvent> {
+export async function minePoWAsync(event: UnsignedEvent, targetDifficulty: number): Promise<UnsignedEvent> {
   // For now, use the simple implementation
   // TODO: Implement Web Worker version for better UI responsiveness
   return minePoW(event, targetDifficulty)
@@ -108,10 +105,10 @@ export async function minePoWAsync(
 // Default difficulty settings
 export const POW_DIFFICULTY = {
   NONE: 0,
-  LOW: 8,      // ~256 hashes, instant
-  MEDIUM: 16,  // ~65k hashes, ~0.5 sec
-  HIGH: 20,    // ~1M hashes, ~5 sec
-  EXTREME: 24  // ~16M hashes, ~1 min
+  LOW: 8, // ~256 hashes, instant
+  MEDIUM: 16, // ~65k hashes, ~0.5 sec
+  HIGH: 20, // ~1M hashes, ~5 sec
+  EXTREME: 24, // ~16M hashes, ~1 min
 } as const
 
 // Default difficulty for Seal messages

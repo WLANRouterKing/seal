@@ -30,7 +30,7 @@ const isProduction = process.env.NODE_ENV === 'production'
 const isElectron = process.env.ELECTRON === 'true'
 
 export default defineConfig({
-    // Use relative paths for Electron (loads from file system)
+    // Use relative paths for Electron (file:// protocol)
     base: isElectron ? './' : '/',
     define: {
         __APP_VERSION__: JSON.stringify(getVersion()),

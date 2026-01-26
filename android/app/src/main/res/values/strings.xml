@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Seal</string>
     <string name="title_activity_main">Seal</string>
-    <string name="package_name">com.seal.app</string>
-    <string name="custom_url_scheme">com.seal.app</string>
+    <string name="package_name">com.sealchat.app</string>
+    <string name="custom_url_scheme">com.sealchat.app</string>
 </resources>

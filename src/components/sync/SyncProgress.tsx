@@ -20,17 +20,16 @@ export function SyncProgress({ current, total, isSending }: SyncProgressProps) {
         sections={[{ value: percentage, color: 'cyan' }]}
         label={
           <Center>
-            <Text size="lg" fw={600}>{percentage}%</Text>
+            <Text size="lg" fw={600}>
+              {percentage}%
+            </Text>
           </Center>
         }
       />
 
       <Stack gap={4} align="center">
         <Text size="lg" fw={500}>
-          {isSending
-            ? (t('sync.sending') || 'Sending...')
-            : (t('sync.receiving') || 'Receiving...')
-          }
+          {isSending ? t('sync.sending') || 'Sending...' : t('sync.receiving') || 'Receiving...'}
         </Text>
         <Text c="dimmed" size="sm">
           {current} / {total} {t('sync.chunks') || 'chunks'}

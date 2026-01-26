@@ -10,9 +10,9 @@ vi.stubGlobal('crypto', {
     exportKey: vi.fn().mockResolvedValue(new Uint8Array(32).buffer),
     importKey: vi.fn().mockResolvedValue(mockAesKey),
     encrypt: vi.fn().mockResolvedValue(new Uint8Array(100).buffer),
-    decrypt: vi.fn().mockResolvedValue(new Uint8Array(50).buffer)
+    decrypt: vi.fn().mockResolvedValue(new Uint8Array(50).buffer),
   },
-  getRandomValues: vi.fn((arr: Uint8Array) => arr)
+  getRandomValues: vi.fn((arr: Uint8Array) => arr),
 })
 
 // Mock nostr-tools nip44
@@ -20,23 +20,27 @@ vi.mock('nostr-tools', () => ({
   nip44: {
     v2: {
       utils: {
-        getConversationKey: vi.fn().mockReturnValue(new Uint8Array(32))
+        getConversationKey: vi.fn().mockReturnValue(new Uint8Array(32)),
       },
       encrypt: vi.fn().mockReturnValue('encrypted-key-data'),
-      decrypt: vi.fn().mockReturnValue(btoa(String.fromCharCode(...new Uint8Array(32))))
-    }
+      decrypt: vi.fn().mockReturnValue(btoa(String.fromCharCode(...new Uint8Array(32)))),
+    },
   },
   finalizeEvent: vi.fn().mockReturnValue({
     id: 'test-event-id',
     pubkey: 'test-pubkey',
-    sig: 'test-sig'
-  })
+    sig: 'test-sig',
+  }),
 }))
 
 // Mock @noble/hashes/utils
-vi.mock('@noble/hashes/utils', () => ({
-  hexToBytes: vi.fn().mockReturnValue(new Uint8Array(32))
-}))
+vi.mock('@noble/hashes/utils', async () => {
+  const actual = await vi.importActual('@noble/hashes/utils')
+  return {
+    ...actual,
+    hexToBytes: vi.fn().mockReturnValue(new Uint8Array(32)),
+  }
+})
 
 // Now import the module
 const { uploadFile, compressImage, decryptFileData } = await import('./fileUpload')
@@ -72,8 +76,8 @@ describe('fileUpload', () => {
         json: async () => ({
           url: testUrl,
           sha256: 'abc123',
-          size: 100
-        })
+          size: 100,
+        }),
       })
 
       const file = createMockFile('test content', 'test.png', 'image/png')
@@ -85,7 +89,7 @@ describe('fileUpload', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://blossom.primal.net/upload',
         expect.objectContaining({
-          method: 'PUT'
+          method: 'PUT',
         })
       )
       expect(result.url).toBe(testUrl)
@@ -98,7 +102,7 @@ describe('fileUpload', () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
-        text: async () => 'Server error'
+        text: async () => 'Server error',
       })
 
       const file = createMockFile('test', 'test.png', 'image/png')
@@ -120,9 +124,9 @@ describe('fileUpload', () => {
         ok: true,
         json: async () => ({
           nip94_event: {
-            tags: [['url', testUrl]]
-          }
-        })
+            tags: [['url', testUrl]],
+          },
+        }),
       })
 
       const file = createMockFile('test', 'test.png', 'image/png')
@@ -185,8 +189,8 @@ describe('uploadFile hash calculation', () => {
       json: async () => ({
         url: 'https://blossom.primal.net/test.bin',
         sha256: 'abc123',
-        size: 100
-      })
+        size: 100,
+      }),
     })
 
     const file = createMockFile('hello world', 'test.png', 'image/png')

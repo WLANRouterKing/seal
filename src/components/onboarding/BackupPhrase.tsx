@@ -1,16 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Stack,
-  Text,
-  Paper,
-  Code,
-  Alert,
-  Button,
-  Checkbox,
-  Group,
-  CopyButton,
-} from '@mantine/core'
+import { Stack, Text, Paper, Code, Alert, Button, Checkbox, Group, CopyButton } from '@mantine/core'
 import { IconAlertTriangle, IconCopy, IconCheck } from '@tabler/icons-react'
 
 interface BackupPhraseProps {
@@ -25,12 +15,16 @@ export default function BackupPhrase({ nsec, onComplete }: BackupPhraseProps) {
   return (
     <Stack h="100vh" p="md" justify="space-between">
       <Stack gap="md">
-        <Text size="xl" fw={700}>{t('backup.title')}</Text>
+        <Text size="xl" fw={700}>
+          {t('backup.title')}
+        </Text>
         <Text c="dimmed">{t('backup.subtitle')}</Text>
 
         <Paper p="md" withBorder>
           <Group justify="space-between" mb="xs">
-            <Text size="xs" c="dimmed" tt="uppercase">{t('backup.privateKeyLabel')}</Text>
+            <Text size="xs" c="dimmed" tt="uppercase">
+              {t('backup.privateKeyLabel')}
+            </Text>
             <CopyButton value={nsec}>
               {({ copied, copy }) => (
                 <Button
@@ -64,13 +58,7 @@ export default function BackupPhrase({ nsec, onComplete }: BackupPhraseProps) {
         />
       </Stack>
 
-      <Button
-        size="lg"
-        color="cyan"
-        fullWidth
-        onClick={onComplete}
-        disabled={!confirmed}
-      >
+      <Button size="lg" color="cyan" fullWidth onClick={onComplete} disabled={!confirmed}>
         {t('backup.continueButton')}
       </Button>
     </Stack>

@@ -1,0 +1,163 @@
+name: F-Droid & Play Store Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  # Update F-Droid Repository
+  fdroid-repo:
+    name: Update F-Droid Repository
+    runs-on: ubuntu-latest
+    if: "!github.event.release.prerelease"
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install fdroidserver
+        run: |
+          pip install fdroidserver
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Download release APK
+        run: |
+          mkdir -p fdroid-repo/repo
+          gh release download ${{ github.event.release.tag_name }} \
+            --pattern "*.apk" \
+            --dir fdroid-repo/repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate F-Droid keystore
+        run: |
+          cd fdroid-repo
+          if [ ! -f keystore.p12 ]; then
+            keytool -genkey -v \
+              -keystore keystore.p12 \
+              -storetype PKCS12 \
+              -alias fdroid \
+              -keyalg RSA \
+              -keysize 4096 \
+              -validity 10000 \
+              -dname "CN=Seal F-Droid Repo, OU=F-Droid, O=Seal" \
+              -storepass "${{ secrets.FDROID_KEYSTORE_PASS }}" \
+              -keypass "${{ secrets.FDROID_KEYSTORE_PASS }}"
+          fi
+
+      - name: Update F-Droid repo index
+        run: |
+          cd fdroid-repo
+          export FDROID_KEYSTORE_PASS="${{ secrets.FDROID_KEYSTORE_PASS }}"
+          export FDROID_KEY_PASS="${{ secrets.FDROID_KEYSTORE_PASS }}"
+          fdroid update --create-metadata
+
+      - name: Prepare gh-pages deployment
+        run: |
+          mkdir -p gh-pages/fdroid
+          cp -r fdroid-repo/repo gh-pages/fdroid/
+          if [ -d fdroid-repo/archive ]; then
+            cp -r fdroid-repo/archive gh-pages/fdroid/
+          fi
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./gh-pages
+          keep_files: true
+
+  # Upload to Google Play Store
+  play-store:
+    name: Upload to Google Play Store
+    runs-on: ubuntu-latest
+    if: "!github.event.release.prerelease"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Install Fastlane
+        run: gem install fastlane
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/seal-release.keystore
+
+      - name: Create keystore.properties
+        run: |
+          cat > android/keystore.properties << EOF
+          storeFile=../seal-release.keystore
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=seal
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          EOF
+
+      - name: Create Google Play credentials
+        run: |
+          echo "${{ secrets.GOOGLE_PLAY_JSON_KEY }}" | base64 -d > google-play-key.json
+
+      - name: Build Release AAB
+        working-directory: android
+        run: ./gradlew bundleRelease
+
+      - name: Upload to Google Play
+        run: |
+          fastlane android production
+        env:
+          GOOGLE_PLAY_JSON_KEY_FILE: ${{ github.workspace }}/google-play-key.json

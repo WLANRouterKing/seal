@@ -19,7 +19,7 @@ export function useLockedNotifications() {
   // Track if initial sync is complete (EOSE received)
   const initialSyncDone = useRef(false)
 
-  const connectedCount = relays.filter(r => r.status === 'connected').length
+  const connectedCount = relays.filter((r) => r.status === 'connected').length
 
   useEffect(() => {
     // Only run when locked and we have public info
@@ -57,7 +57,7 @@ export function useLockedNotifications() {
         notificationService.showNotification('New Message', {
           body: 'You have a new encrypted message. Unlock to read.',
           tag: 'locked-message',
-          silent: false
+          silent: false,
         })
       },
       () => {

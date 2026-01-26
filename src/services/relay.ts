@@ -27,7 +27,7 @@ class RelayPool {
       this.connections.set(url, {
         relay,
         status: 'connected',
-        subscriptions: new Map()
+        subscriptions: new Map(),
       })
 
       relay.onclose = () => {
@@ -54,7 +54,7 @@ class RelayPool {
         relay: null as unknown as Relay,
         status: updates.status || 'disconnected',
         subscriptions: new Map(),
-        ...updates
+        ...updates,
       })
     }
     this.notifyListeners()
@@ -108,12 +108,7 @@ class RelayPool {
     }
   }
 
-  subscribe(
-    urls: string[],
-    filters: Filter[],
-    onEvent: (event: Event) => void,
-    onEose?: () => void
-  ): () => void {
+  subscribe(urls: string[], filters: Filter[], onEvent: (event: Event) => void, onEose?: () => void): () => void {
     const subId = crypto.randomUUID()
     const closers: Subscription[] = []
     let eoseCount = 0
@@ -139,7 +134,7 @@ class RelayPool {
             if (eoseCount >= expectedEose && onEose) {
               onEose()
             }
-          }
+          },
         })
         closers.push(sub)
         conn.subscriptions.set(subId, sub)
@@ -183,7 +178,7 @@ class RelayPool {
       url,
       status: conn.status,
       read: true,
-      write: true
+      write: true,
     }))
   }
 

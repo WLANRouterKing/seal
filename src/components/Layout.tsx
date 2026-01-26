@@ -13,7 +13,7 @@ export default function Layout() {
   const { activeChat } = useMessageStore()
   const location = useLocation()
 
-  const connectedCount = relays.filter(r => r.status === 'connected').length
+  const connectedCount = relays.filter((r) => r.status === 'connected').length
 
   // Hide nav on onboarding
   if (location.pathname === '/onboarding') {
@@ -21,21 +21,15 @@ export default function Layout() {
   }
 
   return (
-    <AppShell
-      header={{ height: 56 }}
-      footer={activeChat ? undefined : { height: 64 }}
-      padding={0}
-    >
+    <AppShell header={{ height: 56 }} footer={activeChat ? undefined : { height: 64 }} padding={0}>
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Text fw={600} size="lg">Seal</Text>
+          <Text fw={600} size="lg">
+            Seal
+          </Text>
           <Group gap="md">
             <Group gap="xs">
-              <Indicator
-                color={connectedCount > 0 ? 'green' : 'red'}
-                size={8}
-                processing={connectedCount === 0}
-              >
+              <Indicator color={connectedCount > 0 ? 'green' : 'red'} size={8} processing={connectedCount === 0}>
                 <div />
               </Indicator>
               <Text size="xs" c="dimmed">
@@ -44,12 +38,7 @@ export default function Layout() {
             </Group>
             {hasPassword && (
               <Tooltip label={t('securitySettings.lockNow')}>
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  onClick={lock}
-                  aria-label={t('securitySettings.lockNow')}
-                >
+                <ActionIcon variant="subtle" color="gray" onClick={lock} aria-label={t('securitySettings.lockNow')}>
                   <IconLock size={18} />
                 </ActionIcon>
               </Tooltip>
@@ -58,14 +47,16 @@ export default function Layout() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Main style={{ height: activeChat ? 'calc(100vh - 56px)' : 'calc(100vh - 56px - 64px)', overflow: 'hidden' }}>
+      <AppShell.Main
+        style={{ height: activeChat ? 'calc(100vh - 56px)' : 'calc(100vh - 56px - 64px)', overflow: 'hidden' }}
+      >
         <Outlet />
       </AppShell.Main>
 
       {!activeChat && (
-        <AppShell.Footer style={{marginBottom: '10px'}}>
+        <AppShell.Footer style={{ paddingBottom: '70px' }}>
           <Group h="100%" grow>
-            <NavButton  to="/" icon={<IconMessageCircle size={24} />} label={t('nav.chats')} />
+            <NavButton to="/" icon={<IconMessageCircle size={24} />} label={t('nav.chats')} />
             <NavButton to="/contacts" icon={<IconUsers size={24} />} label={t('nav.contacts')} />
             <NavButton to="/settings" icon={<IconSettings size={24} />} label={t('nav.settings')} />
           </Group>
@@ -98,7 +89,9 @@ function NavButton({ to, icon, label }: NavButtonProps) {
         >
           <Stack align="center" gap={4}>
             <Text c={isActive ? 'cyan' : 'dimmed'}>{icon}</Text>
-            <Text size="xs" c={isActive ? 'cyan' : 'dimmed'}>{label}</Text>
+            <Text size="xs" c={isActive ? 'cyan' : 'dimmed'}>
+              {label}
+            </Text>
           </Stack>
         </UnstyledButton>
       )}

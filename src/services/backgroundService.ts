@@ -43,9 +43,9 @@ class BackgroundService {
         buttons: [
           {
             title: 'Open',
-            id: 1
-          }
-        ]
+            id: 1,
+          },
+        ],
       })
 
       this.isRunning = true
@@ -62,7 +62,6 @@ class BackgroundService {
 
       // Start periodic health check for relay connections
       this.startHealthCheck()
-
     } catch (error) {
       console.error('[BackgroundService] Failed to start:', error)
     }
@@ -99,9 +98,7 @@ class BackgroundService {
 
       // Update notification with connection status
       if (this.isRunning) {
-        const status = connectedUrls.length > 0
-          ? `Connected to ${connectedUrls.length} relays`
-          : 'Reconnecting...'
+        const status = connectedUrls.length > 0 ? `Connected to ${connectedUrls.length} relays` : 'Reconnecting...'
         await this.updateNotification(status)
       }
     }, 30000) // 30 seconds
@@ -136,7 +133,7 @@ class BackgroundService {
         id: 1,
         title: 'Seal Messenger',
         body,
-        smallIcon: 'ic_stat_notification'
+        smallIcon: 'ic_stat_notification',
       })
     } catch (error) {
       console.error('[BackgroundService] Failed to update notification:', error)

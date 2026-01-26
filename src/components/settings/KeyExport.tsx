@@ -36,7 +36,9 @@ export default function KeyExport({ onBack }: KeyExportProps) {
           <ActionIcon variant="subtle" onClick={onBack}>
             <IconArrowLeft size={24} />
           </ActionIcon>
-          <Text fw={500} size="lg">{t('keyExport.title')}</Text>
+          <Text fw={500} size="lg">
+            {t('keyExport.title')}
+          </Text>
         </Group>
       </Paper>
 
@@ -45,7 +47,9 @@ export default function KeyExport({ onBack }: KeyExportProps) {
           {/* Public Key */}
           <Box>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" fw={500}>{t('keyExport.publicKeyLabel')}</Text>
+              <Text size="sm" fw={500}>
+                {t('keyExport.publicKeyLabel')}
+              </Text>
               <CopyButton value={keys?.npub || ''}>
                 {({ copied, copy }) => (
                   <Tooltip label={copied ? t('common.copied') : t('common.copy')}>
@@ -74,7 +78,9 @@ export default function KeyExport({ onBack }: KeyExportProps) {
           {/* Private Key */}
           <Box>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" fw={500}>{t('keyExport.privateKeyLabel')}</Text>
+              <Text size="sm" fw={500}>
+                {t('keyExport.privateKeyLabel')}
+              </Text>
               <Group gap="xs">
                 <Button
                   variant="subtle"
@@ -112,7 +118,9 @@ export default function KeyExport({ onBack }: KeyExportProps) {
           {/* QR Code */}
           <Box>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" fw={500}>{t('keyExport.qrCodeLabel') || 'QR Code for Import'}</Text>
+              <Text size="sm" fw={500}>
+                {t('keyExport.qrCodeLabel') || 'QR Code for Import'}
+              </Text>
               <Button
                 variant="subtle"
                 size="xs"
@@ -126,12 +134,7 @@ export default function KeyExport({ onBack }: KeyExportProps) {
               <Paper p="md" withBorder>
                 <Stack align="center" gap="sm">
                   <Box p="sm" bg="white" style={{ borderRadius: 8 }}>
-                    <QRCodeSVG
-                      value={keys.nsec}
-                      size={200}
-                      level="M"
-                      includeMargin={false}
-                    />
+                    <QRCodeSVG value={keys.nsec} size={200} level="M" includeMargin={false} />
                   </Box>
                   <Text size="xs" c="dimmed" ta="center">
                     {t('keyExport.qrCodeHint') || 'Scan this QR code on another device to import your account'}

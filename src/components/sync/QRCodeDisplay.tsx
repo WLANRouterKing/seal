@@ -38,14 +38,20 @@ export function QRCodeDisplay({ qrData, onCodeEntered, onCancel }: QRCodeDisplay
   if (step === 'qr') {
     return (
       <Stack align="center" gap="lg">
-        <Text c="dimmed" ta="center">{t('sync.showingQR')}</Text>
+        <Text c="dimmed" ta="center">
+          {t('sync.showingQR')}
+        </Text>
 
         <Box p="md" bg="white" style={{ borderRadius: 'var(--mantine-radius-lg)' }}>
           <QRCodeSVG value={qrData} size={300} level="L" includeMargin />
         </Box>
 
-        <Button color="cyan" onClick={() => setStep('code')}>{t('sync.enterCode')}</Button>
-        <Button variant="default" onClick={onCancel}>{t('sync.cancel')}</Button>
+        <Button color="cyan" onClick={() => setStep('code')}>
+          {t('sync.enterCode')}
+        </Button>
+        <Button variant="default" onClick={onCancel}>
+          {t('sync.cancel')}
+        </Button>
       </Stack>
     )
   }
@@ -69,7 +75,7 @@ export function QRCodeDisplay({ qrData, onCodeEntered, onCancel }: QRCodeDisplay
             fontSize: '2rem',
             letterSpacing: '0.2em',
             width: 200,
-          }
+          },
         }}
         autoFocus
       />
@@ -91,16 +97,14 @@ export function QRCodeDisplay({ qrData, onCodeEntered, onCancel }: QRCodeDisplay
         <Button variant="default" onClick={() => setStep('qr')}>
           {t('sync.back') || 'Back'}
         </Button>
-        <Button
-          color="cyan"
-          onClick={handleSubmit}
-          disabled={code.replace('-', '').length !== 6}
-        >
+        <Button color="cyan" onClick={handleSubmit} disabled={code.replace('-', '').length !== 6}>
           {t('sync.connect') || 'Connect'}
         </Button>
       </Group>
 
-      <Button variant="subtle" c="dimmed" onClick={onCancel}>{t('sync.cancel')}</Button>
+      <Button variant="subtle" c="dimmed" onClick={onCancel}>
+        {t('sync.cancel')}
+      </Button>
     </Stack>
   )
 }

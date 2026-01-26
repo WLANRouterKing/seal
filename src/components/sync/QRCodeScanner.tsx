@@ -35,19 +35,19 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
         // First request camera permission explicitly
         console.log('[QRScanner] Requesting camera permission...')
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
+          video: { facingMode: 'environment' },
         })
         console.log('[QRScanner] Camera permission granted, tracks:', stream.getTracks().length)
 
         // Stop the stream immediately - we just needed to trigger permission
-        stream.getTracks().forEach(track => track.stop())
+        stream.getTracks().forEach((track) => track.stop())
 
         console.log('[QRScanner] Initializing Html5Qrcode...')
         // Disable native BarcodeDetector API to avoid Google Play Services dependency
         // This forces the library to use the JavaScript-based ZXing decoder
         const scanner = new Html5Qrcode('qr-reader', {
           useBarCodeDetectorIfSupported: false,
-          verbose: false
+          verbose: false,
         })
         scannerRef.current = scanner
 
@@ -57,17 +57,20 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
-            aspectRatio: 1
+            aspectRatio: 1,
           },
           (decodedText) => {
             if (hasScanned.current) return
             hasScanned.current = true
 
-            scanner.stop().then(() => {
-              if (mounted) {
-                onScan(decodedText)
-              }
-            }).catch(console.error)
+            scanner
+              .stop()
+              .then(() => {
+                if (mounted) {
+                  onScan(decodedText)
+                }
+              })
+              .catch(console.error)
           },
           () => {}
         )
@@ -83,7 +86,10 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
           const errorMsg = err instanceof Error ? err.message : String(err)
           console.error('[QRScanner] Error message:', errorMsg)
           if (errorMsg.includes('Permission') || errorMsg.includes('NotAllowed') || errorMsg.includes('denied')) {
-            setError(t('sync.cameraPermissionDenied') || 'Camera permission denied. Please allow camera access in your device settings.')
+            setError(
+              t('sync.cameraPermissionDenied') ||
+                'Camera permission denied. Please allow camera access in your device settings.'
+            )
           } else {
             setError((t('sync.cameraError') || 'Failed to access camera') + ': ' + errorMsg)
           }
@@ -113,7 +119,9 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
 
   return (
     <Stack align="center" gap="md">
-      <Text c="dimmed" ta="center">{t('sync.scanning')}</Text>
+      <Text c="dimmed" ta="center">
+        {t('sync.scanning')}
+      </Text>
 
       {isScanning && (
         <Badge color="green" variant="dot" size="lg">
@@ -145,7 +153,9 @@ export function QRCodeScanner({ onScan, onCancel }: QRCodeScannerProps) {
         </Alert>
       )}
 
-      <Button variant="default" onClick={handleCancel}>{t('sync.cancel')}</Button>
+      <Button variant="default" onClick={handleCancel}>
+        {t('sync.cancel')}
+      </Button>
     </Stack>
   )
 }

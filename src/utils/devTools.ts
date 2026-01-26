@@ -12,7 +12,9 @@ import type { StoredMessage } from '../services/db'
 function randomHex(length: number): string {
   const bytes = new Uint8Array(length / 2)
   crypto.getRandomValues(bytes)
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 // Generate a fake npub (bech32-like but not valid)
@@ -22,14 +24,47 @@ function fakeNpub(): string {
 
 // Random names for contacts
 const FIRST_NAMES = [
-  'Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank', 'Grace', 'Henry',
-  'Ivy', 'Jack', 'Kate', 'Leo', 'Mia', 'Nick', 'Olivia', 'Paul',
-  'Quinn', 'Rose', 'Sam', 'Tina', 'Uma', 'Victor', 'Wendy', 'Xander'
+  'Alice',
+  'Bob',
+  'Carol',
+  'Dave',
+  'Eve',
+  'Frank',
+  'Grace',
+  'Henry',
+  'Ivy',
+  'Jack',
+  'Kate',
+  'Leo',
+  'Mia',
+  'Nick',
+  'Olivia',
+  'Paul',
+  'Quinn',
+  'Rose',
+  'Sam',
+  'Tina',
+  'Uma',
+  'Victor',
+  'Wendy',
+  'Xander',
 ]
 
 const LAST_NAMES = [
-  'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller',
-  'Davis', 'Rodriguez', 'Martinez', 'Anderson', 'Taylor', 'Thomas', 'Moore'
+  'Smith',
+  'Johnson',
+  'Williams',
+  'Brown',
+  'Jones',
+  'Garcia',
+  'Miller',
+  'Davis',
+  'Rodriguez',
+  'Martinez',
+  'Anderson',
+  'Taylor',
+  'Thomas',
+  'Moore',
 ]
 
 // Sample message templates
@@ -40,43 +75,43 @@ const MESSAGE_TEMPLATES = [
   'Can we meet up later?',
   'Thanks for the info!',
   'That sounds great!',
-  'I\'ll check it out',
+  "I'll check it out",
   'What do you think about this?',
   'Have you tried the new feature?',
-  'Let me know when you\'re free',
+  "Let me know when you're free",
   'Sure, no problem!',
   'I agree with you on that',
   'Interesting perspective',
   'Could you explain more?',
-  'I\'ll get back to you on that',
+  "I'll get back to you on that",
   'Perfect, thanks!',
   'That makes sense',
   'I had the same thought',
-  'Let\'s discuss this later',
+  "Let's discuss this later",
   'Good point!',
-  'I\'m not sure about that',
+  "I'm not sure about that",
   'We should definitely try that',
-  'What\'s your take on this?',
+  "What's your take on this?",
   'I appreciate your help',
   'Looking forward to it!',
   'Sounds like a plan',
-  'I\'ll send you the details',
+  "I'll send you the details",
   'Can you send me the link?',
   'Just saw your message',
   'Sorry for the late reply',
   'No worries at all',
-  'That\'s exactly what I was thinking',
+  "That's exactly what I was thinking",
   'Great idea!',
-  'I\'ll think about it',
+  "I'll think about it",
   'Let me check my schedule',
 ]
 
 const LONG_MESSAGES = [
-  'I\'ve been thinking about this for a while now, and I think we should definitely explore this option further. There are a lot of potential benefits that we haven\'t fully considered yet.',
+  "I've been thinking about this for a while now, and I think we should definitely explore this option further. There are a lot of potential benefits that we haven't fully considered yet.",
   'Just finished reading that article you sent me. It was really insightful and made me reconsider some of my previous assumptions. Thanks for sharing!',
-  'I wanted to follow up on our previous conversation about the project. I\'ve done some research and found some interesting information that might be relevant to what we discussed.',
-  'Hope you\'re having a great day! I just wanted to check in and see how things are going on your end. Let me know if there\'s anything I can help with.',
-  'I came across something really interesting today that I thought you might appreciate. It\'s related to what we were talking about last week, and I think it could be useful.',
+  "I wanted to follow up on our previous conversation about the project. I've done some research and found some interesting information that might be relevant to what we discussed.",
+  "Hope you're having a great day! I just wanted to check in and see how things are going on your end. Let me know if there's anything I can help with.",
+  "I came across something really interesting today that I thought you might appreciate. It's related to what we were talking about last week, and I think it could be useful.",
 ]
 
 interface GenerateOptions {
@@ -89,11 +124,7 @@ interface GenerateOptions {
  * Generate dummy contacts and messages for performance testing
  */
 export async function generateDummyData(options: GenerateOptions = {}): Promise<void> {
-  const {
-    contactCount = 10,
-    messagesPerContact = 100,
-    timeSpanDays = 30
-  } = options
+  const { contactCount = 10, messagesPerContact = 100, timeSpanDays = 30 } = options
 
   console.log(`Generating ${contactCount} contacts with ~${messagesPerContact} messages each...`)
 
@@ -167,7 +198,7 @@ export async function generateDummyData(options: GenerateOptions = {}): Promise<
   }
 
   console.log(`\nDone! Generated ${totalMessages} total messages across ${contactCount} contacts`)
-  console.log('Reload the app to see the data (note: data is unencrypted, won\'t work with password)')
+  console.log("Reload the app to see the data (note: data is unencrypted, won't work with password)")
 }
 
 /**
@@ -176,13 +207,7 @@ export async function generateDummyData(options: GenerateOptions = {}): Promise<
 export async function clearAllData(): Promise<void> {
   const db = await openDB(DB_NAME, DB_VERSION)
 
-  const stores = [
-    STORES.MESSAGES,
-    STORES.CONTACTS,
-    STORES.SETTINGS,
-    STORES.RELAYS,
-    STORES.DELETED_MESSAGES
-  ]
+  const stores = [STORES.MESSAGES, STORES.CONTACTS, STORES.SETTINGS, STORES.RELAYS, STORES.DELETED_MESSAGES]
 
   for (const store of stores) {
     const tx = db.transaction(store, 'readwrite')
@@ -214,7 +239,7 @@ export async function getDbStats(): Promise<void> {
 
 // Expose to window in development
 if (import.meta.env.DEV) {
-  (window as unknown as { devTools: typeof devTools }).devTools = {
+  ;(window as unknown as { devTools: typeof devTools }).devTools = {
     generateDummyData,
     clearAllData,
     getDbStats,

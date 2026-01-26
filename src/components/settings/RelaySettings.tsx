@@ -1,17 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Stack,
-  Group,
-  Text,
-  Paper,
-  ActionIcon,
-  TextInput,
-  Button,
-  Box,
-  ScrollArea,
-  Badge,
-} from '@mantine/core'
+import { Stack, Group, Text, Paper, ActionIcon, TextInput, Button, Box, ScrollArea, Badge } from '@mantine/core'
 import { IconArrowLeft, IconX } from '@tabler/icons-react'
 import { useRelayStore } from '../../stores/relayStore'
 
@@ -39,10 +28,14 @@ export default function RelaySettings({ onBack }: RelaySettingsProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'connected': return 'green'
-      case 'connecting': return 'yellow'
-      case 'error': return 'red'
-      default: return 'gray'
+      case 'connected':
+        return 'green'
+      case 'connecting':
+        return 'yellow'
+      case 'error':
+        return 'red'
+      default:
+        return 'gray'
     }
   }
 
@@ -54,14 +47,23 @@ export default function RelaySettings({ onBack }: RelaySettingsProps) {
           <ActionIcon variant="subtle" onClick={onBack}>
             <IconArrowLeft size={24} />
           </ActionIcon>
-          <Text fw={500} size="lg">{t('relaySettings.title')}</Text>
+          <Text fw={500} size="lg">
+            {t('relaySettings.title')}
+          </Text>
         </Group>
       </Paper>
 
       <ScrollArea style={{ flex: 1 }}>
         {/* Add Relay Form */}
-        <Box component="form" onSubmit={handleAddRelay} p="md" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
-          <Text size="sm" fw={500} mb="xs">{t('relaySettings.addNewRelay')}</Text>
+        <Box
+          component="form"
+          onSubmit={handleAddRelay}
+          p="md"
+          style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}
+        >
+          <Text size="sm" fw={500} mb="xs">
+            {t('relaySettings.addNewRelay')}
+          </Text>
           <Group gap="sm">
             <TextInput
               value={newRelayUrl}
@@ -79,35 +81,22 @@ export default function RelaySettings({ onBack }: RelaySettingsProps) {
         {/* Relay List */}
         <Box py="xs">
           <Text size="xs" fw={500} c="dimmed" tt="uppercase" px="md" py="xs">
-            {t('relaySettings.connectedRelays', { count: relays.filter(r => r.status === 'connected').length })}
+            {t('relaySettings.connectedRelays', { count: relays.filter((r) => r.status === 'connected').length })}
           </Text>
 
           <Stack gap={0}>
             {relays.map((relay) => (
-              <Box
-                key={relay.url}
-                px="md"
-                py="sm"
-                style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}
-              >
+              <Box key={relay.url} px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
                 <Group justify="space-between" wrap="nowrap">
                   <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
-                    <Badge
-                      size="xs"
-                      color={getStatusColor(relay.status)}
-                      variant="dot"
-                    >
+                    <Badge size="xs" color={getStatusColor(relay.status)} variant="dot">
                       {relay.status}
                     </Badge>
                     <Text size="sm" truncate style={{ flex: 1 }}>
                       {relay.url}
                     </Text>
                   </Group>
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    onClick={() => removeRelay(relay.url)}
-                  >
+                  <ActionIcon variant="subtle" color="red" onClick={() => removeRelay(relay.url)}>
                     <IconX size={18} />
                   </ActionIcon>
                 </Group>

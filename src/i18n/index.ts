@@ -7,7 +7,7 @@ import de from './locales/de.json'
 
 const resources = {
   en: { translation: en },
-  de: { translation: de }
+  de: { translation: de },
 }
 
 i18n
@@ -18,12 +18,12 @@ i18n
     fallbackLng: 'en',
     supportedLngs: ['en', 'de'],
     interpolation: {
-      escapeValue: false
+      escapeValue: false,
     },
     detection: {
       order: ['localStorage', 'navigator'],
-      caches: ['localStorage']
-    }
+      caches: ['localStorage'],
+    },
   })
 
 export default i18n

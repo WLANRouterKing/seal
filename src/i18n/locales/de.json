@@ -139,7 +139,7 @@
     "language": "Sprache",
     "languageHint": "App-Sprache",
     "blockedContacts": "Blockierte Kontakte",
-    "version": "Seal v0.1.10-alpha",
+    "version": "Seal v0.2.2",
     "footer": "Dezentrales Messaging mit NIP-17"
   },
   "relaySettings": {
@@ -294,5 +294,49 @@
     "error": "Vanish-Anfrage konnte nicht gesendet werden",
     "errorHint": "Du kannst trotzdem deine lokalen Daten löschen",
     "deleteAnywayButton": "Trotzdem löschen"
+  },
+  "privacy": {
+    "title": "Datenschutzerklärung",
+    "lastUpdated": "Zuletzt aktualisiert",
+    "overview": {
+      "title": "Übersicht",
+      "text": "Seal ist eine datenschutzorientierte Messaging-App, die auf dem Nostr-Protokoll basiert. Wir verpflichten uns zum Schutz deiner Privatsphäre und erfassen, speichern oder teilen keine persönlichen Daten."
+    },
+    "encryption": {
+      "title": "Ende-zu-Ende-Verschlüsselung",
+      "text": "Alle Nachrichten in Seal sind mit NIP-44-Verschlüsselung Ende-zu-Ende verschlüsselt.",
+      "item1": "Nur du und dein Empfänger können deine Nachrichten lesen",
+      "item2": "Dein privater Schlüssel verlässt niemals dein Gerät",
+      "item3": "Selbst Relay-Betreiber können deine Nachrichten nicht entschlüsseln"
+    },
+    "relays": {
+      "title": "Nostr Relays",
+      "text": "Seal nutzt das dezentrale Nostr-Netzwerk zur Nachrichtenübermittlung.",
+      "item1": "Nachrichten werden über öffentliche Nostr-Relays geroutet",
+      "item2": "Relays sehen nur verschlüsselte Daten, nicht den Nachrichteninhalt",
+      "item3": "Du kannst wählen, welche Relays du nutzt, oder dein eigenes betreiben"
+    },
+    "push": {
+      "title": "Push-Benachrichtigungen",
+      "text": "Push-Benachrichtigungen sind optional und nutzen ntfy.sh zur Zustellung.",
+      "item1": "Push ist Opt-in und kann jederzeit deaktiviert werden",
+      "item2": "Der Push-Server kennt nur deinen öffentlichen Schlüssel",
+      "item3": "Du kannst sowohl den Push-Server als auch ntfy selbst hosten"
+    },
+    "localStorage": {
+      "title": "Lokale Datenspeicherung",
+      "text": "Alle deine Daten werden lokal auf deinem Gerät gespeichert.",
+      "item1": "Nachrichten, Kontakte und Schlüssel werden in deinem Browser/App gespeichert",
+      "item2": "Es werden keine Daten auf unsere Server hochgeladen",
+      "item3": "Du kannst den lokalen Speicher optional mit einem Passwort verschlüsseln"
+    },
+    "deletion": {
+      "title": "Datenlöschung",
+      "text": "Du hast volle Kontrolle über deine Daten. Du kannst alle lokalen Daten jederzeit in den Einstellungen löschen. Zusätzlich kannst du eine NIP-62 Vanish-Anfrage senden, um Relays zu bitten, deine Daten von ihren Servern zu löschen."
+    },
+    "contact": {
+      "title": "Kontakt",
+      "text": "Bei Fragen zu dieser Datenschutzerklärung erstelle bitte ein Issue auf"
+    }
   }
 }

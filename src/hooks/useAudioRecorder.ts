@@ -49,7 +49,7 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderActions] {
       animationRef.current = null
     }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
     if (audioContextRef.current) {
@@ -85,7 +85,7 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderActions] {
       // Calculate average amplitude (0-1)
       const average = dataArray.reduce((a, b) => a + b, 0) / bufferLength / 255
 
-      setWaveform(prev => {
+      setWaveform((prev) => {
         const newWaveform = [...prev, average]
         // Keep last 50 samples for visualization
         if (newWaveform.length > 50) {
@@ -119,8 +119,8 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderActions] {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: SAMPLE_RATE
-        }
+          sampleRate: SAMPLE_RATE,
+        },
       })
       streamRef.current = stream
 
@@ -173,7 +173,7 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderActions] {
 
       // Start duration timer
       timerRef.current = setInterval(() => {
-        setDuration(prev => {
+        setDuration((prev) => {
           if (prev >= MAX_DURATION) {
             // Auto-stop at max duration
             mediaRecorderRef.current?.stop()
@@ -240,7 +240,7 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderActions] {
 
       // Resume timer
       timerRef.current = setInterval(() => {
-        setDuration(prev => {
+        setDuration((prev) => {
           if (prev >= MAX_DURATION) {
             mediaRecorderRef.current?.stop()
             setIsRecording(false)
@@ -257,7 +257,7 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderActions] {
 
   return [
     { isRecording, isPaused, duration, audioBlob, audioUrl, waveform, error },
-    { startRecording, stopRecording, cancelRecording, pauseRecording, resumeRecording }
+    { startRecording, stopRecording, cancelRecording, pauseRecording, resumeRecording },
   ]
 }
 
@@ -287,5 +287,5 @@ export function formatDuration(seconds: number): string {
 // Generate waveform string for NIP-A0 imeta tag (normalized 0-255 values)
 export function generateWaveformString(waveform: number[]): string {
   // Normalize to 0-255 and encode as comma-separated values
-  return waveform.map(v => Math.round(v * 255)).join(',')
+  return waveform.map((v) => Math.round(v * 255)).join(',')
 }

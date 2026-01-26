@@ -34,10 +34,27 @@ Builds:
     scanignore:
       - node_modules
 
+  - versionName: 0.2.2
+    versionCode: 202
+    commit: v0.2.2
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y npm nodejs
+    init: npm ci
+    gradle:
+      - yes
+    prebuild:
+      - cd ../..
+      - npm run build
+      - npx cap sync android
+    scanignore:
+      - node_modules
+
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.1.10-alpha
-CurrentVersionCode: 11010
+CurrentVersion: 0.2.2
+CurrentVersionCode: 202
 
 AntiFeatures:
   NonFreeNet:
