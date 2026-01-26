@@ -9,7 +9,7 @@ git_url(ENV["MATCH_GIT_URL"])
 storage_mode("git")
 
 # App identifier
-app_identifier(["com.seal.app"])
+app_identifier(["com.sealchat.app"])
 
 # Team ID
 team_id(ENV["APPLE_TEAM_ID"])

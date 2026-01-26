@@ -109,4 +109,34 @@ platform :android do
       skip_upload_screenshots: true
     )
   end
+c
+  desc "Build and upload to Google Play Production"
+  lane :production do
+    gradle(
+      project_dir: "android",
+      task: "bundle",
+      build_type: "Release"
+    )
+
+    upload_to_play_store(
+      track: "production",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: false,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      release_status: "completed"
+    )
+  end
+
+  desc "Upload existing AAB to Google Play Production"
+  lane :upload_production do |options|
+    upload_to_play_store(
+      track: "production",
+      aab: options[:aab] || "android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: false,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      release_status: "completed"
+    )
+  end
 end

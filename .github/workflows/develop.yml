@@ -66,8 +66,8 @@ jobs:
       - name: Deploy via rsync
         run: |
           rsync -avz --delete --chmod=D755,F644 \
-            dist/ \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/home/${{ secrets.DEPLOY_USER }}/web/dev.sealchat.app/public_html/
+           dist/ \
+           ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/home/${{ secrets.DEPLOY_USER }}/web/${{ secrets.DEPLOY_DOMAIN }}/public_html/
 
   # Android Debug Build
   build-android:

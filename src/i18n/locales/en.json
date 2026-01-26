@@ -294,5 +294,49 @@
     "error": "Failed to send vanish request",
     "errorHint": "You can still delete your local data",
     "deleteAnywayButton": "Delete Anyway"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated",
+    "overview": {
+      "title": "Overview",
+      "text": "Seal is a privacy-focused messaging app built on the Nostr protocol. We are committed to protecting your privacy and do not collect, store, or share any personal data."
+    },
+    "encryption": {
+      "title": "End-to-End Encryption",
+      "text": "All messages in Seal are end-to-end encrypted using NIP-44 encryption.",
+      "item1": "Only you and your recipient can read your messages",
+      "item2": "Your private key never leaves your device",
+      "item3": "Not even relay operators can decrypt your messages"
+    },
+    "relays": {
+      "title": "Nostr Relays",
+      "text": "Seal uses the decentralized Nostr network to deliver messages.",
+      "item1": "Messages are routed through public Nostr relays",
+      "item2": "Relays only see encrypted data, not message content",
+      "item3": "You can choose which relays to use or run your own"
+    },
+    "push": {
+      "title": "Push Notifications",
+      "text": "Push notifications are optional and use ntfy.sh for delivery.",
+      "item1": "Push is opt-in and can be disabled anytime",
+      "item2": "The push server only knows your public key",
+      "item3": "You can self-host both the push server and ntfy instance"
+    },
+    "localStorage": {
+      "title": "Local Data Storage",
+      "text": "All your data is stored locally on your device.",
+      "item1": "Messages, contacts, and keys are stored in your browser/app",
+      "item2": "No data is uploaded to our servers",
+      "item3": "You can optionally encrypt local storage with a password"
+    },
+    "deletion": {
+      "title": "Data Deletion",
+      "text": "You have full control over your data. You can delete all local data at any time in Settings. Additionally, you can send a NIP-62 vanish request to ask relays to delete your data from their servers."
+    },
+    "contact": {
+      "title": "Contact",
+      "text": "If you have questions about this privacy policy, please open an issue on"
+    }
   }
 }

@@ -1,5 +1,5 @@
 # App Store Connect
-app_identifier("com.seal.app")
+app_identifier("com.sealchat.app")
 apple_id(ENV["APPLE_ID"]) # Your Apple email address
 
 # Team ID from Apple Developer Portal
@@ -15,4 +15,10 @@ for_platform :ios do
   # - APP_STORE_CONNECT_API_KEY_ID
   # - APP_STORE_CONNECT_API_ISSUER_ID
   # - APP_STORE_CONNECT_API_KEY_CONTENT (base64 encoded .p8 file)
+end
+
+# Google Play Store
+for_platform :android do
+  json_key_file(ENV["GOOGLE_PLAY_JSON_KEY_FILE"])
+  package_name("com.sealchat.app")
 end

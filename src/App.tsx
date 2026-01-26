@@ -21,6 +21,7 @@ import Onboarding from './pages/Onboarding'
 import Chat from './pages/Chat'
 import Contacts from './pages/Contacts'
 import Settings from './pages/Settings'
+import Privacy from './pages/Privacy'
 import {Group, Paper, Stack} from "@mantine/core";
 import {Rings} from "react-loader-spinner";
 
@@ -57,12 +58,12 @@ function App() {
         }
     }, [])
 
-    // Handle deeplinks (e.g. com.seal.app://chat/{pubkey})
+    // Handle deeplinks (e.g. com.sealchat.app://chat/{pubkey})
     useEffect(() => {
         const handleDeeplink = (event: { url: string }) => {
             console.log('[Deeplink] Received:', event.url)
             try {
-                // Parse URL - handle both com.seal.app:// and seal:// schemes
+                // Parse URL - handle both com.sealchat.app:// and seal:// schemes
                 const url = new URL(event.url)
                 const path = url.hostname + url.pathname // hostname contains first path segment for custom schemes
 
@@ -164,6 +165,7 @@ function App() {
         return (
             <Routes>
                 <Route path="/onboarding" element={<Onboarding/>}/>
+                <Route path="/privacy" element={<Privacy/>}/>
                 <Route path="*" element={<Navigate to="/onboarding" replace/>}/>
             </Routes>
         )
@@ -181,6 +183,7 @@ function App() {
                 <Route path="/contacts" element={<Contacts/>}/>
                 <Route path="/settings" element={<Settings/>}/>
             </Route>
+            <Route path="/privacy" element={<Privacy/>}/>
             <Route path="/onboarding" element={<Navigate to="/" replace/>}/>
             <Route path="*" element={<Navigate to="/" replace/>}/>
         </Routes>
