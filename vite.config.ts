@@ -2,24 +2,25 @@ import {defineConfig} from 'vite'
 import react from '@vitejs/plugin-react'
 import {VitePWA} from 'vite-plugin-pwa'
 import {execSync} from 'child_process'
+import {readFileSync} from 'fs'
 
-// Get version from git tag or fallback
+// Get version from git tag, falling back to package.json version
 function getVersion(): string {
     try {
-        // Try to get the current tag
-        const tag = execSync('git describe --tags --abbrev=0 2>/dev/null', {encoding: 'utf-8'}).trim()
+        // Try to get the current tag (stdio: 'pipe' suppresses errors cross-platform)
+        const tag = execSync('git describe --tags --abbrev=0', {encoding: 'utf-8', stdio: 'pipe'}).trim()
         // Check if we're exactly on a tag or have commits after
-        const describe = execSync('git describe --tags 2>/dev/null', {encoding: 'utf-8'}).trim()
+        const describe = execSync('git describe --tags', {encoding: 'utf-8', stdio: 'pipe'}).trim()
         if (describe === tag) {
             return tag
         }
         // We have commits after the tag
         return `${tag}+`
     } catch {
-        // No tags, use commit hash
+        // No git tags available — use version from package.json
         try {
-            const hash = execSync('git rev-parse --short HEAD', {encoding: 'utf-8'}).trim()
-            return `dev-${hash}`
+            const pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
+            return `v${pkg.version}`
         } catch {
             return 'dev'
         }
