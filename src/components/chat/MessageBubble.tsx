@@ -66,7 +66,7 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
   const handleTouchStart = () => {
     longPressTimer.current = setTimeout(() => {
       setMenuOpened(true)
-    }, 500)
+    }, 1000)
   }
 
   const handleTouchEnd = () => {
