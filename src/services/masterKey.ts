@@ -34,6 +34,8 @@ function toBuffer(arr: Uint8Array): ArrayBuffer {
 
 export interface KeySlot {
   type: 'password' | 'passkey'
+  native?: { version: 1; provider: 'android' | 'ios' | 'desktop'; id: string }
+  prf?: { version: 1; credentialId: string; input: string }
   salt: string // Base64-encoded salt for key derivation
   wrappedKey: string // Base64-encoded wrapped master key (IV + ciphertext)
 }

@@ -13,7 +13,7 @@ interface ContactState {
   initialize: () => Promise<void>
   addContact: (npubOrPubkey: string, name?: string) => Promise<Contact | null>
   removeContact: (pubkey: string) => Promise<void>
-  updateContact: (pubkey: string, updates: Partial<Contact>) => Promise<void>
+  updateContact: (pubkey: string, updates: Partial<Contact>) => Promise<boolean>
   fetchProfile: (pubkey: string) => Promise<void>
   clearError: () => void
   // NIP-40 Expiration
@@ -100,16 +100,18 @@ export const useContactStore = create<ContactState>((set, get) => ({
 
   updateContact: async (pubkey: string, updates: Partial<Contact>) => {
     const contact = get().contacts.find((c) => c.pubkey === pubkey)
-    if (!contact) return
+    if (!contact) return false
 
-    const updatedContact = { ...contact, ...updates }
+    const updatedContact = { ...contact, ...updates, pubkey: contact.pubkey, npub: contact.npub }
     try {
       await saveContactToDB(updatedContact)
       set({
         contacts: get().contacts.map((c) => (c.pubkey === pubkey ? updatedContact : c)),
       })
+      return true
     } catch (error) {
       console.error('Failed to update contact:', error)
+      return false
     }
   },
 
@@ -120,12 +122,16 @@ export const useContactStore = create<ContactState>((set, get) => ({
     relayPool.subscribe(connectedRelays, [{ kinds: [0], authors: [pubkey], limit: 1 }], (event) => {
       try {
         const profile = JSON.parse(event.content)
-        get().updateContact(pubkey, {
-          name: profile.name || profile.display_name,
-          picture: profile.picture,
-          about: profile.about,
-          nip05: profile.nip05,
-        })
+        void get()
+          .updateContact(pubkey, {
+            name: profile.name || profile.display_name,
+            picture: profile.picture,
+            about: profile.about,
+            nip05: profile.nip05,
+          })
+          .catch(() => {
+            /* Locked storage: profile refresh can retry after unlock. */
+          })
       } catch {
         // Invalid profile JSON
       }

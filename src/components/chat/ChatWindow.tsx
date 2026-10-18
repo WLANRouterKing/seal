@@ -13,6 +13,7 @@ import {
   Menu,
   Tooltip,
   Modal,
+  Badge,
   Button,
 } from '@mantine/core'
 import { IconArrowLeft, IconClock, IconClockOff, IconDotsVertical, IconTrash } from '@tabler/icons-react'
@@ -101,7 +102,7 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
         {/* Header */}
         <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
           <Group gap="sm">
-            <ActionIcon variant="subtle" onClick={onBack}>
+            <ActionIcon variant="subtle" onClick={onBack} aria-label={t('common.back')}>
               <IconArrowLeft size={24} />
             </ActionIcon>
 
@@ -113,6 +114,11 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
               <Text fw={500} truncate>
                 {displayName}
               </Text>
+              {contact?.verifiedAt && (
+                <Badge size="xs" variant="light" color="teal">
+                  {t('verification.verified')}
+                </Badge>
+              )}
               {contact?.nip05 && (
                 <Text size="xs" c="dimmed" truncate>
                   {contact.nip05}

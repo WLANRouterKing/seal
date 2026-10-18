@@ -38,6 +38,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // Register custom plugins before super.onCreate
         registerPlugin(UnifiedPushPlugin.class);
+        registerPlugin(SecureUnlockPlugin.class);
 
         super.onCreate(savedInstanceState);
 

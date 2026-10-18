@@ -81,7 +81,6 @@ export function SyncModal({ onBack }: SyncModalProps) {
   // Sender: entered confirmation code
   const handleCodeSubmit = async (code: string) => {
     try {
-      console.log('[Sync] Completing connection with code:', code)
       console.log('[Sync] Answer data length:', answerData.length)
       const connected = await webrtc.completeConnection(answerData, code)
       console.log('[Sync] Connection result:', connected)

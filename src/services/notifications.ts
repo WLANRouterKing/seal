@@ -7,6 +7,13 @@ import { LocalNotifications } from '@capacitor/local-notifications'
 declare global {
   interface Window {
     electronAPI?: {
+      secureUnlock?: {
+        availability: () => Promise<{ available: boolean; kind: string }>
+        enroll: () => Promise<{ id: string; secret: string }>
+        unlock: (id: string) => Promise<{ id: string; secret: string }>
+        remove: (id: string) => Promise<void>
+      }
+
       showNotification: (title: string, body: string) => Promise<void>
       isElectron: boolean
     }

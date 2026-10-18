@@ -186,6 +186,15 @@ export async function loadKeys(): Promise<NostrKeys | EncryptedKeys | undefined>
   return keys
 }
 
+// Decide from persisted protection settings, not merely key availability.
+// In particular, a locked encrypted database must never fall back to plaintext.
+async function shouldEncryptWrite(): Promise<boolean> {
+  const keys = await loadKeys()
+  if (isEncryptionUnlocked()) return true
+  if (keys && isEncryptedKeys(keys)) throw new Error('Database is locked')
+  return false
+}
+
 // =============================================================================
 // MESSAGES
 // =============================================================================
@@ -204,7 +213,7 @@ export async function saveMessage(message: Message): Promise<void> {
     expiration: message.expiration,
   }
 
-  if (isEncryptionUnlocked()) {
+  if (await shouldEncryptWrite()) {
     const envelope = await encryptForStorage(storedMessage)
     await db.put(STORES.MESSAGES, { ...envelope, id: message.id } as unknown as StoredMessage)
   } else {
@@ -286,7 +295,7 @@ export async function cleanupExpiredMessages(): Promise<string[]> {
 export async function saveContact(contact: Contact): Promise<void> {
   const db = await getDB()
 
-  if (isEncryptionUnlocked()) {
+  if (await shouldEncryptWrite()) {
     const envelope = await encryptForStorage(contact)
     await db.put(STORES.CONTACTS, { ...envelope, pubkey: contact.pubkey } as unknown as Contact)
   } else {
@@ -329,7 +338,7 @@ export async function deleteContact(pubkey: string): Promise<void> {
 export async function saveBlockedContact(contact: Contact): Promise<void> {
   const db = await getDB()
 
-  if (isEncryptionUnlocked()) {
+  if (await shouldEncryptWrite()) {
     const envelope = await encryptForStorage(contact)
     await db.put(STORES.BLOCKED_CONTACTS, { ...envelope, pubkey: contact.pubkey } as unknown as Contact)
   } else {
@@ -372,11 +381,13 @@ export async function deleteBlockedContact(pubkey: string): Promise<void> {
 export async function saveSettings(settings: Partial<AppSettings>): Promise<void> {
   const db = await getDB()
 
+  await shouldEncryptWrite()
+
   // Load and merge with existing settings
   const existing = await loadSettings()
   const merged = { ...existing, ...settings }
 
-  if (isEncryptionUnlocked()) {
+  if (await shouldEncryptWrite()) {
     const envelope = await encryptForStorage(merged)
     await db.put(STORES.SETTINGS, envelope as unknown as AppSettings, 'app')
   } else {
@@ -415,7 +426,7 @@ async function hashUrl(url: string): Promise<string> {
 export async function saveRelay(relay: RelayData): Promise<void> {
   const db = await getDB()
 
-  if (isEncryptionUnlocked()) {
+  if (await shouldEncryptWrite()) {
     const urlHash = await hashUrl(relay.url)
     const envelope = await encryptForStorage(relay)
     // Use hash as key, store original url field for keyPath compatibility
@@ -526,6 +537,13 @@ export async function migrateToEncrypted(): Promise<void> {
     }
   }
 
+  for (const contact of await db.getAll(STORES.BLOCKED_CONTACTS)) {
+    if (!isEncryptedContact(contact)) {
+      const envelope = await encryptForStorage(contact)
+      await db.put(STORES.BLOCKED_CONTACTS, { ...envelope, pubkey: contact.pubkey })
+    }
+  }
+
   // Migrate settings
   const settings = await db.get(STORES.SETTINGS, 'app')
   if (settings && !isEncryptedEnvelope(settings)) {
@@ -568,6 +586,14 @@ export async function migrateToDecrypted(): Promise<void> {
       if (decrypted) {
         await db.put(STORES.CONTACTS, decrypted)
       }
+    }
+  }
+
+  for (const contact of await db.getAll(STORES.BLOCKED_CONTACTS)) {
+    if (isEncryptedContact(contact)) {
+      const decrypted = await decryptFromStorage<Contact>(contact)
+      if (!decrypted) throw new Error('Failed to decrypt blocked contact')
+      await db.put(STORES.BLOCKED_CONTACTS, decrypted)
     }
   }
 

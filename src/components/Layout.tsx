@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { useMediaQuery } from '@mantine/hooks'
 import { useTranslation } from 'react-i18next'
 import { AppShell, Group, Text, Indicator, UnstyledButton, Stack, ActionIcon, Tooltip } from '@mantine/core'
 import { IconMessageCircle, IconUsers, IconSettings, IconLock } from '@tabler/icons-react'
@@ -12,6 +13,8 @@ export default function Layout() {
   const { hasPassword, lock } = useAuthStore()
   const { activeChat } = useMessageStore()
   const location = useLocation()
+  const desktop = useMediaQuery('(min-width: 62em)')
+  const hideNavigation = Boolean(activeChat && location.pathname === '/' && !desktop)
 
   const connectedCount = relays.filter((r) => r.status === 'connected').length
 
@@ -21,7 +24,7 @@ export default function Layout() {
   }
 
   return (
-    <AppShell header={{ height: 56 }} footer={activeChat ? undefined : { height: 64 }} padding={0}>
+    <AppShell header={{ height: 56 }} footer={hideNavigation ? undefined : { height: 64 }} padding={0}>
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Text fw={600} size="lg">
@@ -47,14 +50,14 @@ export default function Layout() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Main
-        style={{ height: activeChat ? 'calc(100vh - 56px)' : 'calc(100vh - 56px - 64px)', overflow: 'hidden' }}
-      >
-        <Outlet />
+      <AppShell.Main style={{ height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <Outlet />
+        </div>
       </AppShell.Main>
 
-      {!activeChat && (
-        <AppShell.Footer style={{ paddingBottom: '70px' }}>
+      {!hideNavigation && (
+        <AppShell.Footer>
           <Group h="100%" grow>
             <NavButton to="/" icon={<IconMessageCircle size={24} />} label={t('nav.chats')} />
             <NavButton to="/contacts" icon={<IconUsers size={24} />} label={t('nav.contacts')} />

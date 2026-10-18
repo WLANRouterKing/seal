@@ -19,7 +19,6 @@ import {
 import {
   IconArrowLeft,
   IconLock,
-  IconLockOpen,
   IconShield,
   IconAlertTriangle,
   IconInfoCircle,
@@ -48,7 +47,6 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
     disableBiometrics,
   } = useAuthStore()
   const [showSetPassword, setShowSetPassword] = useState(false)
-  const [showRemovePassword, setShowRemovePassword] = useState(false)
   const [showHideIdentityModal, setShowHideIdentityModal] = useState(false)
   const [pendingHideIdentity, setPendingHideIdentity] = useState(false)
   const [hideIdentityPassword, setHideIdentityPassword] = useState('')
@@ -135,27 +133,6 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
     )
   }
 
-  if (showRemovePassword) {
-    return (
-      <Stack h="100%" gap={0}>
-        <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
-          <Group gap="sm">
-            <ActionIcon variant="subtle" onClick={() => setShowRemovePassword(false)}>
-              <IconArrowLeft size={24} />
-            </ActionIcon>
-            <Text fw={500} size="lg">
-              {t('securitySettings.title')}
-            </Text>
-          </Group>
-        </Paper>
-        <RemovePasswordForm
-          onSuccess={() => setShowRemovePassword(false)}
-          onCancel={() => setShowRemovePassword(false)}
-        />
-      </Stack>
-    )
-  }
-
   return (
     <Stack h="100%" gap={0}>
       {/* Header */}
@@ -217,22 +194,6 @@ export default function SecuritySettings({ onBack }: SecuritySettingsProps) {
                     <Text fw={500}>{t('securitySettings.lockNow')}</Text>
                     <Text size="xs" c="dimmed">
                       {t('securitySettings.lockNowHint')}
-                    </Text>
-                  </Box>
-                </Group>
-              </UnstyledButton>
-
-              <UnstyledButton w="100%" onClick={() => setShowRemovePassword(true)} py="sm" px="md">
-                <Group gap="sm">
-                  <ThemeIcon variant="light" color="red" size={40} radius="md">
-                    <IconLockOpen size={20} />
-                  </ThemeIcon>
-                  <Box>
-                    <Text fw={500} c="red">
-                      {t('securitySettings.removePassword')}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {t('securitySettings.removePasswordHint')}
                     </Text>
                   </Box>
                 </Group>
@@ -394,7 +355,7 @@ function SetPasswordForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
     e.preventDefault()
     setError('')
 
-    if (password.length < 6) {
+    if (password.length < 12) {
       setError(t('securitySettings.errors.tooShort'))
       return
     }
@@ -459,65 +420,6 @@ function SetPasswordForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
             style={{ flex: 1 }}
           >
             {t('securitySettings.setPasswordButton')}
-          </Button>
-        </Group>
-      </Stack>
-    </Box>
-  )
-}
-
-function RemovePasswordForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
-  const { t } = useTranslation()
-  const [password, setPasswordValue] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const { removePassword } = useAuthStore()
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    setIsLoading(true)
-    const success = await removePassword(password)
-    setIsLoading(false)
-
-    if (success) {
-      onSuccess()
-    } else {
-      setError(t('securitySettings.errors.incorrect'))
-    }
-  }
-
-  return (
-    <Box component="form" onSubmit={handleSubmit} p="md" style={{ flex: 1 }}>
-      <Text size="xl" fw={600} mb="xs">
-        {t('securitySettings.removePasswordTitle')}
-      </Text>
-      <Text size="sm" c="dimmed" mb="lg">
-        {t('securitySettings.removePasswordHint2')}
-      </Text>
-
-      <Stack gap="md">
-        <PasswordInput
-          label={t('securitySettings.currentPasswordLabel')}
-          placeholder={t('securitySettings.currentPasswordPlaceholder')}
-          value={password}
-          onChange={(e) => setPasswordValue(e.target.value)}
-          autoComplete="current-password"
-        />
-
-        {error && (
-          <Alert color="red" icon={<IconAlertTriangle size={16} />}>
-            {error}
-          </Alert>
-        )}
-
-        <Group mt="md">
-          <Button variant="default" onClick={onCancel} style={{ flex: 1 }}>
-            {t('common.cancel')}
-          </Button>
-          <Button type="submit" color="red" loading={isLoading} disabled={!password} style={{ flex: 1 }}>
-            {t('securitySettings.removePasswordButton')}
           </Button>
         </Group>
       </Stack>

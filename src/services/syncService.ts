@@ -137,7 +137,10 @@ export async function importSyncData(data: SyncData): Promise<SyncStats> {
   // Import contacts
   for (const contact of data.contacts) {
     try {
-      await saveContact(contact)
+      // Verification is a local trust decision; never import it from another device.
+      const { verifiedAt: _verifiedAt, ...unverifiedContact } = contact
+      void _verifiedAt
+      await saveContact(unverifiedContact)
       stats.contacts++
     } catch (error) {
       console.error('Failed to import contact:', error)

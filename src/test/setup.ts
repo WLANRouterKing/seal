@@ -18,10 +18,12 @@ const indexedDB = {
   }),
 }
 
-Object.defineProperty(window, 'indexedDB', {
-  value: indexedDB,
-  writable: true,
-})
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'indexedDB', {
+    value: indexedDB,
+    writable: true,
+  })
+}
 
 // Extend File prototype with arrayBuffer if not present
 if (!File.prototype.arrayBuffer) {

@@ -211,7 +211,6 @@ export class WebRTCSync {
     }
 
     console.log('[WebRTC] Original SDP size:', this.offer.length, 'bytes')
-    console.log('[WebRTC] Filtered SDP:', this.filterSDP(this.offer))
     console.log('[WebRTC] Compressed offer size:', compressedOffer.length, 'bytes')
     console.log('[WebRTC] Total payload size:', JSON.stringify(payload).length, 'bytes')
     return JSON.stringify(payload)
@@ -250,7 +249,6 @@ export class WebRTCSync {
 
     // Decompress and restore offer SDP
     this.offer = this.decompressSDP(payload.o)
-    console.log('[WebRTC] Decompressed offer SDP:', this.offer)
 
     this.peerConnection = new RTCPeerConnection(this.rtcConfig)
     this.setupPeerConnectionHandlers()
@@ -295,14 +293,11 @@ export class WebRTCSync {
 
     // Decompress answer SDP
     this.answer = this.decompressSDP(answerData)
-    console.log('[WebRTC] Decompressed answer SDP:', this.answer)
     this.expectedCode = this.generateConfirmationCode()
 
     // Verify confirmation code
     const normalizedEntered = enteredCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
     const normalizedExpected = this.expectedCode.replace('-', '')
-
-    console.log('[WebRTC] Code verification:', normalizedEntered, 'vs', normalizedExpected)
 
     if (normalizedEntered !== normalizedExpected) {
       this.setState('error')

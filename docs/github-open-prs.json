@@ -1,0 +1,258 @@
+{
+  "checked_at": "2026-10-17",
+  "source": "https://api.github.com/repos/WLANRouterKing/seal/pulls?state=open&per_page=100",
+  "pull_requests": [
+    {
+      "number": 66,
+      "title": "build(deps-dev): bump @xmldom/xmldom from 0.8.11 to 0.8.13",
+      "url": "https://github.com/WLANRouterKing/seal/pull/66",
+      "author": "dependabot[bot]",
+      "head": "82c58143ac7ec3f1f328fe71cd7922551f0e7d8f",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": [
+        "GHSA-2v35-w6hq-6mfw",
+        "GHSA-f6ww-3ggp-fr8h",
+        "GHSA-j759-j44w-7fr8",
+        "GHSA-wh4c-j3r5-mjhp",
+        "GHSA-x6wf-f3px-wcqx"
+      ]
+    },
+    {
+      "number": 65,
+      "title": "build(deps-dev): bump the dev-dependencies group across 1 directory with 13 updates",
+      "url": "https://github.com/WLANRouterKing/seal/pull/65",
+      "author": "dependabot[bot]",
+      "head": "d1a2294c8823344ec99b72fad3814a9864ae3bf2",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 64,
+      "title": "build(deps-dev): bump follow-redirects from 1.15.11 to 1.16.0",
+      "url": "https://github.com/WLANRouterKing/seal/pull/64",
+      "author": "dependabot[bot]",
+      "head": "50c0bda8c52087f18fbaa06350ab13b4f2c11617",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 62,
+      "title": "build(deps-dev): bump axios from 1.13.3 to 1.15.0",
+      "url": "https://github.com/WLANRouterKing/seal/pull/62",
+      "author": "dependabot[bot]",
+      "head": "c4a06728bb6948237806a59b3319ccd07cd2c15c",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 61,
+      "title": "build(deps-dev): bump lodash from 4.17.23 to 4.18.1",
+      "url": "https://github.com/WLANRouterKing/seal/pull/61",
+      "author": "dependabot[bot]",
+      "head": "654a83b0e6ed7fac8ef6579078321aacbb29f4ce",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": [
+        "GHSA-f23m-r3pf-42rh",
+        "GHSA-r5fr-rjxr-66jc"
+      ]
+    },
+    {
+      "number": 60,
+      "title": "build(deps): bump the production-dependencies group across 1 directory with 7 updates",
+      "url": "https://github.com/WLANRouterKing/seal/pull/60",
+      "author": "dependabot[bot]",
+      "head": "64e1e6f89d852b9fa8bdc059d372b4ca11696c64",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 59,
+      "title": "build(deps-dev): bump vite from 7.3.1 to 7.3.2",
+      "url": "https://github.com/WLANRouterKing/seal/pull/59",
+      "author": "dependabot[bot]",
+      "head": "c558cf558842d925047e6ccad9f38300ced527d4",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 58,
+      "title": "build(deps-dev): bump electron from 40.0.0 to 40.8.5",
+      "url": "https://github.com/WLANRouterKing/seal/pull/58",
+      "author": "dependabot[bot]",
+      "head": "b040f1febc121352a41e415a82526fe809df4b74",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 54,
+      "title": "build(deps): bump codecov/codecov-action from 5 to 6",
+      "url": "https://github.com/WLANRouterKing/seal/pull/54",
+      "author": "dependabot[bot]",
+      "head": "e1f82215c2f4107c8f38fd0ca0efcd9092d43677",
+      "labels": [
+        "dependencies",
+        "github_actions"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 52,
+      "title": "build(deps): bump picomatch",
+      "url": "https://github.com/WLANRouterKing/seal/pull/52",
+      "author": "dependabot[bot]",
+      "head": "5240d876c0c36e5522e7552ce41acb99625e26e2",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": [
+        "GHSA-3v7f-55p6-f55p",
+        "GHSA-c2c7-rcm5-vvqj"
+      ]
+    },
+    {
+      "number": 50,
+      "title": "build(deps): bump gradle/actions from 4 to 6",
+      "url": "https://github.com/WLANRouterKing/seal/pull/50",
+      "author": "dependabot[bot]",
+      "head": "9250ea4aca3301b4893289c26e9d4e391a17bd49",
+      "labels": [
+        "dependencies",
+        "github_actions"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 49,
+      "title": "build(deps-dev): bump flatted from 3.3.3 to 3.4.2",
+      "url": "https://github.com/WLANRouterKing/seal/pull/49",
+      "author": "dependabot[bot]",
+      "head": "69ae94b3237ac890a1b2a1717cd931239e640d72",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 45,
+      "title": "build(deps): bump tar, @capacitor/cli and electron-builder",
+      "url": "https://github.com/WLANRouterKing/seal/pull/45",
+      "author": "dependabot[bot]",
+      "head": "38bfcbc6bb4d501c334e91e4ecc04e505e27ca2f",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 42,
+      "title": "build(deps): bump actions/upload-artifact from 4 to 7",
+      "url": "https://github.com/WLANRouterKing/seal/pull/42",
+      "author": "dependabot[bot]",
+      "head": "b13123c4f5f0a187f7b11196dd36cc648b7e9598",
+      "labels": [
+        "dependencies",
+        "github_actions"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 41,
+      "title": "build(deps): bump rollup",
+      "url": "https://github.com/WLANRouterKing/seal/pull/41",
+      "author": "dependabot[bot]",
+      "head": "d9b62d19fcbdcb4fb6f19e286c23aa5a7d854337",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 40,
+      "title": "build(deps-dev): bump minimatch from 3.1.2 to 3.1.5",
+      "url": "https://github.com/WLANRouterKing/seal/pull/40",
+      "author": "dependabot[bot]",
+      "head": "77fe3a51b2375703775f053ebde13400f582ac70",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 31,
+      "title": "build(deps): bump @nostrify/nostrify from 0.48.3 to 0.49.2",
+      "url": "https://github.com/WLANRouterKing/seal/pull/31",
+      "author": "dependabot[bot]",
+      "head": "9a4c66e73eb67d0e51a375d89e4941a605b553a9",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 28,
+      "title": "build(deps): bump actions/setup-python from 5 to 6",
+      "url": "https://github.com/WLANRouterKing/seal/pull/28",
+      "author": "dependabot[bot]",
+      "head": "6f8179bc29848746fb2800e9e221b116cb2c93b9",
+      "labels": [
+        "dependencies",
+        "github_actions"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 7,
+      "title": "build(deps): bump @noble/hashes from 1.8.0 to 2.0.1",
+      "url": "https://github.com/WLANRouterKing/seal/pull/7",
+      "author": "dependabot[bot]",
+      "head": "64abfe8f6eb50e825e4dd3804575060f35612283",
+      "labels": [
+        "dependencies",
+        "javascript"
+      ],
+      "advisories": []
+    },
+    {
+      "number": 4,
+      "title": "build(deps): bump actions/checkout from 4 to 6",
+      "url": "https://github.com/WLANRouterKing/seal/pull/4",
+      "author": "dependabot[bot]",
+      "head": "08fd6a7ab3df158c731680cfdd17640f68580aab",
+      "labels": [
+        "dependencies",
+        "github_actions"
+      ],
+      "advisories": []
+    }
+  ]
+}
