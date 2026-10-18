@@ -32,12 +32,13 @@ User verification may use biometrics OR a device PIN. WebAuthn does not promise
 biometrics-only or hardware-only storage: providers may sync passkeys. Browser
 and authenticator PRF support are both necessary; unsupported/cancelled requests
 fail closed and leave password access intact. A platform-authenticator probe is
-only a preliminary check; enrollment checks actual PRF output. Native Capacitor uses authenticated Android Keystore/iOS Keychain operations,
+only a preliminary check; enrollment checks actual PRF output. Native Capacitor
+uses authenticated Android Keystore/iOS Keychain operations,
 described in docs/NATIVE-UNLOCK.md. These new native paths still require native
 build and physical-device validation. No plaintext device-key fallback is provided.
 
-Legacy slots without PRF metadata are retired only when a password slot exists;
-new PRF slots survive restarts. Existing password access and ciphertext remain
+Legacy slots without PRF or native metadata are retired only when a password slot exists;
+new PRF/native slots survive restarts. Existing password access and ciphertext remain
 intact. Removing a slot does not rotate the master key, revoke copied keys or
 delete credentials from the user's passkey provider. Suspected exposure needs a
 separate recovery and key-rotation plan. Same-origin malicious scripts or a

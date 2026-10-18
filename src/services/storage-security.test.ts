@@ -265,6 +265,9 @@ describe('passkey vault integration', () => {
 })
 
 it('does not unlock from a native response that arrives after an explicit lock', async () => {
+  const compatible = vi
+    .spyOn(biometricsService, 'isCompatibleSlot')
+    .mockImplementation((slot) => slot.type === 'passkey')
   const { master } = await protectedAccount()
   const stored = await loadKeys()
   if (!stored || !isEncryptedKeys(stored)) throw new Error('Missing vault')
@@ -299,5 +302,6 @@ it('does not unlock from a native response that arrives after an explicit lock',
     expect(isEncryptionUnlocked()).toBe(false)
   } finally {
     unlock.mockRestore()
+    compatible.mockRestore()
   }
 })

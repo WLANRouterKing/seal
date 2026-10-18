@@ -55,7 +55,7 @@ Users with biometric unlock must know their existing password. Do not roll this
 out without communicating the change. Slot removal does not rotate the master
 key or revoke previously copied secrets. Previously exposed identities require
 an explicit recovery and rotation plan. The patch does not add forward secrecy,
-a memory-hard password KDF, hardware keystore support, guaranteed relay deletion,
+a memory-hard password KDF, guaranteed relay deletion,
 atomic migrations, or comprehensive lock-time memory cleanup.
 
 NIP-44/17's long-term-key limitations and metadata exposure remain. See
@@ -74,5 +74,6 @@ represented as implemented. Deployment remains a separate release step.
 ## PRF follow-up validation
 
 PRF authentication uses mocked WebAuthn responses with real WebCrypto in tests.
-Native keystore integration is included; native compilation and actual biometric device testing remain pending.
+Native keystore integration is included. CI has built Android debug, the iOS simulator target
+and desktop targets on Windows/Linux/macOS; physical biometric testing remains pending.
 Passwords remain required as a recovery path; user verification can use device PIN.

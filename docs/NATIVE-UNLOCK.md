@@ -37,7 +37,9 @@ mocked native bridge/WebAuthn tests with real AES-GCM/HKDF operations. No Androi
 iOS or desktop biometric hardware is attached to this environment. Android SDK,
 a functional Java runtime, Xcode, and the Electron executable are unavailable.
 PR workflow `native-security-checks.yml` adds unsigned Android/iOS compilation
-and desktop compilation on Windows/Linux/macOS. These do not replace device tests.
+and desktop compilation on Windows/Linux/macOS. Its first run successfully built
+the Android debug APK, iOS simulator target and all three desktop targets.
+These checks do not replace device tests.
 The TestFlight upload job is skipped for pull requests.
 
 On each supported device/provider, verify:

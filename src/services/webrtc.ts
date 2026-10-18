@@ -299,7 +299,6 @@ export class WebRTCSync {
     const normalizedEntered = enteredCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
     const normalizedExpected = this.expectedCode.replace('-', '')
 
-
     if (normalizedEntered !== normalizedExpected) {
       this.setState('error')
       return false

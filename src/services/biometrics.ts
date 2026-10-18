@@ -9,6 +9,14 @@ const urlEncode = (bytes: Uint8Array) => encode(bytes).replace(/\+/g, '-').repla
 
 /** PRF output is used only in memory; credential IDs and salts are public metadata. */
 class BiometricsService {
+  isCompatibleSlot(slot: KeySlot): boolean {
+    if (slot.type !== 'passkey') return false
+    const provider = nativeUnlockProvider()
+    return slot.native
+      ? slot.native.version === 1 && slot.native.provider === provider
+      : !provider && !Capacitor.isNativePlatform() && slot.prf?.version === 1
+  }
+
   async checkAvailability() {
     if (nativeUnlockProvider()) {
       try {

@@ -459,7 +459,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         availability.available &&
         !!stored &&
         isEncryptedKeys(stored) &&
-        stored.slots.some((slot) => slot.type === 'passkey' && (slot.prf?.version === 1 || slot.native?.version === 1)),
+        stored.slots.some((slot) => biometricsService.isCompatibleSlot(slot)),
     })
   },
 
@@ -525,7 +525,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const stored = await loadKeys()
       if (!stored || !isEncryptedKeys(stored)) throw new Error('No vault')
-      const slot = stored.slots.find((s) => s.type === 'passkey' && (s.prf?.version === 1 || s.native?.version === 1))
+      const slot = stored.slots.find((s) => biometricsService.isCompatibleSlot(s))
       if (!slot) throw new Error('No PRF slot')
       masterKey = await biometricsService.unlock(slot)
       if (!masterKey) throw new Error('Unlock failed')
