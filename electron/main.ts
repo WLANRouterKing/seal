@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell, ipcMain, Notification } from 'electron'
 import electronUpdater from 'electron-updater'
+import { desktopSecureUnlock } from './secure-unlock.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -155,6 +156,29 @@ function setupAutoUpdater(): void {
 
 // IPC handlers
 function setupIPC(): void {
+  const assertTrusted = (event: Electron.IpcMainInvokeEvent) => {
+    const expected = isDev ? 'http://localhost:5173/' : new URL('../dist/index.html', import.meta.url).href
+    if (
+      !mainWindow ||
+      event.sender !== mainWindow.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame ||
+      event.senderFrame.url.split('#')[0].split('?')[0] !== expected
+    ) {
+      throw new Error('Untrusted unlock request')
+    }
+    return mainWindow
+  }
+  ipcMain.handle('secure-unlock-availability', (event) => {
+    assertTrusted(event)
+    return { available: true, kind: 'passkey' }
+  })
+  ipcMain.handle('secure-unlock-enroll', (event) => desktopSecureUnlock(assertTrusted(event), 'enroll'))
+  ipcMain.handle('secure-unlock-unlock', (event, id: unknown) => {
+    const parent = assertTrusted(event)
+    if (typeof id !== 'string') throw new Error('Invalid credential')
+    return desktopSecureUnlock(parent, 'unlock', id)
+  })
+
   // Check for updates manually
   ipcMain.handle('check-for-updates', async () => {
     if (isDev) return { updateAvailable: false }

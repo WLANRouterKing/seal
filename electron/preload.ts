@@ -2,6 +2,12 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 // Expose protected methods to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
+  secureUnlock: {
+    availability: () => ipcRenderer.invoke('secure-unlock-availability'),
+    enroll: () => ipcRenderer.invoke('secure-unlock-enroll'),
+    unlock: (id: string) => ipcRenderer.invoke('secure-unlock-unlock', id),
+    remove: async () => {}, // Credential management remains with the passkey provider.
+  },
   // Auto-updater
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
@@ -30,6 +36,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 declare global {
   interface Window {
     electronAPI?: {
+      secureUnlock: {
+        availability: () => Promise<{ available: boolean; kind: string }>
+        enroll: () => Promise<{ id: string; secret: string }>
+        unlock: (id: string) => Promise<{ id: string; secret: string }>
+        remove: (id: string) => Promise<void>
+      }
       checkForUpdates: () => Promise<{ updateAvailable: boolean }>
       installUpdate: () => Promise<void>
       onUpdateAvailable: (callback: (info: unknown) => void) => void

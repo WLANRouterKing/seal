@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { biometricsService } from './biometrics'
 import { generateMasterKey } from './masterKey'
 
-vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false } }))
+vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false }, registerPlugin: () => ({}) }))
 const credentialId = new Uint8Array([1, 2, 3])
 let secret: Uint8Array
 let failure: string

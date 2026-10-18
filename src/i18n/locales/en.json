@@ -77,7 +77,7 @@
     }
   },
   "lockScreen": {
-    "passwordOnlyNotice": "Unlock with your password or an enrolled secure passkey.",
+    "passwordOnlyNotice": "Unlock with your password or your configured device authentication.",
     "title": "Unlock Seal",
     "placeholder": "Enter your password",
     "unlocking": "Unlocking...",
@@ -202,12 +202,13 @@
       "noMatch": "Passwords do not match",
       "setFailed": "Failed to set password",
       "incorrect": "Incorrect password",
-      "biometricsFailed": "Enrollment failed: check your password and PRF support, then try again."
+      "biometricsFailed": "Setup failed or was cancelled. Check your password and device support."
     },
-    "biometricsHint": "Secure passkey (PRF): device biometrics or PIN. Requires browser and authenticator support.",
+    "biometricsHint": "Device-protected unlock. Desktop requires a PRF-capable passkey or security key; unsupported devices use your password.",
     "passkey": "Secure passkey",
-    "enableBiometricsTitle": "Secure passkey",
-    "enableBiometricsHint": "Enter your password, then create and verify a passkey. Keep your password as recovery. The passkey provider may sync your credential."
+    "enableBiometricsTitle": "Set up device unlock",
+    "enableBiometricsHint": "Confirm your password, then authenticate on your device. Keep your password for recovery. Desktop passkeys may be synced by their provider.",
+    "fingerprint": "Device biometrics"
   },
   "keyExport": {
     "title": "Export Keys",

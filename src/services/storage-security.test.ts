@@ -223,19 +223,20 @@ describe('mandatory password protection', () => {
   })
 })
 
-
 describe('passkey vault integration', () => {
   it('enrolls without replacing the password slot and unlocks the encrypted database', async () => {
     await useAuthStore.getState().createKeys('correct test password')
     const stored = await loadKeys()
     if (!stored || !isEncryptedKeys(stored)) throw new Error('Missing vault')
     const secret = new Uint8Array(32).fill(9)
-    const enroll = vi.spyOn(biometricsService, 'enroll').mockImplementation(async master => ({
-      ...await createPasskeySlot(master, secret),
+    const enroll = vi.spyOn(biometricsService, 'enroll').mockImplementation(async (master) => ({
+      ...(await createPasskeySlot(master, secret)),
       prf: { version: 1, credentialId: 'test', input: 'test' },
     }))
     const { unlockWithPasskeySlot } = await import('./masterKey')
-    const unlock = vi.spyOn(biometricsService, 'unlock').mockImplementation(slot => unlockWithPasskeySlot(slot, secret))
+    const unlock = vi
+      .spyOn(biometricsService, 'unlock')
+      .mockImplementation((slot) => unlockWithPasskeySlot(slot, secret))
     try {
       expect(await useAuthStore.getState().enableBiometrics('correct test password')).toBe(true)
       const after = await loadKeys()
@@ -245,7 +246,10 @@ describe('passkey vault integration', () => {
       expect(isEncryptionUnlocked()).toBe(true)
       useAuthStore.getState().lock()
       expect(await useAuthStore.getState().unlock('correct test password')).toBe(true)
-    } finally { enroll.mockRestore(); unlock.mockRestore() }
+    } finally {
+      enroll.mockRestore()
+      unlock.mockRestore()
+    }
   })
   it('leaves the vault unchanged when enrollment is cancelled', async () => {
     await useAuthStore.getState().createKeys('correct test password')
@@ -254,6 +258,46 @@ describe('passkey vault integration', () => {
     try {
       expect(await useAuthStore.getState().enableBiometrics('correct test password')).toBe(false)
       expect(await loadKeys()).toEqual(before)
-    } finally { enroll.mockRestore() }
+    } finally {
+      enroll.mockRestore()
+    }
   })
+})
+
+it('does not unlock from a native response that arrives after an explicit lock', async () => {
+  const { master } = await protectedAccount()
+  const stored = await loadKeys()
+  if (!stored || !isEncryptedKeys(stored)) throw new Error('Missing vault')
+  await saveKeys({
+    ...stored,
+    slots: [
+      ...stored.slots,
+      {
+        type: 'passkey',
+        salt: '',
+        wrappedKey: '',
+        native: { version: 1, provider: 'android', id: 'test' },
+      },
+    ],
+  })
+  await useAuthStore.getState().initialize()
+  let finish!: (value: Uint8Array) => void
+  const unlock = vi.spyOn(biometricsService, 'unlock').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      })
+  )
+  try {
+    const pending = useAuthStore.getState().unlockWithBiometrics()
+    await vi.waitFor(() => expect(unlock).toHaveBeenCalled())
+    useAuthStore.getState().lock()
+    finish(master)
+    expect(await pending).toBe(false)
+    expect(useAuthStore.getState().keys).toBeNull()
+    expect(useAuthStore.getState().isLocked).toBe(true)
+    expect(isEncryptionUnlocked()).toBe(false)
+  } finally {
+    unlock.mockRestore()
+  }
 })

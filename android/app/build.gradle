@@ -64,6 +64,8 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
 
+    implementation 'androidx.biometric:biometric:1.1.0'
+
     // UnifiedPush for Google-free push notifications
     implementation 'org.unifiedpush.android:connector:3.1.2'
 }

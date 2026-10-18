@@ -9,6 +9,7 @@ on:
 
 jobs:
   build-and-deploy:
+    if: github.event_name != 'pull_request'
     name: Build and Deploy to TestFlight
     runs-on: macos-14
 

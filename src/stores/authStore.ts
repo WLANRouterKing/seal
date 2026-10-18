@@ -74,6 +74,8 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes
 }
 
+let unlockGeneration = 0
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   keys: null,
   isLocked: false,
@@ -107,13 +109,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (isEncryptedKeys(storedKeys)) {
         // Retire insecure legacy biometric slots without changing the password slot.
         // Removing a slot cannot revoke copies of previously exposed key material.
-        if (storedKeys.slots?.some((slot) => slot.type === 'passkey' && !slot.prf)) {
+        if (storedKeys.slots?.some((slot) => slot.type === 'passkey' && !slot.prf && !slot.native)) {
           if (!storedKeys.slots.some((slot) => slot.type === 'password')) {
             throw new Error('Password recovery required before retiring biometric slots')
           }
           await saveKeys({
             ...storedKeys,
-            slots: storedKeys.slots.filter((slot) => slot.type === 'password' || slot.prf?.version === 1),
+            slots: storedKeys.slots.filter(
+              (slot) => slot.type === 'password' || slot.prf?.version === 1 || slot.native?.version === 1
+            ),
           })
           biometricsService.clearBiometricData()
         }
@@ -234,6 +238,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   unlock: async (password: string) => {
+    const generation = ++unlockGeneration
     set({ isLoading: true, error: null })
 
     try {
@@ -292,10 +297,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Derive DB key from master key
       const dbKey = await deriveDatabaseKey(masterKey!, dbSalt!)
+      if (generation !== unlockGeneration) return false
       setEncryptionKey(dbKey, dbSalt!)
 
       await migrateToEncrypted()
 
+      if (generation !== unlockGeneration) return false
       set({ keys, isLocked: false, isLoading: false, error: null, lockoutUntil: null, failedAttempts: 0 })
       return true
     } catch (error) {
@@ -306,20 +313,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   lock: () => {
+    unlockGeneration++
     const { hasPassword, keys, hideIdentity } = get()
-    if (hasPassword && keys) {
+    if (hasPassword) {
       clearEncryptionKey()
       set({
         keys: null,
         isLocked: true,
-        publicInfo: hideIdentity ? null : { npub: keys.npub },
+        publicInfo: hideIdentity ? null : keys ? { npub: keys.npub } : get().publicInfo,
+        isLoading: false,
       })
     }
   },
 
   logout: async () => {
+    unlockGeneration++
     set({ isLoading: true })
     try {
+      const stored = await loadKeys()
+      if (stored && isEncryptedKeys(stored)) {
+        for (const slot of stored.slots.filter((s) => s.type === 'passkey')) {
+          await biometricsService.removeSlot(slot).catch(() => {})
+        }
+      }
       clearEncryptionKey()
       biometricsService.clearBiometricData()
       await clearAllData()
@@ -443,7 +459,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         availability.available &&
         !!stored &&
         isEncryptedKeys(stored) &&
-        stored.slots.some((slot) => slot.type === 'passkey' && slot.prf?.version === 1),
+        stored.slots.some((slot) => slot.type === 'passkey' && (slot.prf?.version === 1 || slot.native?.version === 1)),
     })
   },
 
@@ -462,8 +478,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return false
       }
       const passkey = await biometricsService.enroll(masterKey)
-      if (get().keys !== identity || get().isLocked) return false
-      await saveKeys({ ...stored, slots: [...stored.slots.filter((s) => s.type === 'password'), passkey] })
+      if (get().keys !== identity || get().isLocked) {
+        await biometricsService.removeSlot(passkey).catch(() => {})
+        return false
+      }
+      try {
+        await saveKeys({ ...stored, slots: [...stored.slots.filter((s) => s.type === 'password'), passkey] })
+      } catch (error) {
+        await biometricsService.removeSlot(passkey).catch(() => {})
+        throw error
+      }
+      for (const old of stored.slots.filter((s) => s.type === 'passkey')) {
+        await biometricsService.removeSlot(old).catch(() => {})
+      }
       await resetRateLimit()
       set({ biometricsEnabled: true, error: null })
       return true
@@ -482,19 +509,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error('Cannot remove the only unlock method')
       }
       await saveKeys({ ...storedKeys, slots: storedKeys.slots.filter((slot) => slot.type === 'password') })
+      for (const slot of storedKeys.slots.filter((s) => s.type === 'passkey')) {
+        await biometricsService.removeSlot(slot).catch(() => {})
+      }
     }
     biometricsService.clearBiometricData()
     set({ biometricsEnabled: false })
   },
 
   unlockWithBiometrics: async () => {
+    const generation = ++unlockGeneration
     if (!get().isLocked) return false
     set({ isLoading: true, error: null })
     let masterKey: Uint8Array | null = null
     try {
       const stored = await loadKeys()
       if (!stored || !isEncryptedKeys(stored)) throw new Error('No vault')
-      const slot = stored.slots.find((s) => s.type === 'passkey' && s.prf?.version === 1)
+      const slot = stored.slots.find((s) => s.type === 'passkey' && (s.prf?.version === 1 || s.native?.version === 1))
       if (!slot) throw new Error('No PRF slot')
       masterKey = await biometricsService.unlock(slot)
       if (!masterKey) throw new Error('Unlock failed')
@@ -502,11 +533,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const keys = nsec ? keysFromNsec(nsec) : null
       if (!keys) throw new Error('Invalid identity')
       const salt = base64ToUint8Array(stored.dbSalt)
-      setEncryptionKey(await deriveDatabaseKey(masterKey, salt), salt)
+      const databaseKey = await deriveDatabaseKey(masterKey, salt)
+      if (generation !== unlockGeneration) return false
+      setEncryptionKey(databaseKey, salt)
       await migrateToEncrypted()
+      if (generation !== unlockGeneration) return false
       set({ keys, isLocked: false, isLoading: false, error: null })
       return true
     } catch {
+      if (generation !== unlockGeneration) return false
       clearEncryptionKey()
       set({ isLoading: false, error: 'Passkey unlock failed or cancelled. Use your password.' })
       return false

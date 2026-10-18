@@ -77,7 +77,7 @@
     }
   },
   "lockScreen": {
-    "passwordOnlyNotice": "Entsperre mit deinem Passwort oder einem eingerichteten sicheren Passkey.",
+    "passwordOnlyNotice": "Entsperre mit deinem Passwort oder der eingerichteten Geräteauthentifizierung.",
     "title": "Seal entsperren",
     "placeholder": "Passwort eingeben",
     "unlocking": "Wird entsperrt...",
@@ -202,12 +202,13 @@
       "noMatch": "Passwörter stimmen nicht überein",
       "setFailed": "Fehler beim Setzen des Passworts",
       "incorrect": "Falsches Passwort",
-      "biometricsFailed": "Einrichtung fehlgeschlagen: Passwort und PRF-Unterstützung prüfen und erneut versuchen."
+      "biometricsFailed": "Einrichtung fehlgeschlagen oder abgebrochen. Prüfe Passwort und Geräteunterstützung."
     },
-    "biometricsHint": "Sicherer Passkey (PRF): Gerätebiometrie oder PIN. Browser und Authenticator müssen PRF unterstützen.",
+    "biometricsHint": "Gerätegeschütztes Entsperren. Desktop benötigt einen PRF-fähigen Passkey oder Sicherheitsschlüssel; sonst nutzt du dein Passwort.",
     "passkey": "Sicherer Passkey",
-    "enableBiometricsTitle": "Sicherer Passkey",
-    "enableBiometricsHint": "Gib dein Passwort ein und erstelle und bestätige einen Passkey. Behalte dein Passwort als Rückfalloption. Dein Passkey-Anbieter kann den Passkey synchronisieren."
+    "enableBiometricsTitle": "Geräteentsperrung einrichten",
+    "enableBiometricsHint": "Bestätige dein Passwort und authentifiziere dich am Gerät. Behalte dein Passwort zur Wiederherstellung. Desktop-Passkeys können vom Anbieter synchronisiert werden.",
+    "fingerprint": "Gerätebiometrie"
   },
   "keyExport": {
     "title": "Keys exportieren",

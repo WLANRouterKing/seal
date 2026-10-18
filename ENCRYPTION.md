@@ -32,9 +32,9 @@ User verification may use biometrics OR a device PIN. WebAuthn does not promise
 biometrics-only or hardware-only storage: providers may sync passkeys. Browser
 and authenticator PRF support are both necessary; unsupported/cancelled requests
 fail closed and leave password access intact. A platform-authenticator probe is
-only a preliminary check; enrollment checks actual PRF output. Native Capacitor
-biometrics remain disabled until authenticated Keychain/Keystore operations are
-implemented and tested. No plaintext device-key fallback is provided.
+only a preliminary check; enrollment checks actual PRF output. Native Capacitor uses authenticated Android Keystore/iOS Keychain operations,
+described in docs/NATIVE-UNLOCK.md. These new native paths still require native
+build and physical-device validation. No plaintext device-key fallback is provided.
 
 Legacy slots without PRF metadata are retired only when a password slot exists;
 new PRF slots survive restarts. Existing password access and ciphertext remain
@@ -66,7 +66,8 @@ expiry; relay-enforced expiry is not guaranteed.
 ## Remaining work before a security-focused release
 
 - Independent audit and real Android/iOS/Desktop testing.
-- Authenticated hardware-backed key storage and reviewed WebAuthn PRF support.
+- Native build/device validation and independent review of the new authenticated
+  Keystore/Keychain and desktop/WebAuthn PRF implementations.
 - Atomic, resumable migrations and account/master-key recovery and rotation.
 - Robust memory/cache cleanup on lock, metadata minimization and network privacy.
 - Forward-secret messaging architecture, with interoperability evaluated.

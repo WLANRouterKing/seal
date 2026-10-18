@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core'
+import { nativeUnlockProvider, nativeUnlockBridge } from './nativeSecureUnlock'
 import { createPasskeySlot, unlockWithPasskeySlot, type KeySlot } from './masterKey'
 
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
@@ -9,6 +10,24 @@ const urlEncode = (bytes: Uint8Array) => encode(bytes).replace(/\+/g, '-').repla
 /** PRF output is used only in memory; credential IDs and salts are public metadata. */
 class BiometricsService {
   async checkAvailability() {
+    if (nativeUnlockProvider()) {
+      try {
+        const result = await nativeUnlockBridge().availability()
+        return {
+          available: result.available,
+          type:
+            result.kind === 'passkey'
+              ? ('webauthn' as const)
+              : result.kind === 'face'
+                ? ('face' as const)
+                : ('fingerprint' as const),
+          strongAuth: result.available,
+        }
+      } catch {
+        return { available: false, type: 'none' as const, strongAuth: false }
+      }
+    }
+
     const available =
       !Capacitor.isNativePlatform() &&
       globalThis.isSecureContext === true &&
@@ -56,6 +75,24 @@ class BiometricsService {
   }
 
   async enroll(masterKey: Uint8Array): Promise<KeySlot> {
+    const provider = nativeUnlockProvider()
+    if (provider) {
+      const result = await nativeUnlockBridge().enroll()
+      let secret = new Uint8Array()
+      try {
+        secret = decode(result.secret)
+        if (secret.length !== 32 || !result.id || result.id.length > 8192) throw new Error('Invalid protected secret')
+        return { ...(await createPasskeySlot(masterKey, secret)), native: { version: 1, provider, id: result.id } }
+      } catch (error) {
+        await nativeUnlockBridge()
+          .remove({ id: result.id })
+          .catch(() => {})
+        throw error
+      } finally {
+        secret.fill(0)
+      }
+    }
+
     if (!(await this.checkAvailability()).available) throw new Error('Secure passkey unlock unavailable')
     const credential = (await navigator.credentials.create({
       publicKey: {
@@ -90,12 +127,30 @@ class BiometricsService {
   }
 
   async unlock(slot: KeySlot): Promise<Uint8Array | null> {
+    if (slot.native) {
+      if (slot.native.version !== 1 || slot.native.provider !== nativeUnlockProvider()) return null
+      const result = await nativeUnlockBridge().unlock({ id: slot.native.id })
+      const secret = decode(result.secret)
+      try {
+        if (result.id !== slot.native.id || secret.length !== 32) return null
+        return await unlockWithPasskeySlot(slot, secret)
+      } finally {
+        secret.fill(0)
+      }
+    }
+
     if (slot.prf?.version !== 1 || !(await this.checkAvailability()).available) return null
     const secret = await this.evaluate(slot.prf.credentialId, slot.prf.input)
     try {
       return await unlockWithPasskeySlot(slot, secret)
     } finally {
       secret.fill(0)
+    }
+  }
+
+  async removeSlot(slot: KeySlot): Promise<void> {
+    if (slot.native?.provider === nativeUnlockProvider()) {
+      await nativeUnlockBridge().remove({ id: slot.native!.id })
     }
   }
 
