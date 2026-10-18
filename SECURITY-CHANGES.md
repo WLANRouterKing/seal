@@ -20,9 +20,9 @@ These changes are intended for review in a pull request and have not been deploy
 
 ## Changes
 
-- Disable browser and native biometric unlock. Retire old passkey slots only
+- Replace insecure browser biometric unlock with WebAuthn PRF; keep native biometric unlock disabled. Retire old passkey slots only
   when a password slot exists; preserve password access and ciphertext.
-- Explain password-only unlock on the lock screen in German and English.
+- Explain password/passkey unlock in German and English. Require a password, remove skip/removal paths, and keep new unprotected identities in memory only.
 - Validate outer and inner signatures, message structure/kind and recipient.
 - Remove the public `self` tag from new sender archive copies.
 - Refuse plaintext fallback writes for locked password-protected accounts.
@@ -35,7 +35,7 @@ These changes are intended for review in a pull request and have not been deploy
 
 ## Validation
 
-- 47 tests passed, including security and invitation/onboarding regression tests using real crypto
+- 60 tests passed, including security and invitation/onboarding regression tests using real crypto
   and an in-memory IndexedDB implementation.
 - ESLint passed.
 - TypeScript and Vite production build passed; existing large-bundle warning remains.
@@ -70,3 +70,9 @@ parsing, explicit local contact verification, and a corrected backup-first
 onboarding. Apply to the original base; do not apply on top of the previous
 security patch without resolving overlapping changes. No paid features are
 represented as implemented. Deployment remains a separate release step.
+
+## PRF follow-up validation
+
+PRF authentication uses mocked WebAuthn responses with real WebCrypto in tests.
+Native keystore integration and actual biometric device testing remain pending.
+Passwords remain required as a recovery path; user verification can use device PIN.

@@ -7,7 +7,6 @@ import {
   saveSettings,
   isEncryptedKeys,
   migrateToEncrypted,
-  migrateToDecrypted,
   clearAllData,
   type EncryptedKeys,
 } from '../services/db'
@@ -53,7 +52,6 @@ interface AuthState {
   logout: () => Promise<void>
   clearError: () => void
   setPassword: (password: string) => Promise<boolean>
-  removePassword: (currentPassword: string) => Promise<boolean>
   completeSetup: () => Promise<void>
   setHideIdentity: (hide: boolean, password: string) => Promise<boolean>
   refreshLockoutStatus: () => Promise<void>
@@ -109,11 +107,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (isEncryptedKeys(storedKeys)) {
         // Retire insecure legacy biometric slots without changing the password slot.
         // Removing a slot cannot revoke copies of previously exposed key material.
-        if (storedKeys.slots?.some((slot) => slot.type === 'passkey')) {
+        if (storedKeys.slots?.some((slot) => slot.type === 'passkey' && !slot.prf)) {
           if (!storedKeys.slots.some((slot) => slot.type === 'password')) {
             throw new Error('Password recovery required before retiring biometric slots')
           }
-          await saveKeys({ ...storedKeys, slots: storedKeys.slots.filter((slot) => slot.type === 'password') })
+          await saveKeys({
+            ...storedKeys,
+            slots: storedKeys.slots.filter((slot) => slot.type === 'password' || slot.prf?.version === 1),
+          })
           biometricsService.clearBiometricData()
         }
         const identityHidden = storedKeys.identityHidden === true
@@ -133,7 +134,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           keys: storedKeys,
           hasPassword: false,
           hideIdentity: false,
-          setupComplete,
+          setupComplete: false,
           isLoading: false,
           isInitialized: true,
         })
@@ -147,6 +148,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   createKeys: async (password?: string) => {
     set({ isLoading: true, error: null })
     try {
+      if (password !== undefined && (password.length < 12 || !password.trim()))
+        throw new Error('Password must have at least 12 characters')
       const keys = generateKeyPair()
       await saveSettings({ setupComplete: false })
 
@@ -173,7 +176,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await migrateToEncrypted()
         set({ keys, hasPassword: true, hideIdentity: true, setupComplete: false, isLoading: false })
       } else {
-        await saveKeys(keys)
+        // Pending identity stays in memory until password protection is established.
         set({ keys, hasPassword: false, setupComplete: false, isLoading: false })
       }
 
@@ -188,6 +191,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   importKeys: async (nsec: string, password?: string) => {
     set({ isLoading: true, error: null })
     try {
+      if (password !== undefined && (password.length < 12 || !password.trim()))
+        throw new Error('Password must have at least 12 characters')
       const keys = keysFromNsec(nsec)
       if (!keys) {
         set({ isLoading: false, error: 'Invalid nsec format' })
@@ -216,7 +221,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await migrateToEncrypted()
         set({ keys, hasPassword: true, hideIdentity: true, setupComplete: true, isLoading: false })
       } else {
-        await saveKeys(keys)
+        // Pending identity stays in memory until password protection is established.
         set({ keys, hasPassword: false, setupComplete: false, isLoading: false })
       }
 
@@ -327,6 +332,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setPassword: async (password: string) => {
     const { keys, hideIdentity, hasPassword } = get()
+    if (password.length < 12 || !password.trim()) return false
     if (hasPassword) return false // Replacing a live master key would orphan existing ciphertext.
     if (!keys) {
       console.error('setPassword: No keys available')
@@ -373,40 +379,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  removePassword: async (currentPassword: string) => {
-    const { keys, hasPassword } = get()
-    if (!keys || !hasPassword) return false
-
-    try {
-      const storedKeys = await loadKeys()
-      if (!storedKeys || !isEncryptedKeys(storedKeys)) return false
-
-      // Verify password by attempting unlock
-      let masterKey: Uint8Array | null = null
-
-      const passwordSlot = storedKeys.slots.find((s) => s.type === 'password')
-      if (passwordSlot) {
-        masterKey = await unlockWithPasswordSlot(passwordSlot, currentPassword)
-      }
-
-      if (!masterKey) return false
-
-      await migrateToDecrypted()
-      clearEncryptionKey()
-      biometricsService.clearBiometricData()
-
-      await saveKeys(keys)
-      set({ hasPassword: false, biometricsEnabled: false })
-      return true
-    } catch (error) {
-      console.error('Failed to remove password:', error)
-      return false
-    }
-  },
-
   clearError: () => set({ error: null }),
 
   completeSetup: async () => {
+    if (!get().hasPassword) throw new Error('Password protection is required')
     await saveSettings({ setupComplete: true })
     set({ setupComplete: true })
   },
@@ -457,14 +433,46 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  // Legacy biometric key material is deliberately no longer accepted.
   checkBiometrics: async () => {
-    set({ biometricsAvailable: false, biometricType: 'none', biometricsEnabled: false })
+    const availability = await biometricsService.checkAvailability()
+    const stored = await loadKeys()
+    set({
+      biometricsAvailable: availability.available,
+      biometricType: availability.type,
+      biometricsEnabled:
+        availability.available &&
+        !!stored &&
+        isEncryptedKeys(stored) &&
+        stored.slots.some((slot) => slot.type === 'passkey' && slot.prf?.version === 1),
+    })
   },
 
-  enableBiometrics: async () => {
-    set({ error: 'Biometric unlock is temporarily unavailable. Use your password.' })
-    return false
+  enableBiometrics: async (password: string) => {
+    const identity = get().keys
+    if (!identity || !get().hasPassword) return false
+    let masterKey: Uint8Array | null = null
+    try {
+      const stored = await loadKeys()
+      if (!stored || !isEncryptedKeys(stored)) return false
+      const slot = stored.slots.find((s) => s.type === 'password')
+      if (!slot || !(await checkRateLimit()).allowed) return false
+      masterKey = await unlockWithPasswordSlot(slot, password)
+      if (!masterKey) {
+        await recordFailedAttempt()
+        return false
+      }
+      const passkey = await biometricsService.enroll(masterKey)
+      if (get().keys !== identity || get().isLocked) return false
+      await saveKeys({ ...stored, slots: [...stored.slots.filter((s) => s.type === 'password'), passkey] })
+      await resetRateLimit()
+      set({ biometricsEnabled: true, error: null })
+      return true
+    } catch {
+      set({ error: 'Secure passkey enrollment failed. Use your password.' })
+      return false
+    } finally {
+      masterKey?.fill(0)
+    }
   },
 
   disableBiometrics: async () => {
@@ -480,7 +488,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   unlockWithBiometrics: async () => {
-    set({ isLoading: false, error: 'Biometric unlock is temporarily unavailable. Use your password.' })
-    return false
+    if (!get().isLocked) return false
+    set({ isLoading: true, error: null })
+    let masterKey: Uint8Array | null = null
+    try {
+      const stored = await loadKeys()
+      if (!stored || !isEncryptedKeys(stored)) throw new Error('No vault')
+      const slot = stored.slots.find((s) => s.type === 'passkey' && s.prf?.version === 1)
+      if (!slot) throw new Error('No PRF slot')
+      masterKey = await biometricsService.unlock(slot)
+      if (!masterKey) throw new Error('Unlock failed')
+      const nsec = await decryptWithMasterKey(stored.encryptedNsec, masterKey)
+      const keys = nsec ? keysFromNsec(nsec) : null
+      if (!keys) throw new Error('Invalid identity')
+      const salt = base64ToUint8Array(stored.dbSalt)
+      setEncryptionKey(await deriveDatabaseKey(masterKey, salt), salt)
+      await migrateToEncrypted()
+      set({ keys, isLocked: false, isLoading: false, error: null })
+      return true
+    } catch {
+      clearEncryptionKey()
+      set({ isLoading: false, error: 'Passkey unlock failed or cancelled. Use your password.' })
+      return false
+    } finally {
+      masterKey?.fill(0)
+    }
   },
 }))

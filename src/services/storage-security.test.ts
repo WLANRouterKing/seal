@@ -186,3 +186,74 @@ describe('password accounts and legacy biometrics', () => {
     expect(await loadKeys()).toEqual(before)
   })
 })
+
+describe('mandatory password protection', () => {
+  it('keeps a pending identity out of persistent storage and blocks setup completion', async () => {
+    expect(await useAuthStore.getState().importKeys(generateKeyPair().nsec)).toBe(true)
+    expect(await loadKeys()).toBeUndefined()
+    await expect(useAuthStore.getState().completeSetup()).rejects.toThrow('Password protection is required')
+    expect(await useAuthStore.getState().setPassword('short')).toBe(false)
+    expect(await loadKeys()).toBeUndefined()
+    expect(await useAuthStore.getState().setPassword('a sufficiently long password')).toBe(true)
+    await useAuthStore.getState().completeSetup()
+    const stored = await loadKeys()
+    expect(stored && isEncryptedKeys(stored)).toBe(true)
+  })
+  it('requires legacy unprotected accounts to configure a password despite old setup flags', async () => {
+    await saveKeys(generateKeyPair())
+    await saveSettings({ setupComplete: true })
+    await useAuthStore.getState().initialize()
+    expect(useAuthStore.getState().setupComplete).toBe(false)
+    expect(useAuthStore.getState().hasPassword).toBe(false)
+  })
+  it('preserves new PRF slots on initialization', async () => {
+    await protectedAccount()
+    const stored = await loadKeys()
+    if (!stored || !isEncryptedKeys(stored)) throw new Error('Missing vault')
+    const prfSlot = {
+      type: 'passkey' as const,
+      salt: 'test',
+      wrappedKey: 'test',
+      prf: { version: 1 as const, credentialId: 'test', input: 'test' },
+    }
+    await saveKeys({ ...stored, slots: [...stored.slots, prfSlot] })
+    await useAuthStore.getState().initialize()
+    const after = await loadKeys()
+    expect(after && isEncryptedKeys(after) && after.slots).toContainEqual(prfSlot)
+  })
+})
+
+
+describe('passkey vault integration', () => {
+  it('enrolls without replacing the password slot and unlocks the encrypted database', async () => {
+    await useAuthStore.getState().createKeys('correct test password')
+    const stored = await loadKeys()
+    if (!stored || !isEncryptedKeys(stored)) throw new Error('Missing vault')
+    const secret = new Uint8Array(32).fill(9)
+    const enroll = vi.spyOn(biometricsService, 'enroll').mockImplementation(async master => ({
+      ...await createPasskeySlot(master, secret),
+      prf: { version: 1, credentialId: 'test', input: 'test' },
+    }))
+    const { unlockWithPasskeySlot } = await import('./masterKey')
+    const unlock = vi.spyOn(biometricsService, 'unlock').mockImplementation(slot => unlockWithPasskeySlot(slot, secret))
+    try {
+      expect(await useAuthStore.getState().enableBiometrics('correct test password')).toBe(true)
+      const after = await loadKeys()
+      expect(after && isEncryptedKeys(after) && after.slots[0]).toEqual(stored.slots[0])
+      useAuthStore.getState().lock()
+      expect(await useAuthStore.getState().unlockWithBiometrics()).toBe(true)
+      expect(isEncryptionUnlocked()).toBe(true)
+      useAuthStore.getState().lock()
+      expect(await useAuthStore.getState().unlock('correct test password')).toBe(true)
+    } finally { enroll.mockRestore(); unlock.mockRestore() }
+  })
+  it('leaves the vault unchanged when enrollment is cancelled', async () => {
+    await useAuthStore.getState().createKeys('correct test password')
+    const before = await loadKeys()
+    const enroll = vi.spyOn(biometricsService, 'enroll').mockRejectedValue(new Error('cancelled'))
+    try {
+      expect(await useAuthStore.getState().enableBiometrics('correct test password')).toBe(false)
+      expect(await loadKeys()).toEqual(before)
+    } finally { enroll.mockRestore() }
+  })
+})

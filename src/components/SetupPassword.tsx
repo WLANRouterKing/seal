@@ -17,7 +17,7 @@ export default function SetupPassword({ onComplete }: SetupPasswordProps) {
   const [error, setError] = useState('')
 
   const handleSetPassword = async () => {
-    if (password.length < 6) {
+    if (password.length < 12) {
       setError(t('setupPassword.errors.tooShort'))
       return
     }
@@ -100,10 +100,6 @@ export default function SetupPassword({ onComplete }: SetupPasswordProps) {
         <Alert color="yellow" icon={<IconInfoCircle size={16} />} title={t('common.important')}>
           <Text size="xs">{t('setupPassword.importantNote')}</Text>
         </Alert>
-
-        <Button variant="subtle" color="gray" onClick={onComplete}>
-          {t('setupPassword.skipButton')}
-        </Button>
       </Stack>
     </Center>
   )

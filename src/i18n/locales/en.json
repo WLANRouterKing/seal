@@ -61,24 +61,23 @@
   },
   "setupPassword": {
     "title": "Protect Account",
-    "subtitle": "Protect your private key with a password. You will be asked for it when opening the app.",
+    "subtitle": "A password is required to encrypt your local account. Unsaved setup is lost if you close the app.",
     "yourPublicKey": "Your Public Key (npub)",
     "password": "Password",
-    "passwordPlaceholder": "At least 6 characters",
+    "passwordPlaceholder": "At least 12 characters",
     "confirmPassword": "Confirm Password",
     "confirmPlaceholder": "Repeat password",
     "setButton": "Set Password",
     "saving": "Saving...",
-    "skipButton": "Skip (not recommended)",
     "importantNote": "If you forget your password, you can only regain access with your nsec (private key backup).",
     "errors": {
-      "tooShort": "Password must be at least 6 characters",
+      "tooShort": "Password must be at least 12 characters",
       "noMatch": "Passwords do not match",
       "failed": "Failed to set password"
     }
   },
   "lockScreen": {
-    "passwordOnlyNotice": "Biometric unlock is temporarily disabled. Please use your existing password.",
+    "passwordOnlyNotice": "Unlock with your password or an enrolled secure passkey.",
     "title": "Unlock Seal",
     "placeholder": "Enter your password",
     "unlocking": "Unlocking...",
@@ -199,11 +198,16 @@
     "hideIdentityConfirmEnable": "Your public key will be encrypted. Without your password, no one can see whose Seal this is.",
     "hideIdentityConfirmDisable": "Your public key will be visible in the database again.",
     "errors": {
-      "tooShort": "Password must be at least 6 characters",
+      "tooShort": "Password must be at least 12 characters",
       "noMatch": "Passwords do not match",
       "setFailed": "Failed to set password",
-      "incorrect": "Incorrect password"
-    }
+      "incorrect": "Incorrect password",
+      "biometricsFailed": "Enrollment failed: check your password and PRF support, then try again."
+    },
+    "biometricsHint": "Secure passkey (PRF): device biometrics or PIN. Requires browser and authenticator support.",
+    "passkey": "Secure passkey",
+    "enableBiometricsTitle": "Secure passkey",
+    "enableBiometricsHint": "Enter your password, then create and verify a passkey. Keep your password as recovery. The passkey provider may sync your credential."
   },
   "keyExport": {
     "title": "Export Keys",
@@ -337,7 +341,7 @@
       "text": "All your data is stored locally on your device.",
       "item1": "Messages, contacts, and keys are stored in your browser/app",
       "item2": "No data is uploaded to our servers",
-      "item3": "You can optionally encrypt local storage with a password"
+      "item3": "Local storage must be encrypted with a password"
     },
     "deletion": {
       "title": "Data Deletion",

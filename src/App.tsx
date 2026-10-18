@@ -36,7 +36,6 @@ function App() {
     publicInfo,
     isLoading,
     isInitialized,
-    setupComplete,
     completeSetup,
     initialize: initAuth,
   } = useAuthStore()
@@ -103,7 +102,7 @@ function App() {
 
   // Initialize relays, notifications and background service when we have an account (even if locked)
   useEffect(() => {
-    if (keys || (hasPassword && publicInfo)) {
+    if (hasPassword && (keys || publicInfo)) {
       initRelays()
       notificationService.init()
       backgroundService.start()
@@ -113,7 +112,7 @@ function App() {
 
   // Initialize contacts and messages only when unlocked
   useEffect(() => {
-    if (keys) {
+    if (keys && hasPassword) {
       const pubkey = npubToPubkey(keys.npub)
       const privateKey = nsecToPrivateKey(keys.nsec)
       if (pubkey && privateKey) {
@@ -122,18 +121,18 @@ function App() {
         initMessages(pubkey, privateKey)
       }
     }
-  }, [keys, initBlockedContacts, initContacts, initMessages])
+  }, [keys, hasPassword, initBlockedContacts, initContacts, initMessages])
 
   // Subscribe to messages when unlocked and relays are connected
   useEffect(() => {
-    if (keys && connectedCount > 0) {
+    if (keys && hasPassword && connectedCount > 0) {
       const pubkey = npubToPubkey(keys.npub)
       const privateKey = nsecToPrivateKey(keys.nsec)
       if (pubkey && privateKey) {
         return subscribeToMessages(pubkey, privateKey)
       }
     }
-  }, [keys, connectedCount, subscribeToMessages])
+  }, [keys, hasPassword, connectedCount, subscribeToMessages])
 
   if (!isInitialized || isLoading) {
     return (
@@ -178,7 +177,7 @@ function App() {
   }
 
   // Show password setup screen for new accounts
-  if (!setupComplete) {
+  if (!hasPassword) {
     return <SetupPassword onComplete={completeSetup} />
   }
 

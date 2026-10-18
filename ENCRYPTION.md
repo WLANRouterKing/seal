@@ -5,8 +5,10 @@
 A random 256-bit master key encrypts the Nostr private key with AES-256-GCM.
 A password slot wraps the master key using PBKDF2-SHA256 (100,000 iterations)
 and AES-256-GCM. HKDF derives a separate database key. Local protection is
-currently optional; without a password, the identity and some metadata are
-stored without at-rest encryption. Public lookup keys (contact pubkeys,
+mandatory for app access. New identities remain in memory until password
+setup succeeds. Existing plaintext accounts must configure a password before
+using chats. New passwords require at least 12 characters; existing passwords
+remain usable for recovery. Public lookup keys (contact pubkeys,
 message IDs, relay URL hashes) remain visible even in encrypted mode.
 
 Encrypted accounts reject normal data writes while locked. Creating or
@@ -19,24 +21,31 @@ KDF tuning and a versioned migration to a memory-hard KDF remain future work.
 
 ## Biometric unlock security change
 
-Biometric unlock is disabled in this release. Previous browser unlock keys were
-derived from a locally stored credential ID, and native device keys were stored
-in localStorage. Neither provided cryptographic biometric protection against a
-copy of application storage.
+Web/PWA unlock supports WebAuthn PRF with required user verification. A platform
+passkey supplies a 32-byte PRF result, which HKDF derives into an AES-GCM wrapping
+key for the existing master key. Only the credential ID, random PRF input, salt
+and wrapped master key are persisted. The PRF output is never persisted and its
+working buffer is cleared after use. Enrollment requires the existing password
+and a successful separate PRF authentication before saving the new slot.
 
-At initialization, legacy passkey slots are removed only when a password slot
-exists, preserving the password slot and encrypted data. Legacy localStorage
-biometric material is then removed. Users must unlock with their existing
-password. No new biometric slots can be enabled. A malformed account without a
-password slot is left untouched and reports an initialization error.
+User verification may use biometrics OR a device PIN. WebAuthn does not promise
+biometrics-only or hardware-only storage: providers may sync passkeys. Browser
+and authenticator PRF support are both necessary; unsupported/cancelled requests
+fail closed and leave password access intact. A platform-authenticator probe is
+only a preliminary check; enrollment checks actual PRF output. Native Capacitor
+biometrics remain disabled until authenticated Keychain/Keystore operations are
+implemented and tested. No plaintext device-key fallback is provided.
 
-This does NOT rotate the master key or the Nostr identity. Already copied
-storage/key material remains exposed; deleting local slots cannot revoke it.
-Suspected compromise requires a separate recovery and key-rotation plan.
+Legacy slots without PRF metadata are retired only when a password slot exists;
+new PRF slots survive restarts. Existing password access and ciphertext remain
+intact. Removing a slot does not rotate the master key, revoke copied keys or
+delete credentials from the user's passkey provider. Suspected exposure needs a
+separate recovery and key-rotation plan. Same-origin malicious scripts or a
+compromised unlocked device remain outside this at-rest protection boundary.
 
-Future biometric support must use genuine WebAuthn PRF output or OS-backed key
-operations gated by authentication. Unsupported devices must use passwords,
-never credential IDs or plaintext device keys as a fallback.
+PRF tests use mocked authenticator responses and real WebCrypto encryption.
+Actual browser/device enrollment, restart, cancellation and recovery must be
+validated before release. Specification: https://www.w3.org/TR/webauthn-3/#prf-extension
 
 ## Messages and metadata
 

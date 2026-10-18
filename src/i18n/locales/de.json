@@ -61,24 +61,23 @@
   },
   "setupPassword": {
     "title": "Konto schützen",
-    "subtitle": "Schütze deinen Private Key mit einem Passwort. Du wirst beim Öffnen der App danach gefragt.",
+    "subtitle": "Ein Passwort ist zum Verschlüsseln deines lokalen Kontos erforderlich. Schließt du die App vorher, geht die ungespeicherte Einrichtung verloren.",
     "yourPublicKey": "Dein Public Key (npub)",
     "password": "Passwort",
-    "passwordPlaceholder": "Mindestens 6 Zeichen",
+    "passwordPlaceholder": "Mindestens 12 Zeichen",
     "confirmPassword": "Passwort bestätigen",
     "confirmPlaceholder": "Passwort wiederholen",
     "setButton": "Passwort setzen",
     "saving": "Wird gespeichert...",
-    "skipButton": "Überspringen (nicht empfohlen)",
     "importantNote": "Bei Passwortverlust kannst du nur mit deinem nsec (Private Key Backup) wieder zugreifen.",
     "errors": {
-      "tooShort": "Passwort muss mindestens 6 Zeichen haben",
+      "tooShort": "Passwort muss mindestens 12 Zeichen haben",
       "noMatch": "Passwörter stimmen nicht überein",
       "failed": "Fehler beim Setzen des Passworts"
     }
   },
   "lockScreen": {
-    "passwordOnlyNotice": "Biometrisches Entsperren ist vorübergehend deaktiviert. Bitte verwende dein bestehendes Passwort.",
+    "passwordOnlyNotice": "Entsperre mit deinem Passwort oder einem eingerichteten sicheren Passkey.",
     "title": "Seal entsperren",
     "placeholder": "Passwort eingeben",
     "unlocking": "Wird entsperrt...",
@@ -199,11 +198,16 @@
     "hideIdentityConfirmEnable": "Dein Public Key wird verschlüsselt. Ohne dein Passwort kann niemand sehen, wessen Seal das ist.",
     "hideIdentityConfirmDisable": "Dein Public Key wird wieder in der Datenbank sichtbar sein.",
     "errors": {
-      "tooShort": "Passwort muss mindestens 6 Zeichen haben",
+      "tooShort": "Passwort muss mindestens 12 Zeichen haben",
       "noMatch": "Passwörter stimmen nicht überein",
       "setFailed": "Fehler beim Setzen des Passworts",
-      "incorrect": "Falsches Passwort"
-    }
+      "incorrect": "Falsches Passwort",
+      "biometricsFailed": "Einrichtung fehlgeschlagen: Passwort und PRF-Unterstützung prüfen und erneut versuchen."
+    },
+    "biometricsHint": "Sicherer Passkey (PRF): Gerätebiometrie oder PIN. Browser und Authenticator müssen PRF unterstützen.",
+    "passkey": "Sicherer Passkey",
+    "enableBiometricsTitle": "Sicherer Passkey",
+    "enableBiometricsHint": "Gib dein Passwort ein und erstelle und bestätige einen Passkey. Behalte dein Passwort als Rückfalloption. Dein Passkey-Anbieter kann den Passkey synchronisieren."
   },
   "keyExport": {
     "title": "Keys exportieren",
@@ -337,7 +341,7 @@
       "text": "Alle deine Daten werden lokal auf deinem Gerät gespeichert.",
       "item1": "Nachrichten, Kontakte und Schlüssel werden in deinem Browser/App gespeichert",
       "item2": "Es werden keine Daten auf unsere Server hochgeladen",
-      "item3": "Du kannst den lokalen Speicher optional mit einem Passwort verschlüsseln"
+      "item3": "Der lokale Speicher muss mit einem Passwort verschlüsselt werden"
     },
     "deletion": {
       "title": "Datenlöschung",
