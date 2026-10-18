@@ -1,4 +1,13 @@
-import { generateSecretKey, getPublicKey, finalizeEvent, nip44, type UnsignedEvent, type Event } from 'nostr-tools'
+import {
+  generateSecretKey,
+  getPublicKey,
+  finalizeEvent,
+  verifyEvent,
+  validateEvent,
+  nip44,
+  type UnsignedEvent,
+  type Event,
+} from 'nostr-tools'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { NIP17_KIND, NIP62_KIND } from '../utils/constants'
 import { minePoW, DEFAULT_MESSAGE_DIFFICULTY } from './pow'
@@ -125,22 +134,28 @@ export interface UnwrappedMessage {
   expiration?: number // NIP-40: Unix timestamp when message expires
 }
 
-export async function unwrapGiftWrap(
-  giftWrap: GiftWrap,
-  recipientPrivateKey: string
-): Promise<UnwrappedMessage | null> {
+export async function unwrapGiftWrap(giftWrap: Event, recipientPrivateKey: string): Promise<UnwrappedMessage | null> {
   try {
     const recipientPrivateKeyBytes = hexToBytes(recipientPrivateKey)
+    const recipientPubkey = getPublicKey(recipientPrivateKeyBytes)
+    if (giftWrap.kind !== NIP17_KIND.GIFT_WRAP || !verifyEvent(giftWrap)) return null
+    if (!giftWrap.tags.some((tag) => tag[0] === 'p' && tag[1] === recipientPubkey)) return null
 
     // 1. Decrypt gift wrap to get seal
     const wrapConversationKey = nip44.v2.utils.getConversationKey(recipientPrivateKeyBytes, giftWrap.pubkey)
     const sealJson = nip44.v2.decrypt(giftWrap.content, wrapConversationKey)
     const seal: Seal = JSON.parse(sealJson)
+    if (seal.kind !== NIP17_KIND.SEAL || !verifyEvent(seal)) return null
 
     // 2. Decrypt seal to get rumor
     const sealConversationKey = nip44.v2.utils.getConversationKey(recipientPrivateKeyBytes, seal.pubkey)
     const rumorJson = nip44.v2.decrypt(seal.content, sealConversationKey)
     const rumor: Rumor = JSON.parse(rumorJson)
+    if (!validateEvent(rumor)) return null
+    if (rumor.kind !== NIP17_KIND.RUMOR && rumor.kind !== NIP17_KIND.FILE_MESSAGE) return null
+    // A sender's archive copy addresses the peer in the rumor and self in the wrap.
+    if (rumor.pubkey !== recipientPubkey && !rumor.tags.some((tag) => tag[0] === 'p' && tag[1] === recipientPubkey))
+      return null
 
     // 3. CRITICAL: Verify sender pubkey matches between seal and rumor
     // NIP-17: "Clients MUST verify if pubkey of the kind:13 is the same pubkey on the kind:14"
@@ -235,10 +250,7 @@ export async function createSelfGiftWrap(
   let giftWrapEvent: UnsignedEvent = {
     kind: NIP17_KIND.GIFT_WRAP,
     content: encryptedSeal,
-    tags: [
-      ['p', senderPubkey],
-      ['self', '1'],
-    ],
+    tags: [['p', senderPubkey]],
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
     pubkey: wrapperPubkey,
   }

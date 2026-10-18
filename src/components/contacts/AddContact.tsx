@@ -14,19 +14,21 @@ import {
   Box,
 } from '@mantine/core'
 import { IconX, IconAlertCircle } from '@tabler/icons-react'
+import { parseContactIdentity } from '../../services/invitations'
 import { QRCodeScanner } from '../sync/QRCodeScanner'
 
 interface AddContactProps {
   onAdd: (npub: string, name?: string) => void
   onCancel: () => void
   error: string | null
+  initialIdentity?: string
 }
 
 type InputMode = 'manual' | 'scan'
 
-export default function AddContact({ onAdd, onCancel, error }: AddContactProps) {
+export default function AddContact({ onAdd, onCancel, error, initialIdentity = '' }: AddContactProps) {
   const { t } = useTranslation()
-  const [npub, setNpub] = useState('')
+  const [npub, setNpub] = useState(initialIdentity)
   const [name, setName] = useState('')
   const [mode, setMode] = useState<InputMode>('manual')
   const [scanError, setScanError] = useState<string | null>(null)
@@ -34,14 +36,21 @@ export default function AddContact({ onAdd, onCancel, error }: AddContactProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (npub.trim()) {
-      onAdd(npub.trim(), name.trim() || undefined)
+      const identity = parseContactIdentity(npub)
+      if (!identity) {
+        setScanError(t('contacts.invalidQR'))
+        return
+      }
+      setScanError(null)
+      onAdd(identity, name.trim() || undefined)
     }
   }
 
   const handleScan = (data: string) => {
     setScanError(null)
-    if (data.startsWith('npub1')) {
-      setNpub(data)
+    const identity = parseContactIdentity(data)
+    if (identity) {
+      setNpub(identity)
       setMode('manual')
     } else {
       setScanError(t('contacts.invalidQR'))
@@ -53,7 +62,7 @@ export default function AddContact({ onAdd, onCancel, error }: AddContactProps) 
       {/* Header */}
       <Paper p="sm" radius={0} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
         <Group gap="sm">
-          <ActionIcon variant="subtle" onClick={onCancel}>
+          <ActionIcon variant="subtle" onClick={onCancel} aria-label={t('common.cancel')}>
             <IconX size={24} />
           </ActionIcon>
           <Text fw={500} size="lg">
@@ -101,9 +110,9 @@ export default function AddContact({ onAdd, onCancel, error }: AddContactProps) 
               onChange={(e) => setName(e.target.value)}
             />
 
-            {error && (
+            {(error || scanError) && (
               <Alert color="red" icon={<IconAlertCircle size={16} />}>
-                {error}
+                {error || scanError}
               </Alert>
             )}
 

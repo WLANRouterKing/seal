@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { StatusBar } from '@capacitor/status-bar'
 import { Capacitor } from '@capacitor/core'
 import { App as CapApp } from '@capacitor/app'
@@ -8,6 +8,7 @@ import { useRelayStore } from './stores/relayStore'
 import { useContactStore } from './stores/contactStore'
 import { useMessageStore } from './stores/messageStore'
 import { useBlockedContactStore } from './stores/blockedContactStore'
+import { invitationFromHash } from './services/invitations'
 import { nsecToPrivateKey, npubToPubkey } from './services/keys'
 import { notificationService } from './services/notifications'
 import { backgroundService } from './services/backgroundService'
@@ -26,6 +27,8 @@ import { Group, Paper, Stack } from '@mantine/core'
 import { Rings } from 'react-loader-spinner'
 
 function App() {
+  const location = useLocation()
+  const inviteHash = invitationFromHash(location.hash) ? location.hash : ''
   const {
     keys,
     isLocked,
@@ -169,7 +172,7 @@ function App() {
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/privacy" element={<Privacy />} />
-        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+        <Route path="*" element={<Navigate to={`/onboarding${inviteHash}`} replace />} />
       </Routes>
     )
   }
@@ -187,7 +190,7 @@ function App() {
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="/privacy" element={<Privacy />} />
-      <Route path="/onboarding" element={<Navigate to="/" replace />} />
+      <Route path="/onboarding" element={<Navigate to={inviteHash ? `/contacts${inviteHash}` : '/'} replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

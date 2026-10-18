@@ -1,9 +1,23 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Html5Qrcode } from 'html5-qrcode'
-import { Stack, Center, Text, Button, ThemeIcon, Box, Textarea, Alert, SegmentedControl, Loader } from '@mantine/core'
+import {
+  Stack,
+  Center,
+  Text,
+  Button,
+  ThemeIcon,
+  Box,
+  Textarea,
+  Alert,
+  SegmentedControl,
+  Loader,
+  Anchor,
+  Group,
+} from '@mantine/core'
 import { IconArrowLeft, IconAlertTriangle, IconLock } from '@tabler/icons-react'
+import { generateKeyPair } from '../services/keys'
 import { useAuthStore } from '../stores/authStore'
 import KeyGeneration from '../components/onboarding/KeyGeneration'
 import BackupPhrase from '../components/onboarding/BackupPhrase'
@@ -15,11 +29,12 @@ export default function Onboarding() {
   const [step, setStep] = useState<Step>('welcome')
   const [generatedNsec, setGeneratedNsec] = useState<string>('')
   const navigate = useNavigate()
-  const { createKeys, importKeys, isLoading, error, clearError } = useAuthStore()
+  const location = useLocation()
+  const { importKeys, isLoading, error, clearError } = useAuthStore()
 
   const handleGenerate = async () => {
     setStep('generate')
-    const keys = await createKeys()
+    const keys = generateKeyPair() // Persist only after the user confirms their backup.
     setGeneratedNsec(keys.nsec)
     setStep('backup')
   }
@@ -28,12 +43,12 @@ export default function Onboarding() {
     clearError()
     const success = await importKeys(nsec)
     if (success) {
-      navigate('/')
+      navigate(location.hash ? `/contacts${location.hash}` : '/')
     }
   }
 
-  const handleComplete = () => {
-    navigate('/')
+  const handleComplete = async () => {
+    if (await importKeys(generatedNsec)) navigate(location.hash ? `/contacts${location.hash}` : '/')
   }
 
   if (step === 'generate') {
@@ -41,7 +56,12 @@ export default function Onboarding() {
   }
 
   if (step === 'backup') {
-    return <BackupPhrase nsec={generatedNsec} onComplete={handleComplete} />
+    return (
+      <Stack h="100dvh" style={{ overflowY: 'auto' }}>
+        {error && <Alert color="red">{error}</Alert>}
+        <BackupPhrase nsec={generatedNsec} onComplete={handleComplete} />
+      </Stack>
+    )
   }
 
   if (step === 'import') {
@@ -70,7 +90,7 @@ export default function Onboarding() {
   }
 
   return (
-    <Center h="100vh" p="md">
+    <Center h="100dvh" p="md" style={{ overflowY: 'auto' }}>
       <Stack align="center" gap="lg" maw={320}>
         <ThemeIcon size={80} radius="xl" variant="light" color="cyan">
           <IconLock size={40} />
@@ -96,6 +116,14 @@ export default function Onboarding() {
         <Text size="xs" c="dimmed" ta="center" mt="md">
           {t('onboarding.privacyNote')}
         </Text>
+        <Group justify="center" gap="lg">
+          <Anchor component={Link} to="/privacy" size="sm">
+            {t('onboarding.learnMore')}
+          </Anchor>
+          <Anchor href="https://github.com/WLANRouterKing/seal" target="_blank" rel="noopener noreferrer" size="sm">
+            {t('onboarding.sourceCode')}
+          </Anchor>
+        </Group>
       </Stack>
     </Center>
   )

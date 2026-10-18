@@ -22,9 +22,11 @@ import { useBlockedContactStore } from '../../stores/blockedContactStore'
 
 interface ChatListProps {
   onSelectChat: (pubkey: string) => void
+  query?: string
+  activeChat?: string | null
 }
 
-export default function ChatList({ onSelectChat }: ChatListProps) {
+export default function ChatList({ onSelectChat, query = '', activeChat }: ChatListProps) {
   const { t } = useTranslation()
   const { chats, deleteChat } = useMessageStore()
   const { contacts } = useContactStore()
@@ -68,7 +70,11 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
     return textContent
   }
 
-  if (chats.length === 0) {
+  const filteredChats = chats.filter((chat) =>
+    `${getContactName(chat.pubkey)} ${chat.pubkey}`.toLowerCase().includes(query.trim().toLowerCase())
+  )
+
+  if (filteredChats.length === 0) {
     return (
       <Center h="100%" px="xl">
         <Stack align="center" gap="md">
@@ -76,10 +82,10 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
             <IconMessageCircle size={32} />
           </ThemeIcon>
           <Text fw={500} size="lg">
-            {t('chat.noMessages')}
+            {t(query ? 'chat.noResults' : 'chat.noMessages')}
           </Text>
           <Text c="dimmed" size="sm" ta="center" maw={280}>
-            {t('chat.noMessagesHint')}
+            {t(query ? 'chat.searchHint' : 'chat.noMessagesHint')}
           </Text>
         </Stack>
       </Center>
@@ -95,7 +101,7 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
   return (
     <>
       <Stack gap={0} h="100%" style={{ overflow: 'auto', overscrollBehaviorY: 'none' }}>
-        {chats.map((chat) => (
+        {filteredChats.map((chat) => (
           <Box
             key={chat.pubkey}
             pos="relative"
@@ -120,6 +126,18 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
             {/* Chat item */}
             <Paper
               p="sm"
+              role="button"
+              tabIndex={0}
+              aria-label={getContactName(chat.pubkey)}
+              aria-current={activeChat === chat.pubkey ? 'true' : undefined}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelectChat(chat.pubkey)
+                }
+              }}
+              bg={activeChat === chat.pubkey ? 'var(--mantine-color-cyan-light)' : undefined}
               radius={0}
               style={{
                 cursor: 'pointer',
@@ -195,6 +213,7 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
                   <ActionIcon
                     variant="subtle"
                     color="red"
+                    aria-label={t('chat.deleteChat')}
                     onClick={(e) => {
                       e.stopPropagation()
                       setConfirmDelete(chat.pubkey)

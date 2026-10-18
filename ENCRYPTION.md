@@ -1,198 +1,64 @@
-# Seal Encryption Architecture
+# Seal encryption and threat model
 
-This document describes the encryption system used in Seal to protect user data.
+## Local storage
 
-## Overview
+A random 256-bit master key encrypts the Nostr private key with AES-256-GCM.
+A password slot wraps the master key using PBKDF2-SHA256 (100,000 iterations)
+and AES-256-GCM. HKDF derives a separate database key. Local protection is
+currently optional; without a password, the identity and some metadata are
+stored without at-rest encryption. Public lookup keys (contact pubkeys,
+message IDs, relay URL hashes) remain visible even in encrypted mode.
 
-Seal uses a **Master Key** based encryption system, similar to LUKS (Linux Unified Key Setup) or VeraCrypt. This allows multiple unlock methods (password, passkey/biometrics) to access the same encrypted data.
+Encrypted accounts reject normal data writes while locked. Creating or
+importing a password-protected account activates the database key immediately.
+Blocked contacts are included in local encryption/decryption migrations.
 
-## Architecture
+The in-app login delay only limits attempts through the UI. It does not limit
+offline guessing against copied storage. A strong password is still required.
+KDF tuning and a versioned migration to a memory-hard KDF remain future work.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Master Key                            │
-│              (256-bit random, never stored plaintext)        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              │                               │
-              ▼                               ▼
-┌─────────────────────────┐     ┌─────────────────────────┐
-│     Password Slot       │     │     Passkey Slot        │
-│  (AES-GCM key wrap)     │     │  (AES-GCM key wrap)     │
-│                         │     │                         │
-│  - Salt (16 bytes)      │     │  - Salt (16 bytes)      │
-│  - Wrapped Master Key   │     │  - Wrapped Master Key   │
-└─────────────────────────┘     └─────────────────────────┘
-              │                               │
-              └───────────────┬───────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │   Master Key    │
-                    └─────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              │                               │
-              ▼                               ▼
-┌─────────────────────────┐     ┌─────────────────────────┐
-│    Encrypted nsec       │     │   Database Encryption   │
-│   (AES-256-GCM)         │     │    Key (derived via     │
-│                         │     │        HKDF)            │
-└─────────────────────────┘     └─────────────────────────┘
-```
+## Biometric unlock security change
 
-## Components
+Biometric unlock is disabled in this release. Previous browser unlock keys were
+derived from a locally stored credential ID, and native device keys were stored
+in localStorage. Neither provided cryptographic biometric protection against a
+copy of application storage.
 
-### 1. Master Key
+At initialization, legacy passkey slots are removed only when a password slot
+exists, preserving the password slot and encrypted data. Legacy localStorage
+biometric material is then removed. Users must unlock with their existing
+password. No new biometric slots can be enabled. A malformed account without a
+password slot is left untouched and reports an initialization error.
 
-- **Size**: 256 bits (32 bytes)
-- **Generation**: `crypto.getRandomValues()`
-- **Purpose**: Encrypts all sensitive data (nsec, database)
-- **Storage**: Never stored in plaintext - only wrapped by key slots
+This does NOT rotate the master key or the Nostr identity. Already copied
+storage/key material remains exposed; deleting local slots cannot revoke it.
+Suspected compromise requires a separate recovery and key-rotation plan.
 
-### 2. Key Slots
+Future biometric support must use genuine WebAuthn PRF output or OS-backed key
+operations gated by authentication. Unsupported devices must use passwords,
+never credential IDs or plaintext device keys as a fallback.
 
-A slot is a wrapped (encrypted) copy of the Master Key. Each unlock method has its own slot:
+## Messages and metadata
 
-#### Password Slot
-- **Key Derivation**: PBKDF2 (100,000 iterations, SHA-256)
-- **Wrapping**: AES-256-GCM
-- **Components**:
-  - `salt`: 16 random bytes for PBKDF2
-  - `wrappedKey`: IV (12 bytes) + encrypted Master Key
+Incoming messages validate the outer gift-wrap signature, recipient tag, inner
+seal signature, rumor structure/kind, and sender consistency before accepting
+content. Sender archive copies are accepted without a public `self` marker.
 
-#### Passkey Slot (WebAuthn / Biometrics)
-- **Key Derivation**: HKDF-SHA256 from WebAuthn credential ID
-- **Wrapping**: AES-256-GCM
-- **Components**:
-  - `salt`: 16 random bytes for HKDF
-  - `wrappedKey`: IV (12 bytes) + encrypted Master Key
+NIP-44/17 does not implement a forward-secret ratchet. Compromise of a long-term
+private key can expose recorded conversations. Independent password/key slots
+are not forward secrecy: every slot unlocks the same master key.
 
-### 3. Encrypted nsec
+Relays can observe network information and recipient tags. Media upload hosts
+can associate identity-signed upload authorization with files. Expiration and
+vanish requests cannot force untrusted servers or recipients to delete copies.
+The current expiration tag is inside the encrypted rumor and is used for local
+expiry; relay-enforced expiry is not guaranteed.
 
-The Nostr private key (nsec) is encrypted with the Master Key:
-- **Algorithm**: AES-256-GCM
-- **Storage**: `encryptedNsec` field (IV + ciphertext, base64)
+## Remaining work before a security-focused release
 
-### 4. Database Encryption Key
-
-Derived from Master Key using HKDF:
-```
-dbKey = HKDF-SHA256(
-  masterKey,
-  salt: dbSalt,
-  info: "seal-database-encryption",
-  length: 256 bits
-)
-```
-
-Used to encrypt: messages, contacts, relays, settings
-
-## Storage Format (V2)
-
-```typescript
-interface EncryptedKeysV2 {
-  _v: 2                    // Version marker
-  encryptedNsec: string    // nsec encrypted with Master Key
-  slots: KeySlot[]         // Array of unlock method slots
-  dbSalt: string           // Salt for DB key derivation
-  npub?: string            // Public key (visible when locked)
-  identityHidden?: boolean // If true, npub is also hidden
-}
-
-interface KeySlot {
-  type: 'password' | 'passkey'
-  salt: string             // Base64-encoded derivation salt
-  wrappedKey: string       // Base64-encoded wrapped Master Key
-}
-```
-
-## Security Properties
-
-### 1. Key Separation
-- Master Key is never derived from password (it's random)
-- Password only unwraps the Master Key
-- Changing password doesn't require re-encrypting all data
-
-### 2. Multiple Unlock Methods
-- Adding/removing passkey doesn't affect password slot
-- Each slot independently protects the same Master Key
-- Slots can be added/removed without re-encryption
-
-### 3. Forward Secrecy (per-slot)
-- Compromising one slot doesn't reveal other slots
-- Each slot uses independent salt
-
-### 4. Brute Force Protection
-- PBKDF2 with 100,000 iterations for password
-- Rate limiting (3 attempts, then exponential backoff)
-- Lockout after repeated failures
-
-## Migration (V1 → V2)
-
-Legacy accounts (V1 format) are automatically migrated on first unlock:
-
-1. Decrypt nsec with password (old method)
-2. Generate new Master Key
-3. Create password slot
-4. Encrypt nsec with Master Key
-5. Save as V2 format
-
-## Key Flows
-
-### Setting Password (First Time)
-```
-1. Generate Master Key (random 256 bits)
-2. Generate DB Salt (random 128 bits)
-3. Derive wrapping key from password (PBKDF2)
-4. Wrap Master Key → Password Slot
-5. Encrypt nsec with Master Key
-6. Store: { slots: [passwordSlot], encryptedNsec, dbSalt }
-```
-
-### Unlock with Password
-```
-1. Load stored keys
-2. Find password slot
-3. Derive wrapping key from password (PBKDF2)
-4. Unwrap Master Key
-5. Decrypt nsec
-6. Derive DB key from Master Key
-7. Unlock complete
-```
-
-### Enable Passkey
-```
-1. Verify password (unwrap Master Key)
-2. Authenticate with WebAuthn
-3. Derive wrapping key from credential (HKDF)
-4. Wrap same Master Key → Passkey Slot
-5. Add passkey slot to existing slots
-```
-
-### Unlock with Passkey
-```
-1. Load stored keys
-2. Find passkey slot
-3. Authenticate with WebAuthn
-4. Derive wrapping key from credential (HKDF)
-5. Unwrap Master Key
-6. Decrypt nsec
-7. Derive DB key from Master Key
-8. Unlock complete
-```
-
-## Files
-
-- `src/services/masterKey.ts` - Master Key management, slot creation/unlock
-- `src/services/encryption.ts` - PBKDF2, AES-GCM primitives
-- `src/services/biometrics.ts` - WebAuthn credential management
-- `src/stores/authStore.ts` - Authentication state, unlock flows
-- `src/services/db.ts` - Storage format, type definitions
-
-## Future Considerations
-
-- **Hardware Key Slot**: Could add support for hardware security keys (YubiKey)
-- **Recovery Key Slot**: Paper backup key that can unlock Master Key
-- **Key Rotation**: Ability to generate new Master Key and re-wrap all slots
+- Independent audit and real Android/iOS/Desktop testing.
+- Authenticated hardware-backed key storage and reviewed WebAuthn PRF support.
+- Atomic, resumable migrations and account/master-key recovery and rotation.
+- Robust memory/cache cleanup on lock, metadata minimization and network privacy.
+- Forward-secret messaging architecture, with interoperability evaluated.
+- Signed release/update supply chain and tighter renderer/content policies.

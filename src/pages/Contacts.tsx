@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Box, ActionIcon, Affix } from '@mantine/core'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { Box, ActionIcon, Affix, Modal, Button, Stack } from '@mantine/core'
+import { useTranslation } from 'react-i18next'
+import { invitationFromHash } from '../services/invitations'
+import InviteContact from '../components/contacts/InviteContact'
 import { IconPlus } from '@tabler/icons-react'
 import { useContactStore } from '../stores/contactStore'
 import { useMessageStore } from '../stores/messageStore'
@@ -10,6 +13,11 @@ import AddContact from '../components/contacts/AddContact'
 
 export default function Contacts() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
+  const location = useLocation()
+  const [params] = useSearchParams()
+  const invitation = invitationFromHash(location.hash)
+  const [inviteOpen, setInviteOpen] = useState(false)
   const [showAddContact, setShowAddContact] = useState(false)
   const { contacts, addContact, removeContact, error, clearError } = useContactStore()
   const { addBlockedContact, removeBlockedContact, blockedContacts } = useBlockedContactStore()
@@ -19,6 +27,7 @@ export default function Contacts() {
     const contact = await addContact(npub, name)
     if (contact) {
       setShowAddContact(false)
+      navigate('/contacts', { replace: true })
     }
   }
 
@@ -27,13 +36,16 @@ export default function Contacts() {
     navigate('/')
   }
 
-  if (showAddContact) {
+  if (showAddContact || params.get('add') === '1' || invitation) {
     return (
       <AddContact
+        key={invitation || 'manual'}
+        initialIdentity={invitation || ''}
         onAdd={handleAddContact}
         onCancel={() => {
           setShowAddContact(false)
           clearError()
+          navigate('/contacts', { replace: true })
         }}
         error={error}
       />
@@ -51,17 +63,26 @@ export default function Contacts() {
         onUnblockContact={removeBlockedContact}
       />
 
+      <Modal opened={inviteOpen} onClose={() => setInviteOpen(false)} title={t('invite.title')} centered>
+        <InviteContact />
+      </Modal>
       <Affix position={{ bottom: 90, right: 16 }}>
-        <ActionIcon
-          variant="filled"
-          color="cyan"
-          size={56}
-          radius="xl"
-          onClick={() => setShowAddContact(true)}
-          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-        >
-          <IconPlus size={24} />
-        </ActionIcon>
+        <Stack align="flex-end" gap="sm">
+          <Button variant="light" onClick={() => setInviteOpen(true)}>
+            {t('invite.title')}
+          </Button>
+          <ActionIcon
+            aria-label={t('contacts.addContact')}
+            variant="filled"
+            color="cyan"
+            size={56}
+            radius="xl"
+            onClick={() => setShowAddContact(true)}
+            style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+          >
+            <IconPlus size={24} />
+          </ActionIcon>
+        </Stack>
       </Affix>
     </Box>
   )

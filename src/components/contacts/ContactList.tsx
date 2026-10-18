@@ -26,6 +26,7 @@ import {
   IconCancel,
   IconArrowBackUp,
 } from '@tabler/icons-react'
+import VerifyContact from './VerifyContact'
 import type { Contact } from '../../types'
 import { truncateKey } from '../../utils/format'
 
@@ -90,6 +91,11 @@ export default function ContactList({
                   <Text fw={500} truncate>
                     {contact.name || truncateKey(contact.npub, 8)}
                   </Text>
+                  {contact.verifiedAt && (
+                    <Text size="xs" c="teal">
+                      {t('verification.verified')}
+                    </Text>
+                  )}
                   {contact.nip05 && (
                     <Text size="xs" c="cyan" truncate>
                       {contact.nip05}
@@ -204,6 +210,8 @@ export default function ContactList({
                 )}
               </CopyButton>
             </Box>
+
+            <VerifyContact key={selectedContact.pubkey} contact={selectedContact} />
 
             <Group justify="center" mt="md">
               <Button

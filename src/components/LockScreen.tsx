@@ -96,6 +96,9 @@ export default function LockScreen() {
         <Text size="xl" fw={700}>
           {t('lockScreen.title')}
         </Text>
+        <Text size="sm" c="dimmed" ta="center">
+          {t('lockScreen.passwordOnlyNotice')}
+        </Text>
 
         {publicInfo && (
           <Text c="dimmed" size="sm">

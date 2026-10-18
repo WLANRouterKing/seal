@@ -10,6 +10,7 @@ export interface Contact {
   picture?: string
   about?: string
   nip05?: string
+  verifiedAt?: number // Local, explicit out-of-band identity verification
   lastSeen?: number
   createdAt: number
   expirationSeconds?: number // NIP-40: Message expiration setting for this contact (0 = off)

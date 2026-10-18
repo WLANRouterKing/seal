@@ -16,7 +16,7 @@ export default function Privacy() {
   const navigate = useNavigate()
 
   return (
-    <Container size="md" py="xl">
+    <Container size="md" py="xl" h="100dvh" style={{ overflowY: 'auto' }}>
       <Stack gap="lg">
         <Group>
           <ActionIcon variant="subtle" onClick={() => navigate(-1)} size="lg">
@@ -26,7 +26,7 @@ export default function Privacy() {
         </Group>
 
         <Text c="dimmed" size="sm">
-          {t('privacy.lastUpdated')}: 2025-01-26
+          {t('privacy.lastUpdated')}: 2026-10-17
         </Text>
 
         <Paper p="md" radius="md" withBorder>
@@ -50,6 +50,9 @@ export default function Privacy() {
               <Title order={3}>{t('privacy.encryption.title')}</Title>
             </Group>
             <Text>{t('privacy.encryption.text')}</Text>
+            <Text size="sm" c="dimmed">
+              {t('privacy.securityLimits')}
+            </Text>
             <List spacing="xs" size="sm">
               <List.Item>{t('privacy.encryption.item1')}</List.Item>
               <List.Item>{t('privacy.encryption.item2')}</List.Item>

@@ -26,11 +26,11 @@
   },
   "onboarding": {
     "title": "Seal",
-    "subtitle": "Private messaging sealed with Nostr",
+    "subtitle": "Private messages. No phone number.",
     "createAccount": "Create New Account",
     "creating": "Creating...",
-    "importKey": "Import Existing Key",
-    "privacyNote": "Your keys are stored locally and never leave your device. No email or phone number required.",
+    "importKey": "Restore an existing account",
+    "privacyNote": "You own your identity. Keep your recovery key safe: Seal cannot reset your access without it.",
     "importTitle": "Import Your Key",
     "importSubtitle": "Enter your Nostr private key (nsec) to restore your account",
     "privateKeyLabel": "Private Key (nsec)",
@@ -43,7 +43,9 @@
     "invalidQR": "Invalid QR code - not an nsec key",
     "generating": "Generating Your Keys...",
     "generated": "Keys Generated!",
-    "generatingDesc": "Creating a secure cryptographic key pair for your identity"
+    "generatingDesc": "Creating a secure cryptographic key pair for your identity",
+    "learnMore": "Security & privacy",
+    "sourceCode": "Source code"
   },
   "backup": {
     "title": "Backup Your Key",
@@ -76,6 +78,7 @@
     }
   },
   "lockScreen": {
+    "passwordOnlyNotice": "Biometric unlock is temporarily disabled. Please use your existing password.",
     "title": "Unlock Seal",
     "placeholder": "Enter your password",
     "unlocking": "Unlocking...",
@@ -94,7 +97,13 @@
     "imageFailed": "Failed to process image. Try a smaller file.",
     "deleteChat": "Delete Chat",
     "deleteChatConfirm": "Are you sure you want to delete this entire conversation? This cannot be undone.",
-    "disappearingMessages": "Disappearing messages"
+    "disappearingMessages": "Disappearing messages",
+    "newChat": "New chat",
+    "search": "Search chats by name",
+    "noResults": "No matching chats",
+    "searchHint": "Try another name or public key.",
+    "welcomeTitle": "Your conversations. Your space.",
+    "welcomeHint": "Choose a conversation or invite someone. Invitations contain only your public contact address."
   },
   "contacts": {
     "title": "Contacts",
@@ -103,8 +112,8 @@
     "addContact": "Add Contact",
     "contactDetails": "Contact Details",
     "name": "Name",
-    "publicKeyLabel": "Public Key (npub) *",
-    "publicKeyHint": "Enter the Nostr public key of the person you want to add",
+    "publicKeyLabel": "Contact address or invitation link",
+    "publicKeyHint": "Paste a Seal invitation link, npub address, or nostr:npub address.",
     "nameLabel": "Name (optional)",
     "nameHint": "A friendly name to identify this contact",
     "displayNamePlaceholder": "Display name",
@@ -116,7 +125,7 @@
     "enterManually": "Enter",
     "scanQR": "Scan QR",
     "scanQRHint": "Scan the QR code containing your contact's public key",
-    "invalidQR": "Invalid QR code - no npub key found"
+    "invalidQR": "Not a valid public contact address. Do not enter private keys here."
   },
   "settings": {
     "yourProfile": "Your Profile",
@@ -337,6 +346,25 @@
     "contact": {
       "title": "Contact",
       "text": "If you have questions about this privacy policy, please open an issue on"
-    }
+    },
+    "securityLimits": "Limitations: this NIP-44/17 implementation does not provide forward secrecy. A stolen long-term private key can expose recorded messages. Relays can observe connection metadata; deletion requests cannot reliably remove third-party copies."
+  },
+  "invite": {
+    "title": "Invite a contact",
+    "description": "Let your contact scan this QR code or share the invitation link.",
+    "copyLink": "Copy invitation link",
+    "publicOnly": "This link only contains your public address. Never share your private recovery key."
+  },
+  "verification": {
+    "title": "Verify identity",
+    "verified": "Identity verified",
+    "instructions": "Compare this entire contact address in person or over an already trusted channel. Alternatively, scan the contact QR on that person’s device.",
+    "scan": "Compare contact QR",
+    "confirm": "I compared this address over an independent, trusted channel.",
+    "mark": "Save verification",
+    "remove": "Remove verification",
+    "mismatch": "This QR code does not belong to this contact. Do not confirm it.",
+    "saveError": "Could not save verification. Unlock the app and try again.",
+    "limit": "Verification applies to the public key, not the profile name or company affiliation."
   }
 }

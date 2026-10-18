@@ -91,3 +91,37 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+.chat-workspace {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+.chat-sidebar {
+  width: 100%;
+  min-width: 0;
+}
+.chat-conversation {
+  display: none;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+.has-active-chat .chat-sidebar {
+  display: none;
+}
+.has-active-chat .chat-conversation {
+  display: block;
+}
+@media (min-width: 62em) {
+  .chat-sidebar,
+  .has-active-chat .chat-sidebar {
+    display: flex;
+    width: 340px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--color-border);
+  }
+  .chat-conversation {
+    display: block;
+  }
+}

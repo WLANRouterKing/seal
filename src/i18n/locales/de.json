@@ -26,11 +26,11 @@
   },
   "onboarding": {
     "title": "Seal",
-    "subtitle": "Private Nachrichten, versiegelt mit Nostr",
+    "subtitle": "Private Nachrichten. Ohne Telefonnummer.",
     "createAccount": "Neues Konto erstellen",
     "creating": "Wird erstellt...",
-    "importKey": "Vorhandenen Key importieren",
-    "privacyNote": "Deine Keys werden lokal gespeichert und verlassen niemals dein Gerät. Keine E-Mail oder Telefonnummer erforderlich.",
+    "importKey": "Bestehendes Konto wiederherstellen",
+    "privacyNote": "Deine Identität gehört dir. Sichere deinen Wiederherstellungsschlüssel: Ohne ihn gibt es keinen Passwort-Reset durch Seal.",
     "importTitle": "Key importieren",
     "importSubtitle": "Gib deinen Nostr Private Key (nsec) ein, um dein Konto wiederherzustellen",
     "privateKeyLabel": "Private Key (nsec)",
@@ -43,7 +43,9 @@
     "invalidQR": "Ungültiger QR-Code - kein nsec-Key",
     "generating": "Keys werden generiert...",
     "generated": "Keys generiert!",
-    "generatingDesc": "Erstelle ein sicheres kryptografisches Schlüsselpaar für deine Identität"
+    "generatingDesc": "Erstelle ein sicheres kryptografisches Schlüsselpaar für deine Identität",
+    "learnMore": "Sicherheit & Datenschutz",
+    "sourceCode": "Quellcode"
   },
   "backup": {
     "title": "Key sichern",
@@ -76,6 +78,7 @@
     }
   },
   "lockScreen": {
+    "passwordOnlyNotice": "Biometrisches Entsperren ist vorübergehend deaktiviert. Bitte verwende dein bestehendes Passwort.",
     "title": "Seal entsperren",
     "placeholder": "Passwort eingeben",
     "unlocking": "Wird entsperrt...",
@@ -94,7 +97,13 @@
     "imageFailed": "Bild konnte nicht verarbeitet werden. Versuche eine kleinere Datei.",
     "deleteChat": "Chat löschen",
     "deleteChatConfirm": "Möchtest du diese gesamte Konversation wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
-    "disappearingMessages": "Selbstlöschende Nachrichten"
+    "disappearingMessages": "Selbstlöschende Nachrichten",
+    "newChat": "Neuer Chat",
+    "search": "Chats nach Name suchen",
+    "noResults": "Keine passenden Chats",
+    "searchHint": "Versuche einen anderen Namen oder öffentlichen Schlüssel.",
+    "welcomeTitle": "Deine Gespräche, dein Raum.",
+    "welcomeHint": "Wähle links ein Gespräch oder lade jemanden ein. Eine Einladung enthält nur deine öffentliche Kontaktadresse."
   },
   "contacts": {
     "title": "Kontakte",
@@ -103,8 +112,8 @@
     "addContact": "Kontakt hinzufügen",
     "contactDetails": "Kontaktdetails",
     "name": "Name",
-    "publicKeyLabel": "Public Key (npub) *",
-    "publicKeyHint": "Gib den Nostr Public Key der Person ein, die du hinzufügen möchtest",
+    "publicKeyLabel": "Kontaktadresse oder Einladungslink",
+    "publicKeyHint": "Füge einen Seal-Einladungslink, eine npub-Adresse oder eine nostr:npub-Adresse ein.",
     "nameLabel": "Name (optional)",
     "nameHint": "Ein freundlicher Name zur Identifikation dieses Kontakts",
     "displayNamePlaceholder": "Anzeigename",
@@ -116,7 +125,7 @@
     "enterManually": "Eingeben",
     "scanQR": "QR scannen",
     "scanQRHint": "Scanne den QR-Code mit dem Public Key deines Kontakts",
-    "invalidQR": "Ungültiger QR-Code - kein npub-Key gefunden"
+    "invalidQR": "Keine gültige öffentliche Kontaktadresse. Private Schlüssel gehören hier nicht hinein."
   },
   "settings": {
     "yourProfile": "Dein Profil",
@@ -337,6 +346,25 @@
     "contact": {
       "title": "Kontakt",
       "text": "Bei Fragen zu dieser Datenschutzerklärung erstelle bitte ein Issue auf"
-    }
+    },
+    "securityLimits": "Grenzen: NIP-44/17 bietet hier keine Forward Secrecy. Ein später gestohlener privater Schlüssel kann gespeicherte Nachrichten offenlegen. Relays sehen Verbindungsdaten; Löschanfragen können Kopien bei Dritten nicht zuverlässig entfernen."
+  },
+  "invite": {
+    "title": "Kontakt einladen",
+    "description": "Lass deinen Kontakt diesen QR-Code scannen oder teile den Einladungslink.",
+    "copyLink": "Einladungslink kopieren",
+    "publicOnly": "Der Link enthält nur deine öffentliche Adresse. Deinen privaten Wiederherstellungsschlüssel niemals teilen."
+  },
+  "verification": {
+    "title": "Identität überprüfen",
+    "verified": "Identität abgeglichen",
+    "instructions": "Vergleiche diese vollständige Kontaktadresse persönlich oder über einen bereits vertrauten Kanal. Alternativ scanne den Kontakt-QR auf dem Gerät dieser Person.",
+    "scan": "Kontakt-QR abgleichen",
+    "confirm": "Ich habe diese Adresse über einen unabhängigen, vertrauten Kanal abgeglichen.",
+    "mark": "Als abgeglichen speichern",
+    "remove": "Bestätigung zurücknehmen",
+    "mismatch": "Der QR-Code gehört nicht zu diesem Kontakt. Bitte nicht bestätigen.",
+    "saveError": "Bestätigung konnte nicht gespeichert werden. Entsperre die App und versuche es erneut.",
+    "limit": "Diese Bestätigung gilt für den öffentlichen Schlüssel, nicht für Profilname oder Firmenzugehörigkeit."
   }
 }
