@@ -40,6 +40,10 @@ vi.mock('./rateLimiter', () => ({
   recordFailedAttempt: async () => ({ attempts: 1, remainingMs: 0 }),
 }))
 
+// Coverage instrumentation substantially slows real scrypt on shared CI runners.
+// Keep production KDF parameters and allow this integration suite more time.
+vi.setConfig({ testTimeout: 60_000 })
+
 const localValues = new Map<string, string>()
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => localValues.get(key) ?? null,

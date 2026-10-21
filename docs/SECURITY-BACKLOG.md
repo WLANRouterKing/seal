@@ -1,5 +1,27 @@
 # Security-Backlog und GitHub-PRs
 
+## Update: Buildtool-Abhängigkeiten, 22.10.2026
+
+Der vollständige `npm audit` meldet jetzt **0 Funde**, einschließlich der
+Build-Abhängigkeiten. Ein gezieltes Override ersetzt ausschließlich das von
+`@electron/get` verwendete `global-agent` durch 4.1.3. Diese Version benötigt
+`roarr`/`sprintf-js` nicht mehr; der eigentliche Downloader bleibt unverändert.
+
+`scripts/check-download-proxy.cjs` prüft den tatsächlich von electron-builder
+aufgelösten Downloader mit lokalen Servern: Proxy-Download, NO_PROXY-Bypass,
+korrekte Prüfsumme und Ablehnung einer falschen Prüfsumme. Der Test läuft auch
+in der Desktop-CI auf Windows/Linux/macOS. Die CI erzeugt zusätzlich ungepackte
+Desktop-App-Verzeichnisse (`--dir --publish never`), ohne Signierung/Upload.
+Der vollständige Audit blockiert nun bereits bei moderaten Funden.
+Die Storage-Integrationstests erhalten wegen des gemessenen Scrypt-Overheads
+unter V8-Coverage ein dateispezifisches 60-Sekunden-Limit; die KDF-Parameter
+bleiben unverändert. LCOV wird jetzt passend zum CI-Upload erzeugt.
+
+Die nativen Compile-/Web-Builds und Security-Checks des vorherigen Commits
+`66ba58f` waren erfolgreich. Neue CI-Ergebnisse müssen separat geprüft werden.
+Physische Biometrie-, signierte Installer- und echte Update-Tests bleiben offen.
+Null npm-Funde ersetzen keine Überprüfung der Anwendungssicherheit.
+
 ## Update: Release-Härtung, 21.10.2026
 
 - Electron 45.0.0 und Sharp 0.35.5 im Lockfile; keine hohen/kritischen
