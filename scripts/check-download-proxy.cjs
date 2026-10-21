@@ -20,8 +20,12 @@ async function main() {
     res.end(payload)
   })
   const direct = http.createServer((_req, res) => res.end('direct'))
-  const listen = server => new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
-  const close = server => new Promise(resolve => { server.close(resolve); server.closeAllConnections() })
+  const listen = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const close = (server) =>
+    new Promise((resolve) => {
+      server.close(resolve)
+      server.closeAllConnections()
+    })
   try {
     await listen(proxy)
     await listen(direct)
@@ -35,9 +39,13 @@ async function main() {
     assert.equal(global.GLOBAL_AGENT.HTTP_PROXY, process.env.GLOBAL_AGENT_HTTP_PROXY)
     const filename = 'electron-v45.0.0-linux-x64.zip'
     const options = {
-      version: '45.0.0', artifactName: 'electron', platform: 'linux', arch: 'x64',
+      version: '45.0.0',
+      artifactName: 'electron',
+      platform: 'linux',
+      arch: 'x64',
       mirrorOptions: { mirror: 'http://seal-download.invalid/' },
-      cacheRoot: path.join(root, 'cache'), tempDirectory: root,
+      cacheRoot: path.join(root, 'cache'),
+      tempDirectory: root,
       checksums: { [filename]: createHash('sha256').update(payload).digest('hex') },
       downloadOptions: { quiet: true },
     }
@@ -45,21 +53,33 @@ async function main() {
     assert.deepEqual(await readFile(file), payload)
     assert.equal(proxied, 1)
     const response = await new Promise((resolve, reject) => {
-      http.get(`http://127.0.0.1:${direct.address().port}`, res => {
-        let body = ''
-        res.on('data', chunk => { body += chunk })
-        res.on('end', () => resolve(body))
-      }).on('error', reject)
+      http
+        .get(`http://127.0.0.1:${direct.address().port}`, (res) => {
+          let body = ''
+          res.on('data', (chunk) => {
+            body += chunk
+          })
+          res.on('end', () => resolve(body))
+        })
+        .on('error', reject)
     })
     assert.equal(response, 'direct')
     assert.equal(proxied, 1, 'NO_PROXY must bypass the proxy')
-    await assert.rejects(downloader.downloadArtifact({
-      ...options, force: true, checksums: { [filename]: '0'.repeat(64) },
-    }), /checksum/i)
+    await assert.rejects(
+      downloader.downloadArtifact({
+        ...options,
+        force: true,
+        checksums: { [filename]: '0'.repeat(64) },
+      }),
+      /checksum/i
+    )
     console.log('Downloader proxy, NO_PROXY and checksum validation passed')
   } finally {
     await Promise.all([close(proxy), close(direct)])
     await rm(root, { recursive: true, force: true })
   }
 }
-main().catch(error => { console.error(error); process.exitCode = 1 })
+main().catch((error) => {
+  console.error(error)
+  process.exitCode = 1
+})

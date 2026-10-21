@@ -48,6 +48,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node scripts/check-download-proxy.cjs
+      - name: Check HTTPS proxy certificates
+        if: runner.os == 'Linux'
+        run: node scripts/check-proxy-tls.cjs
       - run: npm run electron:compile
       - run: npm run build
         env:
