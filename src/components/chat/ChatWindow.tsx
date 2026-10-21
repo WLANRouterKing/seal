@@ -16,7 +16,7 @@ import {
   Badge,
   Button,
 } from '@mantine/core'
-import { IconArrowLeft, IconClock, IconClockOff, IconDotsVertical, IconTrash } from '@tabler/icons-react'
+import { IconArrowLeft, IconClock, IconClockOff } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useMessageStore } from '../../stores/messageStore'
 import { useContactStore } from '../../stores/contactStore'
@@ -25,6 +25,7 @@ import { type Contact, EXPIRATION_OPTIONS } from '../../types'
 import { truncateKey } from '../../utils/format'
 import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
+import ChatContactActions from './ChatContactActions'
 
 interface ChatWindowProps {
   contactPubkey: string
@@ -159,19 +160,11 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
               </Menu.Dropdown>
             </Menu>
 
-            {/* More options menu */}
-            <Menu shadow="md" width={180} position="bottom-end">
-              <Menu.Target>
-                <ActionIcon variant="subtle">
-                  <IconDotsVertical size={20} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={() => setShowDeleteConfirm(true)}>
-                  {t('chat.deleteChat')}
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
+            <ChatContactActions
+              key={contactPubkey}
+              pubkey={contactPubkey}
+              onDeleteChat={() => setShowDeleteConfirm(true)}
+            />
           </Group>
         </Paper>
 

@@ -102,7 +102,12 @@
     "noResults": "No matching chats",
     "searchHint": "Try another name or public key.",
     "welcomeTitle": "Your conversations. Your space.",
-    "welcomeHint": "Choose a conversation or invite someone. Invitations contain only your public contact address."
+    "welcomeHint": "Choose a conversation or invite someone. Invitations contain only your public contact address.",
+    "actions": "Chat actions",
+    "addSenderHint": "Save this sender as a contact. This public address belongs to the current chat.",
+    "blockSenderHint": "Messages from this sender will be ignored locally. The existing chat is kept.",
+    "unblockSenderHint": "After unblocking, you can exchange messages with this sender again.",
+    "contactActionFailed": "The change could not be saved. Please try again."
   },
   "contacts": {
     "title": "Contacts",
