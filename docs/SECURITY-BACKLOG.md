@@ -1,5 +1,38 @@
 # Security-Backlog und GitHub-PRs
 
+## Update: Release-Härtung, 21.10.2026
+
+- Electron 45.0.0 und Sharp 0.35.5 im Lockfile; keine hohen/kritischen
+  npm-Audit-Funde mehr. Desktop-Packaging und reale Updater-Tests bleiben Release-Gates.
+- Scoped Override `xcode -> uuid ^11.1.1`; UUID-Erzeugung und Parse/Write des
+  tatsächlichen iOS-Projekts lokal geprüft. Native CI zusätzlich erforderlich.
+- Vollständiger Audit: 8 moderate Paketmeldungen aus der Buildtool-Kette
+  `electron-builder -> @electron/get -> global-agent -> roarr -> sprintf-js`.
+  Für sprintf-js meldet npm weiterhin 1.1.3 als neueste Version und als betroffen
+  (GHSA-hp3w-g68c-fv3c). Kein Audit-Suppress und kein erfundener Fix.
+- Scrypt-v1 für neue Passwortslots; atomarer Upgrade alter Wrapper beim
+  Passwort-Unlock. Bestehende Daten und biometrische Slots bleiben erhalten.
+- Verschlüsselungsmigration und neuer Schlüsselrecord werden atomar gespeichert;
+  parallele Änderungen und Lock während der Migration brechen sicher ab.
+- Chat-/Kontakt-Caches werden beim Lock geleert; Nachrichten-Subscription
+  geschlossen und veraltete asynchrone Ergebnisse verworfen. Keine garantierte
+  Löschung aller Kopien aus Prozess-/Browser-Speicher.
+- Release prüft Tag-/Paket-/Lockfile-Version; Vorabversionen deployen nicht
+  auf Produktion. Full-Audit mit hohen Funden lässt CI scheitern.
+- Versionsskript aktualisiert das Lockfile und verweigert das bisher unsichere
+  Tagging vor dem Versionscommit. Kein Versionsbump/Release in diesem Patch.
+
+Weiter offen: reale Biometrie-/Recovery-/Scrypt-Leistungstests auf unterstützten
+Geräten; signierte Desktop-Pakete/Updater; unabhängiges Security-Review;
+Forward Secrecy/Ratchet und Schlüsselrotation mit einem expliziten
+Protokoll-/Migrationsdesign. Das kann nicht durch einen Dependency-Scan bestätigt
+oder durch ungetestete eigene Kryptografie ersetzt werden.
+
+Der folgende Snapshot ist historisch; seine offenen Paketstände werden durch
+das Update oben ersetzt. Die damaligen Dependabot-PRs wurden nicht blind gemergt.
+
+## Historischer Snapshot
+
 Stand: 17.10.2026. Geprüfte Basis: `8a7bd3199f634040b45eb54b493435874725dfb6`.
 
 Die öffentliche GitHub-API meldet 20 offene PRs. Das ist keine vollständige

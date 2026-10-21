@@ -3,8 +3,10 @@
 ## Local storage
 
 A random 256-bit master key encrypts the Nostr private key with AES-256-GCM.
-A password slot wraps the master key using PBKDF2-SHA256 (100,000 iterations)
-and AES-256-GCM. HKDF derives a separate database key. Local protection is
+New password slots use versioned scrypt (N=32768, r=8, p=3, 32-byte output,
+16-byte random salt) and AES-256-GCM. Legacy PBKDF2-SHA256 (100,000 iterations)
+slots are upgraded after successful password authentication using an atomic
+compare-and-replace, preserving the master key, ciphertext and biometric slots. HKDF derives a separate database key. Local protection is
 mandatory for app access. New identities remain in memory until password
 setup succeeds. Existing plaintext accounts must configure a password before
 using chats. New passwords require at least 12 characters; existing passwords
@@ -17,7 +19,18 @@ Blocked contacts are included in local encryption/decryption migrations.
 
 The in-app login delay only limits attempts through the UI. It does not limit
 offline guessing against copied storage. A strong password is still required.
-KDF tuning and a versioned migration to a memory-hard KDF remain future work.
+Benchmark the scrypt configuration on the slowest supported physical devices
+before release. Biometric-only unlock does not upgrade a legacy password slot.
+
+Encryption migration stages ciphertext in memory, then commits all changed
+stores together with the password key record in one IndexedDB transaction.
+Concurrent edits or a lock abort the migration; write failures roll back all
+changes. Staging requires memory proportional to the local database size.
+
+Lock clears chat/contact caches and closes the message subscription. Generation
+checks discard stale loads and send/profile completions. JavaScript strings,
+browser internals and already-running crypto/network operations cannot be
+reliably zeroized or recalled; this is not guaranteed process-memory erasure.
 
 ## Biometric unlock security change
 

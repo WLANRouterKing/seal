@@ -23,6 +23,7 @@
  */
 
 import { deriveKey, generateSalt } from './encryption'
+import { scryptAsync } from '@noble/hashes/scrypt'
 
 const MASTER_KEY_LENGTH = 32 // 256 bits
 const WRAP_IV_LENGTH = 12 // 96 bits for AES-GCM
@@ -34,6 +35,7 @@ function toBuffer(arr: Uint8Array): ArrayBuffer {
 
 export interface KeySlot {
   type: 'password' | 'passkey'
+  kdf?: 'scrypt-v1' // Absent only for legacy PBKDF2-SHA256/100000 slots.
   native?: { version: 1; provider: 'android' | 'ios' | 'desktop'; id: string }
   prf?: { version: 1; credentialId: string; input: string }
   salt: string // Base64-encoded salt for key derivation
@@ -51,7 +53,22 @@ export function generateMasterKey(): Uint8Array {
  * Derive a wrapping key from a password
  */
 export async function deriveWrappingKeyFromPassword(password: string, salt: Uint8Array): Promise<CryptoKey> {
-  return deriveKey(password, salt)
+  if (salt.length !== 16) throw new Error('Invalid password salt')
+  const input = new TextEncoder().encode(password)
+  let bytes: Uint8Array | undefined
+  try {
+    // Fixed versioned parameters; never trust storage-supplied work/memory factors.
+    bytes = await scryptAsync(input, salt, { N: 32768, r: 8, p: 3, dkLen: 32, maxmem: 64 * 1024 * 1024 })
+    return await crypto.subtle.importKey('raw', toBuffer(bytes), 'AES-GCM', false, [
+      'encrypt',
+      'decrypt',
+      'wrapKey',
+      'unwrapKey',
+    ])
+  } finally {
+    input.fill(0)
+    bytes?.fill(0)
+  }
 }
 
 /**
@@ -143,6 +160,7 @@ export async function createPasswordSlot(masterKey: Uint8Array, password: string
 
   return {
     type: 'password',
+    kdf: 'scrypt-v1',
     salt: uint8ArrayToBase64(salt),
     wrappedKey,
   }
@@ -170,7 +188,10 @@ export async function unlockWithPasswordSlot(slot: KeySlot, password: string): P
   if (slot.type !== 'password') return null
 
   const salt = base64ToUint8Array(slot.salt)
-  const wrappingKey = await deriveWrappingKeyFromPassword(password, salt)
+  if (slot.kdf !== undefined && slot.kdf !== 'scrypt-v1') return null
+  if (salt.length !== 16) return null
+  const wrappingKey =
+    slot.kdf === 'scrypt-v1' ? await deriveWrappingKeyFromPassword(password, salt) : await deriveKey(password, salt)
   return unwrapMasterKey(slot.wrappedKey, wrappingKey)
 }
 

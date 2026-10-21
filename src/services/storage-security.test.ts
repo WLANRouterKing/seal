@@ -305,3 +305,72 @@ it('does not unlock from a native response that arrives after an explicit lock',
     compatible.mockRestore()
   }
 })
+
+it('upgrades a legacy password wrapper without changing the vault ciphertext', async () => {
+  const { deriveKey } = await import('./encryption')
+  const { wrapMasterKey } = await import('./masterKey')
+  const { master, salt } = await protectedAccount()
+  const stored = await loadKeys()
+  if (!stored || !isEncryptedKeys(stored)) throw new Error('Missing vault')
+  const legacy = {
+    type: 'password' as const,
+    salt: b64(salt),
+    wrappedKey: await wrapMasterKey(master, await deriveKey('legacy password', salt)),
+  }
+  await saveKeys({ ...stored, slots: [legacy] })
+  setEncryptionKey(await deriveDatabaseKey(master, salt), salt)
+  await saveContact(contact)
+  const db = await getDB()
+  const ciphertext = await db.get(STORES.CONTACTS, contact.pubkey)
+  clearEncryptionKey()
+  expect(await useAuthStore.getState().unlock('wrong password')).toBe(false)
+  expect(await loadKeys()).toEqual({ ...stored, slots: [legacy] })
+  expect(await useAuthStore.getState().unlock('legacy password')).toBe(true)
+  const after = await loadKeys()
+  if (!after || !isEncryptedKeys(after)) throw new Error('Missing vault')
+  expect(after.slots[0].kdf).toBe('scrypt-v1')
+  expect(after.encryptedNsec).toBe(stored.encryptedNsec)
+  expect(await db.get(STORES.CONTACTS, contact.pubkey)).toEqual(ciphertext)
+  expect(await unlockWithPasswordSlot(after.slots[0], 'legacy password')).toEqual(master)
+})
+
+it('rejects unknown password KDF versions', async () => {
+  const { passwordSlot } = await protectedAccount()
+  expect(
+    await unlockWithPasswordSlot({ ...passwordSlot, kdf: 'future' as 'scrypt-v1' }, 'correct test password')
+  ).toBeNull()
+})
+
+it('rolls back all migrated records if the key record cannot be committed', async () => {
+  await saveContact(contact)
+  await saveRelay({ url: 'wss://example.com', read: true, write: true })
+  const { master, salt } = await protectedAccount()
+  const stored = await loadKeys()
+  if (!stored || !isEncryptedKeys(stored)) throw new Error('Missing vault')
+  setEncryptionKey(await deriveDatabaseKey(master, salt), salt)
+  // A non-cloneable field forces a real IndexedDB write failure after data writes.
+  const invalid = { ...stored, invalid: () => {} }
+  await expect(migrateToEncrypted(invalid)).rejects.toThrow()
+  const db = await getDB()
+  expect(await db.get(STORES.CONTACTS, contact.pubkey)).toEqual(contact)
+  expect(await db.getAll(STORES.RELAYS)).toEqual([{ url: 'wss://example.com', read: true, write: true }])
+  expect(await loadKeys()).toEqual(stored)
+})
+
+it('does not overwrite a concurrent edit during migration', async () => {
+  await saveContact(contact)
+  const { master, salt } = await protectedAccount()
+  setEncryptionKey(await deriveDatabaseKey(master, salt), salt)
+  const db = await getDB()
+  const encrypt = crypto.subtle.encrypt.bind(crypto.subtle)
+  const spy = vi.spyOn(crypto.subtle, 'encrypt').mockImplementationOnce(async (...args) => {
+    await db.put(STORES.CONTACTS, { ...contact, name: 'Concurrent change' })
+    return encrypt(...args)
+  })
+  try {
+    await expect(migrateToEncrypted()).rejects.toThrow('Vault changed')
+    expect(await db.get(STORES.CONTACTS, contact.pubkey)).toEqual({ ...contact, name: 'Concurrent change' })
+  } finally {
+    spy.mockRestore()
+  }
+})

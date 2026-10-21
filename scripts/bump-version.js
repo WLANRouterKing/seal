@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from 'fs'
-import { execSync } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
@@ -63,7 +62,12 @@ function updatePackageJson(version) {
   const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8'))
   pkg.version = version
   writeFileSync(PACKAGE_JSON, JSON.stringify(pkg, null, 2) + '\n')
-  console.log(`Updated package.json to ${version}`)
+  const lockPath = join(root, 'package-lock.json')
+  const lock = JSON.parse(readFileSync(lockPath, 'utf8'))
+  lock.version = version
+  lock.packages[''].version = version
+  writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n')
+  console.log(`Updated package files to ${version}`)
 }
 
 function updateLocaleFile(filePath, version) {
@@ -108,26 +112,11 @@ function updateIOSVersion(version) {
   )
   content = content.replace(
     /MARKETING_VERSION = [\d.]+;/g,
-    `MARKETING_VERSION = ${version};`
+    `MARKETING_VERSION = ${version.split('-')[0]};`
   )
 
   writeFileSync(IOS_PROJECT, content)
   console.log(`Updated iOS to ${version} (build: ${versionCode})`)
-}
-
-function createGitTag(version, push = false) {
-  const tag = `v${version}`
-  try {
-    execSync(`git tag -a ${tag} -m "Release ${tag}"`, { stdio: 'inherit' })
-    console.log(`Created git tag: ${tag}`)
-
-    if (push) {
-      execSync(`git push origin ${tag}`, { stdio: 'inherit' })
-      console.log(`Pushed tag ${tag} to origin`)
-    }
-  } catch (error) {
-    console.error('Failed to create git tag:', error.message)
-  }
 }
 
 // Main
@@ -136,6 +125,9 @@ const positionalArgs = args.filter(arg => !arg.startsWith('--'))
 const type = positionalArgs[0] || 'patch'
 const shouldTag = args.includes('--tag')
 const shouldPush = args.includes('--push')
+if (shouldTag || shouldPush) {
+  throw new Error('Commit the version changes before tagging. Use git tag -a v<VERSION> -m "Release v<VERSION>" after committing; push the tag separately.')
+}
 
 const currentVersion = getCurrentVersion()
 const newVersion = bumpVersion(currentVersion, type)
@@ -148,17 +140,7 @@ updateLocaleFile(LOCALE_EN, newVersion)
 updateAndroidVersion(newVersion)
 updateIOSVersion(newVersion)
 
-if (shouldTag) {
-  console.log('')
-  createGitTag(newVersion, shouldPush)
-}
-
-console.log(`\nDone! Version bumped to ${newVersion}`)
-console.log('\nNext steps:')
-console.log('  git add -A && git commit -m "bump: v' + newVersion + '"')
-if (!shouldTag) {
-  console.log('  npm run version -- --tag        # to create git tag')
-}
-if (!shouldPush) {
-  console.log('  git push && git push --tags     # to push changes')
-}
+console.log(`
+Version updated to ${newVersion}. Commit these changes first, then tag that commit:`)
+console.log(`git tag -a v${newVersion} -m "Release v${newVersion}"`)
+console.log(`git push origin HEAD && git push origin v${newVersion}`)
