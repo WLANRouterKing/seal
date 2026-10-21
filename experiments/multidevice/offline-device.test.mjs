@@ -17,7 +17,7 @@ import {
 test('same-account devices: offline messaging, restart, then removal', { timeout: 60000 }, async () => {
   const relay = new MemoryRelay()
   const alice = createAccount()
-  const browserAccount = createAccount()
+  const browserAccount = alice
   const bob = createAccount()
   const phone = createDevice(alice.signer, relay)
   const pairing = pairingSigner(browserAccount.pubkey, browserAccount.signer.signEvent)
@@ -75,6 +75,14 @@ test('same-account devices: offline messaging, restart, then removal', { timeout
 
   // Main returns and removes precisely the browser leaf, preserving its own.
   alice.goOnline()
+  const catchup = await receive(
+    phoneGroup,
+    relay.events.filter((event) => event.kind === 445)
+  )
+  assert(
+    catchup.messages.some((message) => message.content === 'Browser after restart' && message.pubkey === alice.pubkey),
+    'Main device must recognize its sibling leaf messages'
+  )
   const removedIndex = browserGroup.state.privatePath.leafIndex
   await phone.client.groups.commit(phoneGroup.id, {
     extraProposals: [{ proposalType: 3, remove: { removed: removedIndex } }],
@@ -102,4 +110,17 @@ test('same-account fix still rejects invalid account-to-leaf proofs', async () =
   }
   const browser = createDevice(brokenSigner, relay)
   await assert.rejects(() => browser.client.keyPackages.create({ relays: RELAYS }))
+})
+
+test('same-account fix still rejects adding the very same leaf twice', async () => {
+  const relay = new MemoryRelay()
+  const account = createAccount()
+  const phone = createDevice(account.signer, relay)
+  const browser = createDevice(account.signer, relay)
+  await browser.client.keyPackages.create({ relays: RELAYS })
+  const keyPackage = relay.latest(30443)
+  const group = await phone.client.groups.create('Duplicate guard', { relays: RELAYS, invitees: [keyPackage] })
+  const epoch = group.state.groupContext.epoch
+  await assert.rejects(() => phone.client.groups.invite(group.id, keyPackage), /already|duplicate/i)
+  assert.equal(group.state.groupContext.epoch, epoch)
 })

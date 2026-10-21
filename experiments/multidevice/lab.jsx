@@ -88,6 +88,7 @@ function App() {
               <section>
                 <h2>Hauptgerät</h2>
                 <p>{lab.offline ? 'Offline · Account-Signer gesperrt' : 'Online'}</p>
+                {lab.phase === 'pending' && <p className="code">{lab.confirmation}</p>}
                 {lab.phase === 'pending' && (
                   <label>
                     <input

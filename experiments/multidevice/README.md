@@ -130,3 +130,17 @@ unlocked legacy auth store still holds the nsec, including for explicit export.
 - [Multi-device direction, non-normative](https://github.com/marmot-protocol/marmot/blob/master/ideas/multi-device.md)
 
 The lockfile pins tested code; upstream documents can change.
+
+## Validation recorded for this draft
+
+- Seal: 87 passing tests, successful web build and Electron TypeScript compilation.
+- Lab: 8 passing tests, including same-account sibling catch-up and duplicate-leaf
+  rejection; successful separate web build.
+- Browser lifecycle: passed in GitHub Actions on Chromium, including pairing UI,
+  offline exchange, lock/restore, removal, cleanup and mobile-width overflow check.
+  Local execution was blocked by a Chromium archive download failure; no local
+  browser pass is claimed.
+- Lint: no errors. Source formatting passes. Production dependency audit: no
+  reported vulnerabilities. These checks are not a cryptographic audit.
+- Android/iOS physical devices and native biometric flows were not retested by
+  this change. No production deployment, merge or release has been performed.
