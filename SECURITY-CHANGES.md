@@ -54,9 +54,9 @@ These changes are intended for review in a pull request and have not been deploy
 Users with biometric unlock must know their existing password. Do not roll this
 out without communicating the change. Slot removal does not rotate the master
 key or revoke previously copied secrets. Previously exposed identities require
-an explicit recovery and rotation plan. The patch does not add forward secrecy,
-a memory-hard password KDF, guaranteed relay deletion,
-atomic migrations, or comprehensive lock-time memory cleanup.
+an explicit recovery and rotation plan. The patch does not add forward secrecy, guaranteed relay deletion, or guaranteed
+process-memory erasure. The release-readiness follow-up adds scrypt password slots,
+atomic encryption migration, and lock-time chat/contact cache cleanup.
 
 NIP-44/17's long-term-key limitations and metadata exposure remain. See
 ENCRYPTION.md for the bounded threat model. Test migration with backed-up,

@@ -3,6 +3,7 @@ import type { NostrKeys } from '../types'
 import {
   loadKeys,
   saveKeys,
+  replaceKeys,
   loadSettings,
   saveSettings,
   isEncryptedKeys,
@@ -175,9 +176,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           identityHidden: true,
         }
 
-        await saveKeys(encryptedKeys)
         setEncryptionKey(await deriveDatabaseKey(masterKey, dbSalt), dbSalt)
-        await migrateToEncrypted()
+        await migrateToEncrypted(encryptedKeys)
         set({ keys, hasPassword: true, hideIdentity: true, setupComplete: false, isLoading: false })
       } else {
         // Pending identity stays in memory until password protection is established.
@@ -186,6 +186,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       return keys
     } catch (error) {
+      clearEncryptionKey()
       console.error('Failed to create keys:', error)
       set({ isLoading: false, error: 'Failed to create keys' })
       throw error
@@ -220,9 +221,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           identityHidden: true,
         }
 
-        await saveKeys(encryptedKeys)
         setEncryptionKey(await deriveDatabaseKey(masterKey, dbSalt), dbSalt)
-        await migrateToEncrypted()
+        await migrateToEncrypted(encryptedKeys)
         set({ keys, hasPassword: true, hideIdentity: true, setupComplete: true, isLoading: false })
       } else {
         // Pending identity stays in memory until password protection is established.
@@ -231,6 +231,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       return true
     } catch (error) {
+      clearEncryptionKey()
       console.error('Failed to import keys:', error)
       set({ isLoading: false, error: 'Failed to import keys' })
       return false
@@ -295,6 +296,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return false
       }
 
+      // Upgrade only the password wrapper; ciphertext, master key and biometric slots stay valid.
+      if (!passwordSlot.kdf) {
+        const upgraded = await createPasswordSlot(masterKey, password)
+        if (generation !== unlockGeneration) return false
+        await replaceKeys(storedKeys, {
+          ...storedKeys,
+          slots: storedKeys.slots.map((slot) => (slot === passwordSlot ? upgraded : slot)),
+        })
+      }
+
       // Derive DB key from master key
       const dbKey = await deriveDatabaseKey(masterKey!, dbSalt!)
       if (generation !== unlockGeneration) return false
@@ -306,6 +317,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ keys, isLocked: false, isLoading: false, error: null, lockoutUntil: null, failedAttempts: 0 })
       return true
     } catch (error) {
+      clearEncryptionKey()
       console.error('Failed to unlock:', error)
       set({ isLoading: false, error: 'Failed to unlock' })
       return false
@@ -372,9 +384,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const dbKey = await deriveDatabaseKey(masterKey, dbSalt)
       setEncryptionKey(dbKey, dbSalt)
 
-      console.log('setPassword: Migrating to encrypted...')
-      await migrateToEncrypted()
-
       const encryptedKeys: EncryptedKeys = {
         _v: 2,
         encryptedNsec,
@@ -384,12 +393,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         identityHidden: hideIdentity || undefined,
       }
 
-      console.log('setPassword: Saving keys...')
-      await saveKeys(encryptedKeys)
+      await migrateToEncrypted(encryptedKeys)
       set({ hasPassword: true })
       console.log('setPassword: Success!')
       return true
     } catch (error) {
+      clearEncryptionKey()
       console.error('Failed to set password:', error)
       return false
     }

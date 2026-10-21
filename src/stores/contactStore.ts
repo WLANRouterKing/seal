@@ -1,11 +1,19 @@
+import { getVaultGeneration, onVaultCleared } from '../services/encryptionKeyManager'
 import { create } from 'zustand'
 import type { Contact } from '../types'
-import { saveContact as saveContactToDB, getAllContacts, deleteContact as deleteContactFromDB } from '../services/db'
+import {
+  saveContact as saveContactToDB,
+  getAllContacts,
+  deleteContact as deleteContactFromDB,
+  loadSettings,
+  saveSettings,
+} from '../services/db'
 import { npubToPubkey, pubkeyToNpub, isValidNpub } from '../services/keys'
 import { relayPool } from '../services/relay'
 
 interface ContactState {
   contacts: Contact[]
+  chatExpirations: Record<string, number>
   isLoading: boolean
   error: string | null
 
@@ -23,14 +31,18 @@ interface ContactState {
 
 export const useContactStore = create<ContactState>((set, get) => ({
   contacts: [],
+  chatExpirations: {},
   isLoading: false,
   error: null,
 
   initialize: async () => {
+    const generation = getVaultGeneration()
     set({ isLoading: true })
     try {
       const contacts = await getAllContacts()
-      set({ contacts, isLoading: false })
+      const settings = await loadSettings()
+      if (generation !== getVaultGeneration()) return
+      set({ contacts, chatExpirations: settings?.chatExpirations ?? {}, isLoading: false })
     } catch (error) {
       console.error('Failed to load contacts:', error)
       set({ isLoading: false, error: 'Failed to load contacts' })
@@ -38,6 +50,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
   },
 
   addContact: async (npubOrPubkey: string, name?: string) => {
+    const generation = getVaultGeneration()
     set({ error: null })
 
     let pubkey: string
@@ -70,11 +83,13 @@ export const useContactStore = create<ContactState>((set, get) => ({
       pubkey,
       npub,
       name,
+      expirationSeconds: get().chatExpirations[pubkey],
       createdAt: Math.floor(Date.now() / 1000),
     }
 
     try {
       await saveContactToDB(contact)
+      if (generation !== getVaultGeneration()) return null
       set({ contacts: [...get().contacts, contact] })
 
       // Fetch profile in background
@@ -89,8 +104,10 @@ export const useContactStore = create<ContactState>((set, get) => ({
   },
 
   removeContact: async (pubkey: string) => {
+    const generation = getVaultGeneration()
     try {
       await deleteContactFromDB(pubkey)
+      if (generation !== getVaultGeneration()) return
       set({ contacts: get().contacts.filter((c) => c.pubkey !== pubkey) })
     } catch (error) {
       console.error('Failed to remove contact:', error)
@@ -99,12 +116,14 @@ export const useContactStore = create<ContactState>((set, get) => ({
   },
 
   updateContact: async (pubkey: string, updates: Partial<Contact>) => {
+    const generation = getVaultGeneration()
     const contact = get().contacts.find((c) => c.pubkey === pubkey)
     if (!contact) return false
 
     const updatedContact = { ...contact, ...updates, pubkey: contact.pubkey, npub: contact.npub }
     try {
       await saveContactToDB(updatedContact)
+      if (generation !== getVaultGeneration()) return false
       set({
         contacts: get().contacts.map((c) => (c.pubkey === pubkey ? updatedContact : c)),
       })
@@ -116,10 +135,12 @@ export const useContactStore = create<ContactState>((set, get) => ({
   },
 
   fetchProfile: async (pubkey: string) => {
+    const generation = getVaultGeneration()
     const connectedRelays = relayPool.getConnectedUrls()
     if (connectedRelays.length === 0) return
 
     relayPool.subscribe(connectedRelays, [{ kinds: [0], authors: [pubkey], limit: 1 }], (event) => {
+      if (generation !== getVaultGeneration()) return
       try {
         const profile = JSON.parse(event.content)
         void get()
@@ -142,28 +163,24 @@ export const useContactStore = create<ContactState>((set, get) => ({
 
   // NIP-40: Set message expiration for a contact
   setExpiration: async (pubkey: string, seconds: number) => {
+    const generation = getVaultGeneration()
     const contact = get().contacts.find((c) => c.pubkey === pubkey)
     if (contact) {
       await get().updateContact(pubkey, { expirationSeconds: seconds })
     } else {
-      // Contact doesn't exist yet - create it with just the expiration setting
-      const npub = pubkeyToNpub(pubkey)
-      const newContact: Contact = {
-        pubkey,
-        npub,
-        createdAt: Math.floor(Date.now() / 1000),
-        expirationSeconds: seconds,
-      }
-      await saveContactToDB(newContact)
-      set({ contacts: [...get().contacts, newContact] })
-      // Fetch profile in background
-      get().fetchProfile(pubkey)
+      // A per-chat preference must never implicitly create an address-book entry.
+      const chatExpirations = { ...get().chatExpirations, [pubkey]: seconds }
+      await saveSettings({ chatExpirations })
+      if (generation !== getVaultGeneration()) return
+      set({ chatExpirations })
     }
   },
 
   // NIP-40: Get message expiration for a contact (0 = no expiration)
   getExpiration: (pubkey: string) => {
     const contact = get().contacts.find((c) => c.pubkey === pubkey)
-    return contact?.expirationSeconds ?? 0
+    return contact?.expirationSeconds ?? get().chatExpirations[pubkey] ?? 0
   },
 }))
+
+onVaultCleared(() => useContactStore.setState({ contacts: [], chatExpirations: {}, isLoading: false, error: null }))

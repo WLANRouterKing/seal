@@ -61,6 +61,7 @@ export interface Relay {
 }
 
 export interface AppSettings {
+  chatExpirations?: Record<string, number> // Local timer preferences, not saved contacts.
   theme?: 'dark' | 'light' | 'system'
   autoLockMinutes?: number
   notificationsEnabled?: boolean

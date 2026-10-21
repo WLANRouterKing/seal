@@ -1,3 +1,4 @@
+import { getVaultGeneration, onVaultCleared } from '../services/encryptionKeyManager'
 import { create } from 'zustand'
 import type { Contact } from '../types'
 import {
@@ -25,10 +26,11 @@ export const useBlockedContactStore = create<BlockedContactState>((set, get) => 
   error: null,
 
   initialize: async () => {
+    const generation = getVaultGeneration()
     set({ isLoading: true })
     try {
       const blockedContacts = await getAllBlockedContacts()
-      console.log(blockedContacts)
+      if (generation !== getVaultGeneration()) return
       set({ blockedContacts, isLoading: false })
     } catch (error) {
       console.error('Failed to load blocked contacts:', error)
@@ -37,6 +39,7 @@ export const useBlockedContactStore = create<BlockedContactState>((set, get) => 
   },
 
   addBlockedContact: async (npubOrPubkey: string, name?: string) => {
+    const generation = getVaultGeneration()
     set({ error: null })
 
     let pubkey: string
@@ -74,6 +77,7 @@ export const useBlockedContactStore = create<BlockedContactState>((set, get) => 
 
     try {
       await saveBlockedContactToDB(contact)
+      if (generation !== getVaultGeneration()) return null
       set({ blockedContacts: [...get().blockedContacts, contact] })
 
       return contact
@@ -85,8 +89,10 @@ export const useBlockedContactStore = create<BlockedContactState>((set, get) => 
   },
 
   removeBlockedContact: async (pubkey: string) => {
+    const generation = getVaultGeneration()
     try {
       await deleteBlockedContactFromDB(pubkey)
+      if (generation !== getVaultGeneration()) return
       set({ blockedContacts: get().blockedContacts.filter((c) => c.pubkey !== pubkey) })
     } catch (error) {
       console.error('Failed to remove contact from ban list:', error)
@@ -96,3 +102,5 @@ export const useBlockedContactStore = create<BlockedContactState>((set, get) => 
 
   clearError: () => set({ error: null }),
 }))
+
+onVaultCleared(() => useBlockedContactStore.setState({ blockedContacts: [], isLoading: false, error: null }))

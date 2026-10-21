@@ -62,6 +62,7 @@ export default function Chat() {
         <Box className="chat-conversation">
           {activeChat ? (
             <ChatWindow
+              key={activeChat}
               contactPubkey={activeChat}
               contact={activeContact}
               isBlocked={isBlocked}

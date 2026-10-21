@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import { DB_NAME, DB_VERSION, STORES } from '../utils/constants'
 import type { NostrKeys, Contact, Message, AppSettings } from '../types'
 import { encryptForStorage, decryptFromStorage, isEncryptedEnvelope, type EncryptedEnvelope } from './encryption'
-import { isEncryptionUnlocked } from './encryptionKeyManager'
+import { getEncryptionKey, isEncryptionUnlocked } from './encryptionKeyManager'
 import type { KeySlot } from './masterKey'
 
 // =============================================================================
@@ -175,6 +175,19 @@ function isEncryptedRelay(relay: unknown): relay is EncryptedRelay {
 export async function saveKeys(keys: NostrKeys | EncryptedKeys): Promise<void> {
   const db = await getDB()
   await db.put(STORES.KEYS, keys, 'primary')
+}
+
+export async function replaceKeys(expected: EncryptedKeys, replacement: EncryptedKeys): Promise<void> {
+  const db = await getDB()
+  const tx = db.transaction(STORES.KEYS, 'readwrite')
+  const current = await tx.store.get('primary')
+  if (JSON.stringify(current) !== JSON.stringify(expected)) {
+    tx.abort()
+    await tx.done.catch(() => {})
+    throw new Error('Account changed; unlock again')
+  }
+  await tx.store.put(replacement, 'primary')
+  await tx.done
 }
 
 export async function loadKeys(): Promise<NostrKeys | EncryptedKeys | undefined> {
@@ -514,53 +527,86 @@ export async function clearAllData(): Promise<void> {
 // MIGRATIONS (encrypt/decrypt all data when password is set/removed)
 // =============================================================================
 
-export async function migrateToEncrypted(): Promise<void> {
+export async function migrateToEncrypted(newKeys?: EncryptedKeys): Promise<void> {
   const db = await getDB()
-
-  // Migrate messages
-  const messages = await db.getAll(STORES.MESSAGES)
-  for (const msg of messages) {
-    if (!isEncryptedMessage(msg)) {
-      const storedMsg = msg as StoredMessage
-      const envelope = await encryptForStorage(storedMsg)
-      await db.put(STORES.MESSAGES, { ...envelope, id: storedMsg.id } as unknown as StoredMessage)
+  const key = getEncryptionKey()?.key
+  if (!key) throw new Error('Encryption key required for migration')
+  const stores = [
+    STORES.MESSAGES,
+    STORES.CONTACTS,
+    STORES.BLOCKED_CONTACTS,
+    STORES.SETTINGS,
+    STORES.RELAYS,
+    STORES.KEYS,
+  ] as const
+  const read = db.transaction(stores, 'readonly')
+  const snapshots = await Promise.all(
+    stores.map(async (name) => ({
+      name,
+      keys: await read.objectStore(name).getAllKeys(),
+      values: await read.objectStore(name).getAll(),
+    }))
+  )
+  await read.done
+  // Complete WebCrypto before opening the write transaction.
+  const staged = await Promise.all(
+    snapshots.map(async (snapshot) => ({
+      ...snapshot,
+      values: await Promise.all(
+        snapshot.values.map(async (value) => {
+          if (snapshot.name === STORES.KEYS || isEncryptedEnvelope(value)) return value
+          const envelope = await encryptForStorage(value)
+          if (snapshot.name === STORES.MESSAGES) return { ...envelope, id: (value as StoredMessage).id }
+          if (snapshot.name === STORES.CONTACTS || snapshot.name === STORES.BLOCKED_CONTACTS)
+            return { ...envelope, pubkey: (value as Contact).pubkey }
+          if (snapshot.name === STORES.RELAYS) {
+            const hash = await hashUrl((value as RelayData).url)
+            return { ...envelope, _k: hash, url: hash }
+          }
+          return envelope
+        })
+      ),
+    }))
+  )
+  if (getEncryptionKey()?.key !== key) throw new Error('Vault locked during migration')
+  const tx = db.transaction(stores, 'readwrite')
+  try {
+    for (const snapshot of snapshots) {
+      const store = tx.objectStore(snapshot.name)
+      const keys = await store.getAllKeys()
+      const values = await store.getAll()
+      if (
+        JSON.stringify(keys) !== JSON.stringify(snapshot.keys) ||
+        JSON.stringify(values) !== JSON.stringify(snapshot.values)
+      )
+        throw new Error('Vault changed during migration; retry')
     }
-  }
-
-  // Migrate contacts
-  const contacts = await db.getAll(STORES.CONTACTS)
-  for (const contact of contacts) {
-    if (!isEncryptedContact(contact)) {
-      const c = contact as Contact
-      const envelope = await encryptForStorage(c)
-      await db.put(STORES.CONTACTS, { ...envelope, pubkey: c.pubkey } as unknown as Contact)
+    for (const snapshot of staged) {
+      if (
+        snapshot.name === STORES.KEYS ||
+        JSON.stringify(snapshot.values) ===
+          JSON.stringify(snapshots.find((item) => item.name === snapshot.name)!.values)
+      )
+        continue
+      const store = tx.objectStore(snapshot.name)
+      await store.clear()
+      for (let i = 0; i < snapshot.values.length; i++)
+        await store.put(
+          snapshot.values[i] as SealChatDB[typeof snapshot.name]['value'],
+          snapshot.name === STORES.SETTINGS ? snapshot.keys[i] : undefined
+        )
     }
-  }
-
-  for (const contact of await db.getAll(STORES.BLOCKED_CONTACTS)) {
-    if (!isEncryptedContact(contact)) {
-      const envelope = await encryptForStorage(contact)
-      await db.put(STORES.BLOCKED_CONTACTS, { ...envelope, pubkey: contact.pubkey })
+    if (newKeys) await tx.objectStore(STORES.KEYS).put(newKeys, 'primary')
+    if (getEncryptionKey()?.key !== key) throw new Error('Vault locked during migration')
+    await tx.done
+  } catch (error) {
+    try {
+      tx.abort()
+    } catch {
+      /* Already aborted. */
     }
-  }
-
-  // Migrate settings
-  const settings = await db.get(STORES.SETTINGS, 'app')
-  if (settings && !isEncryptedEnvelope(settings)) {
-    const envelope = await encryptForStorage(settings)
-    await db.put(STORES.SETTINGS, envelope as unknown as AppSettings, 'app')
-  }
-
-  // Migrate relays
-  const relays = await db.getAll(STORES.RELAYS)
-  for (const relay of relays) {
-    if (!isEncryptedRelay(relay)) {
-      const r = relay as RelayData
-      const urlHash = await hashUrl(r.url)
-      const envelope = await encryptForStorage(r)
-      await db.delete(STORES.RELAYS, r.url)
-      await db.put(STORES.RELAYS, { ...envelope, _k: urlHash, url: urlHash } as unknown as RelayData)
-    }
+    await tx.done.catch(() => undefined)
+    throw error
   }
 }
 

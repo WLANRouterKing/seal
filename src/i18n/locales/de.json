@@ -102,7 +102,12 @@
     "noResults": "Keine passenden Chats",
     "searchHint": "Versuche einen anderen Namen oder öffentlichen Schlüssel.",
     "welcomeTitle": "Deine Gespräche, dein Raum.",
-    "welcomeHint": "Wähle links ein Gespräch oder lade jemanden ein. Eine Einladung enthält nur deine öffentliche Kontaktadresse."
+    "welcomeHint": "Wähle links ein Gespräch oder lade jemanden ein. Eine Einladung enthält nur deine öffentliche Kontaktadresse.",
+    "actions": "Chat-Aktionen",
+    "addSenderHint": "Speichere diesen Absender als Kontakt. Die öffentliche Adresse gehört zu diesem Chat.",
+    "blockSenderHint": "Nachrichten dieses Absenders werden lokal ignoriert. Der vorhandene Chat bleibt erhalten.",
+    "unblockSenderHint": "Nach dem Aufheben der Blockierung kannst du wieder Nachrichten mit diesem Absender austauschen.",
+    "contactActionFailed": "Die Änderung konnte nicht gespeichert werden. Bitte versuche es erneut."
   },
   "contacts": {
     "title": "Kontakte",

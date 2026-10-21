@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       is_master: ${{ steps.check.outputs.is_master }}
+      stable: ${{ steps.version.outputs.stable }}
 
     steps:
       - name: Checkout
@@ -19,14 +20,29 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate release version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const version = JSON.parse(fs.readFileSync('package.json')).version;
+          const lock = JSON.parse(fs.readFileSync('package-lock.json'));
+          if (process.env.RELEASE_TAG !== `v${version}` || lock.version !== version || lock.packages[''].version !== version)
+            throw new Error('Tag and package versions must match');
+          if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) throw new Error('Invalid version');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `stable=${!version.includes('-')}\n`);
+          JS
+
       - name: Check if tag is on master
         id: check
         run: |
           # Get the commit the tag points to
-          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref }})
+          TAG_COMMIT=$(git rev-list -n 1 "$GITHUB_REF")
 
           # Check if this commit is in master's history
-          if git merge-base --is-ancestor $TAG_COMMIT origin/master; then
+          if git merge-base --is-ancestor "$TAG_COMMIT" origin/master; then
             echo "Tag is on master branch"
             echo "is_master=true" >> $GITHUB_OUTPUT
           else
@@ -63,7 +79,7 @@ jobs:
   release-web:
     name: Release Web
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, check-branch]
     environment: production
 
     permissions:
@@ -105,9 +121,10 @@ jobs:
           files: seal-${{ github.ref_name }}.zip
           body: ${{ steps.changelog.outputs.content }}
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          prerelease: ${{ needs.check-branch.outputs.stable != 'true' }}
 
       - name: Install SSH Key
+        if: needs.check-branch.outputs.stable == 'true'
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -115,9 +132,11 @@ jobs:
           if_key_exists: replace
 
       - name: Add Known Hosts
+        if: needs.check-branch.outputs.stable == 'true'
         run: ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to Production
+        if: needs.check-branch.outputs.stable == 'true'
         run: |
           rsync -avz --delete --chmod=D755,F644 \
             dist/ \
@@ -127,7 +146,7 @@ jobs:
   release-android:
     name: Release Android
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, release-web, check-branch]
 
     permissions:
       contents: write
@@ -193,11 +212,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: seal-*.apk
+          prerelease: ${{ needs.check-branch.outputs.stable != 'true' }}
 
   # Desktop Release Builds
   release-desktop:
     name: Release Desktop
-    needs: test
+    needs: [test, release-web, check-branch]
     strategy:
       fail-fast: false
       matrix:
@@ -236,7 +256,7 @@ jobs:
         run: npm ci
 
       - name: Build and Publish Electron app
-        run: npm run ${{ matrix.build_script }} -- --publish always
+        run: npm run ${{ matrix.build_script }} -- --publish always -c.publish.releaseType=${{ needs.check-branch.outputs.stable == 'true' && 'release' || 'prerelease' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
