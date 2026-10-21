@@ -1,12 +1,19 @@
 import { getVaultGeneration, onVaultCleared } from '../services/encryptionKeyManager'
 import { create } from 'zustand'
 import type { Contact } from '../types'
-import { saveContact as saveContactToDB, getAllContacts, deleteContact as deleteContactFromDB } from '../services/db'
+import {
+  saveContact as saveContactToDB,
+  getAllContacts,
+  deleteContact as deleteContactFromDB,
+  loadSettings,
+  saveSettings,
+} from '../services/db'
 import { npubToPubkey, pubkeyToNpub, isValidNpub } from '../services/keys'
 import { relayPool } from '../services/relay'
 
 interface ContactState {
   contacts: Contact[]
+  chatExpirations: Record<string, number>
   isLoading: boolean
   error: string | null
 
@@ -24,6 +31,7 @@ interface ContactState {
 
 export const useContactStore = create<ContactState>((set, get) => ({
   contacts: [],
+  chatExpirations: {},
   isLoading: false,
   error: null,
 
@@ -32,8 +40,9 @@ export const useContactStore = create<ContactState>((set, get) => ({
     set({ isLoading: true })
     try {
       const contacts = await getAllContacts()
+      const settings = await loadSettings()
       if (generation !== getVaultGeneration()) return
-      set({ contacts, isLoading: false })
+      set({ contacts, chatExpirations: settings?.chatExpirations ?? {}, isLoading: false })
     } catch (error) {
       console.error('Failed to load contacts:', error)
       set({ isLoading: false, error: 'Failed to load contacts' })
@@ -74,6 +83,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
       pubkey,
       npub,
       name,
+      expirationSeconds: get().chatExpirations[pubkey],
       createdAt: Math.floor(Date.now() / 1000),
     }
 
@@ -158,27 +168,19 @@ export const useContactStore = create<ContactState>((set, get) => ({
     if (contact) {
       await get().updateContact(pubkey, { expirationSeconds: seconds })
     } else {
-      // Contact doesn't exist yet - create it with just the expiration setting
-      const npub = pubkeyToNpub(pubkey)
-      const newContact: Contact = {
-        pubkey,
-        npub,
-        createdAt: Math.floor(Date.now() / 1000),
-        expirationSeconds: seconds,
-      }
-      await saveContactToDB(newContact)
+      // A per-chat preference must never implicitly create an address-book entry.
+      const chatExpirations = { ...get().chatExpirations, [pubkey]: seconds }
+      await saveSettings({ chatExpirations })
       if (generation !== getVaultGeneration()) return
-      set({ contacts: [...get().contacts, newContact] })
-      // Fetch profile in background
-      get().fetchProfile(pubkey)
+      set({ chatExpirations })
     }
   },
 
   // NIP-40: Get message expiration for a contact (0 = no expiration)
   getExpiration: (pubkey: string) => {
     const contact = get().contacts.find((c) => c.pubkey === pubkey)
-    return contact?.expirationSeconds ?? 0
+    return contact?.expirationSeconds ?? get().chatExpirations[pubkey] ?? 0
   },
 }))
 
-onVaultCleared(() => useContactStore.setState({ contacts: [], isLoading: false, error: null }))
+onVaultCleared(() => useContactStore.setState({ contacts: [], chatExpirations: {}, isLoading: false, error: null }))

@@ -1,14 +1,20 @@
 // @vitest-environment node
 import { beforeEach, expect, it, vi } from 'vitest'
 import { useContactStore } from './contactStore'
-import { saveContact } from '../services/db'
+import { saveContact, saveSettings, loadSettings, getAllContacts } from '../services/db'
 
-vi.mock('../services/db', () => ({ saveContact: vi.fn(), getAllContacts: vi.fn(), deleteContact: vi.fn() }))
+vi.mock('../services/db', () => ({
+  saveContact: vi.fn(),
+  getAllContacts: vi.fn(),
+  deleteContact: vi.fn(),
+  loadSettings: vi.fn(),
+  saveSettings: vi.fn(),
+}))
 vi.mock('../services/relay', () => ({ relayPool: { getConnectedUrls: () => [] } }))
 const contact = { pubkey: 'a'.repeat(64), npub: 'npub-original', name: 'Alice', createdAt: 1 }
 beforeEach(() => {
   vi.resetAllMocks()
-  useContactStore.setState({ contacts: [contact] })
+  useContactStore.setState({ contacts: [contact], chatExpirations: {} })
 })
 it('does not transfer a verification to a different public identity through updateContact', async () => {
   expect(
@@ -60,4 +66,23 @@ it('discards a contact update completed after lock', async () => {
   finish()
   expect(await pending).toBe(false)
   expect(useContactStore.getState().contacts).toEqual([])
+})
+
+it('persists an unknown sender timer without adding a contact', async () => {
+  const unknown = 'b'.repeat(64)
+  await useContactStore.getState().setExpiration(unknown, 3600)
+  expect(saveContact).not.toHaveBeenCalled()
+  expect(saveSettings).toHaveBeenCalledWith({ chatExpirations: { [unknown]: 3600 } })
+  expect(useContactStore.getState().contacts).toEqual([contact])
+  expect(useContactStore.getState().getExpiration(unknown)).toBe(3600)
+  // Reload retains the timer, but only explicit addContact creates the entry.
+  vi.mocked(getAllContacts).mockResolvedValue([contact])
+  vi.mocked(loadSettings).mockResolvedValue({ chatExpirations: { [unknown]: 3600 } })
+  await useContactStore.getState().initialize()
+  expect(useContactStore.getState().contacts).toEqual([contact])
+  expect(useContactStore.getState().getExpiration(unknown)).toBe(3600)
+  await useContactStore.getState().addContact(unknown, 'Manual contact')
+  expect(saveContact).toHaveBeenCalledWith(
+    expect.objectContaining({ pubkey: unknown, name: 'Manual contact', expirationSeconds: 3600 })
+  )
 })

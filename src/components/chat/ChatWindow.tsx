@@ -38,7 +38,7 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
   const { t } = useTranslation()
   const { keys } = useAuthStore()
   const { getMessagesForContact, sendMessage, sendFileMessage, deleteMessage, deleteChat } = useMessageStore()
-  const { contacts, setExpiration } = useContactStore()
+  const { getExpiration, setExpiration } = useContactStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -46,8 +46,7 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
   const displayName = contact?.name || truncateKey(contactPubkey, 8)
 
   // Get expiration from contact in store (reactive)
-  const storedContact = contacts.find((c) => c.pubkey === contactPubkey)
-  const currentExpiration = storedContact?.expirationSeconds ?? 0
+  const currentExpiration = getExpiration(contactPubkey)
   const expirationLabel = EXPIRATION_OPTIONS.find((o) => o.value === currentExpiration)?.label || 'Off'
 
   useEffect(() => {
