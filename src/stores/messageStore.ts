@@ -1,3 +1,4 @@
+import type { AccountSigner } from '../services/accountSigner'
 import { getVaultGeneration, onVaultCleared } from '../services/encryptionKeyManager'
 import { create } from 'zustand'
 import type { Message, Chat } from '../types'
@@ -36,10 +37,10 @@ function isMessageExpired(expiration?: number): boolean {
 }
 
 // Decrypt a stored message using the private key
-async function decryptStoredMessage(stored: StoredMessage, privateKey: string): Promise<Message | null> {
+async function decryptStoredMessage(stored: StoredMessage, signer: AccountSigner): Promise<Message | null> {
   try {
     const event = JSON.parse(stored.encryptedEvent) as Event & { kind: typeof NIP17_KIND.GIFT_WRAP }
-    const unwrapped = await unwrapGiftWrap(event, privateKey)
+    const unwrapped = await unwrapGiftWrap(event, signer)
 
     if (!unwrapped) {
       console.error('Failed to decrypt message:', stored.id)
@@ -74,15 +75,15 @@ interface MessageState {
   activeChat: string | null
   isLoading: boolean
   // Actions
-  initialize: (userPubkey: string, userPrivateKey: string) => Promise<void>
-  sendMessage: (recipientPubkey: string, content: string, senderPrivateKey: string) => Promise<void>
+  initialize: (userPubkey: string, userSigner: AccountSigner) => Promise<void>
+  sendMessage: (recipientPubkey: string, content: string, senderSigner: AccountSigner) => Promise<void>
   sendFileMessage: (
     recipientPubkey: string,
     file: File,
     caption: string | undefined,
-    senderPrivateKey: string
+    senderSigner: AccountSigner
   ) => Promise<void>
-  subscribeToMessages: (userPubkey: string, userPrivateKey: string) => () => void
+  subscribeToMessages: (userPubkey: string, userSigner: AccountSigner) => () => void
   setActiveChat: (pubkey: string | null) => void
   getMessagesForContact: (pubkey: string) => Message[]
   markAsRead: (pubkey: string) => Promise<void>
@@ -95,7 +96,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   chats: [],
   activeChat: null,
   isLoading: false,
-  initialize: async (_userPubkey: string, userPrivateKey: string) => {
+  initialize: async (_userPubkey: string, userSigner: AccountSigner) => {
     const generation = getVaultGeneration()
     set({ isLoading: true })
 
@@ -111,7 +112,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
       // Decrypt all messages
       const decryptedMessages = await Promise.all(
-        storedMessages.map((stored) => decryptStoredMessage(stored, userPrivateKey))
+        storedMessages.map((stored) => decryptStoredMessage(stored, userSigner))
       )
 
       if (generation !== getVaultGeneration()) return
@@ -151,7 +152,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }
   },
 
-  sendMessage: async (recipientPubkey: string, content: string, senderPrivateKey: string) => {
+  sendMessage: async (recipientPubkey: string, content: string, senderSigner: AccountSigner) => {
     const generation = getVaultGeneration()
     const blockedPubkeys = new Set(useBlockedContactStore.getState().blockedContacts.map((c) => c.pubkey))
     const isBlocked = blockedPubkeys.has(recipientPubkey)
@@ -190,10 +191,10 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       // Create gift-wrapped message with expiration
       const giftWrapOptions = expiration ? { expiration } : undefined
-      const giftWrap = await createGiftWrap(content, recipientPubkey, senderPrivateKey, giftWrapOptions)
+      const giftWrap = await createGiftWrap(content, recipientPubkey, senderSigner, giftWrapOptions)
 
       // Create self-addressed copy (this is what we store - we can decrypt it with our own key)
-      const selfGiftWrap = await createSelfGiftWrap(content, recipientPubkey, senderPrivateKey, giftWrapOptions)
+      const selfGiftWrap = await createSelfGiftWrap(content, recipientPubkey, senderSigner, giftWrapOptions)
 
       // Debug logging in dev mode
       if (import.meta.env.DEV) {
@@ -282,7 +283,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     recipientPubkey: string,
     file: File,
     caption: string | undefined,
-    senderPrivateKey: string
+    senderSigner: AccountSigner
   ) => {
     const generation = getVaultGeneration()
     const blockedPubkeys = new Set(useBlockedContactStore.getState().blockedContacts.map((c) => c.pubkey))
@@ -323,7 +324,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       console.log('[FileMessage] Compressed file:', compressedFile.size, 'bytes')
 
       // Upload encrypted file to nostr.build (encrypted with recipient's pubkey)
-      const uploadResult = await uploadFile(compressedFile, senderPrivateKey, recipientPubkey)
+      const uploadResult = await uploadFile(compressedFile, senderSigner, recipientPubkey)
       if (generation !== getVaultGeneration()) return
       console.log('[FileMessage] Upload result:', uploadResult)
 
@@ -340,7 +341,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
       // Create file gift wrap (Kind 15) with expiration
       const giftWrapOptions = expiration ? { expiration } : undefined
-      const giftWrap = await createFileGiftWrap(fileMetadata, recipientPubkey, senderPrivateKey, giftWrapOptions)
+      const giftWrap = await createFileGiftWrap(fileMetadata, recipientPubkey, senderSigner, giftWrapOptions)
 
       // Debug logging in dev mode
       if (import.meta.env.DEV) {
@@ -364,7 +365,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
       // Also create a regular text message for self (so we can see it in our chat)
       const selfContent = caption ? `${caption}\n[file:${fileData}]` : `[file:${fileData}]`
-      const selfGiftWrap = await createSelfGiftWrap(selfContent, recipientPubkey, senderPrivateKey, giftWrapOptions)
+      const selfGiftWrap = await createSelfGiftWrap(selfContent, recipientPubkey, senderSigner, giftWrapOptions)
 
       // Get recipient's preferred DM relays
       const recipientDMRelays = await useRelayStore.getState().getDMRelays(recipientPubkey)
@@ -438,7 +439,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }
   },
 
-  subscribeToMessages: (userPubkey: string, userPrivateKey: string) => {
+  subscribeToMessages: (userPubkey: string, userSigner: AccountSigner) => {
     const generation = getVaultGeneration()
     const connectedRelays = relayPool.getConnectedUrls()
     if (connectedRelays.length === 0) return () => {}
@@ -475,7 +476,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         try {
           const unwrapped = await unwrapGiftWrap(
             event as unknown as Event & { kind: typeof NIP17_KIND.GIFT_WRAP },
-            userPrivateKey
+            userSigner
           )
 
           if (!unwrapped || generation !== getVaultGeneration()) return
@@ -547,7 +548,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const stop = () => {
       if (stopped) return
       stopped = true
-      userPrivateKey = ''
+      // Signer is revoked centrally when the vault locks.
       processedIds.clear()
       unsubscribe()
     }

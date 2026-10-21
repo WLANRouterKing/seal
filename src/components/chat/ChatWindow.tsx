@@ -20,7 +20,7 @@ import { IconArrowLeft, IconClock, IconClockOff } from '@tabler/icons-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useMessageStore } from '../../stores/messageStore'
 import { useContactStore } from '../../stores/contactStore'
-import { nsecToPrivateKey } from '../../services/keys'
+import { getAccountSigner } from '../../services/accountSignerSession'
 import { type Contact, EXPIRATION_OPTIONS } from '../../types'
 import { truncateKey } from '../../utils/format'
 import MessageBubble from './MessageBubble'
@@ -56,17 +56,17 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
   const handleSend = async (content: string) => {
     if (isBlocked) return
     if (!keys) return
-    const privateKey = nsecToPrivateKey(keys.nsec)
-    if (!privateKey) return
-    await sendMessage(contactPubkey, content, privateKey)
+    const signer = getAccountSigner()
+    if (!signer) return
+    await sendMessage(contactPubkey, content, signer)
   }
 
   const handleSendFile = async (file: File, caption?: string) => {
     if (isBlocked) return
     if (!keys) return
-    const privateKey = nsecToPrivateKey(keys.nsec)
-    if (!privateKey) return
-    await sendFileMessage(contactPubkey, file, caption, privateKey)
+    const signer = getAccountSigner()
+    if (!signer) return
+    await sendFileMessage(contactPubkey, file, caption, signer)
   }
 
   const handleDelete = async (messageId: string) => {

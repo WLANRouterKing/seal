@@ -9,7 +9,8 @@ import { useContactStore } from './stores/contactStore'
 import { useMessageStore } from './stores/messageStore'
 import { useBlockedContactStore } from './stores/blockedContactStore'
 import { invitationFromHash } from './services/invitations'
-import { nsecToPrivateKey, npubToPubkey } from './services/keys'
+import { getAccountSigner } from './services/accountSignerSession'
+import { npubToPubkey } from './services/keys'
 import { notificationService } from './services/notifications'
 import { backgroundService } from './services/backgroundService'
 import { pushService } from './services/pushService'
@@ -114,11 +115,11 @@ function App() {
   useEffect(() => {
     if (keys && hasPassword) {
       const pubkey = npubToPubkey(keys.npub)
-      const privateKey = nsecToPrivateKey(keys.nsec)
-      if (pubkey && privateKey) {
+      const signer = getAccountSigner()
+      if (pubkey && signer) {
         initContacts()
         initBlockedContacts()
-        initMessages(pubkey, privateKey)
+        initMessages(pubkey, signer)
       }
     }
   }, [keys, hasPassword, initBlockedContacts, initContacts, initMessages])
@@ -127,9 +128,9 @@ function App() {
   useEffect(() => {
     if (keys && hasPassword && connectedCount > 0) {
       const pubkey = npubToPubkey(keys.npub)
-      const privateKey = nsecToPrivateKey(keys.nsec)
-      if (pubkey && privateKey) {
-        return subscribeToMessages(pubkey, privateKey)
+      const signer = getAccountSigner()
+      if (pubkey && signer) {
+        return subscribeToMessages(pubkey, signer)
       }
     }
   }, [keys, hasPassword, connectedCount, subscribeToMessages])

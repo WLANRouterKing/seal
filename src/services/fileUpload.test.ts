@@ -1,3 +1,5 @@
+import type { AccountSigner } from './accountSigner'
+import { finalizeEvent, nip44 } from 'nostr-tools'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock the crypto.subtle before importing the module
@@ -43,6 +45,13 @@ vi.mock('@noble/hashes/utils', async () => {
 })
 
 // Now import the module
+const testSigner: AccountSigner = {
+  pubkey: 'test-pubkey',
+  assertActive() {},
+  signEvent: async (e) => finalizeEvent(e, new Uint8Array(32)),
+  encrypt: async (_p, v) => nip44.v2.encrypt(v, new Uint8Array(32)),
+  decrypt: async (_p, v) => nip44.v2.decrypt(v, new Uint8Array(32)),
+}
 const { uploadFile, compressImage, decryptFileData } = await import('./fileUpload')
 
 // Mock fetch globally
@@ -81,7 +90,7 @@ describe('fileUpload', () => {
       })
 
       const file = createMockFile('test content', 'test.png', 'image/png')
-      const privateKey = '0'.repeat(64) // Mock 32-byte hex private key
+      const privateKey = testSigner // Mock 32-byte hex private key
       const recipientPubkey = '1'.repeat(64) // Mock 32-byte hex public key
 
       const result = await uploadFile(file, privateKey, recipientPubkey)
@@ -106,7 +115,7 @@ describe('fileUpload', () => {
       })
 
       const file = createMockFile('test', 'test.png', 'image/png')
-      const privateKey = '0'.repeat(64)
+      const privateKey = testSigner
       const recipientPubkey = '1'.repeat(64)
 
       await expect(uploadFile(file, privateKey, recipientPubkey)).rejects.toThrow('All upload endpoints failed')
@@ -130,7 +139,7 @@ describe('fileUpload', () => {
       })
 
       const file = createMockFile('test', 'test.png', 'image/png')
-      const privateKey = '0'.repeat(64)
+      const privateKey = testSigner
       const recipientPubkey = '1'.repeat(64)
 
       const result = await uploadFile(file, privateKey, recipientPubkey)
@@ -170,7 +179,7 @@ describe('fileUpload', () => {
       mockData.set(iv, 4 + keyLength)
       mockData.set(encryptedFileData, 4 + keyLength + 12)
 
-      const privateKey = '0'.repeat(64)
+      const privateKey = testSigner
       const senderPubkey = '1'.repeat(64)
 
       const result = await decryptFileData(mockData.buffer, privateKey, senderPubkey)
@@ -194,7 +203,7 @@ describe('uploadFile hash calculation', () => {
     })
 
     const file = createMockFile('hello world', 'test.png', 'image/png')
-    const privateKey = '0'.repeat(64)
+    const privateKey = testSigner
     const recipientPubkey = '1'.repeat(64)
 
     const result = await uploadFile(file, privateKey, recipientPubkey)

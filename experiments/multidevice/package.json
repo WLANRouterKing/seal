@@ -1,0 +1,24 @@
+{
+  "name": "seal-multidevice-experiment",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node apply-library-fix.mjs && node --test *.test.mjs",
+    "dev": "node apply-library-fix.mjs && vite --config vite.config.mjs",
+    "build": "node apply-library-fix.mjs && vite build --config vite.config.mjs"
+  },
+  "dependencies": {
+    "@internet-privacy/marmot-ts": "0.7.0",
+    "@noble/hashes": "2.2.0",
+    "applesauce-common": "6.2.0",
+    "nostr-tools": "2.20.0",
+    "qrcode.react": "4.2.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "5.1.2",
+    "playwright": "1.62.1",
+    "vite": "7.3.7"
+  }
+}

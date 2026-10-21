@@ -46,3 +46,6 @@ vendor/bundle
 .claude-context.md
 CLAUDE.md
 .notizen
+
+# Isolated multi-device lab build
+experiments/multidevice/lab-dist/

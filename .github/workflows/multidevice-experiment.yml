@@ -1,0 +1,34 @@
+name: Multi-device feasibility (experimental)
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/multidevice/**'
+      - '.github/workflows/multidevice-experiment.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protocol-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: experiments/multidevice
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: experiments/multidevice/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Browser lifecycle test
+        run: |
+          npm run dev > "$RUNNER_TEMP/seal-device-lab.log" 2>&1 &
+          node browser-smoke.cjs

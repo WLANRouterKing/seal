@@ -5,7 +5,7 @@ import { IconAlertTriangle, IconTrash, IconCheck, IconX } from '@tabler/icons-re
 import { useAuthStore } from '../../stores/authStore'
 import { useRelayStore } from '../../stores/relayStore'
 import { createVanishRequest } from '../../services/crypto'
-import { nsecToPrivateKey } from '../../services/keys'
+import { getAccountSigner } from '../../services/accountSignerSession'
 import { relayPool } from '../../services/relay'
 
 interface DeleteAccountModalProps {
@@ -33,15 +33,15 @@ export default function DeleteAccountModal({ opened, onClose }: DeleteAccountMod
 
   const handleDelete = async () => {
     if (!keys) return
-    const privateKey = nsecToPrivateKey(keys.nsec)
-    if (!privateKey) return
+    const signer = getAccountSigner()
+    if (!signer) return
 
     setState('publishing')
 
     try {
       if (sendVanish) {
         // Create and publish NIP-62 vanish request
-        const vanishEvent = createVanishRequest(privateKey)
+        const vanishEvent = await createVanishRequest(signer)
         const connectedUrls = connectedRelays.map((r) => r.url)
 
         if (connectedUrls.length > 0) {
