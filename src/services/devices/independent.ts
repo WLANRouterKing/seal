@@ -220,11 +220,18 @@ export class IndependentSession implements AppDeviceSession {
   private store: StateStore<CompanionState>
   constructor(state: CompanionState, store: StateStore<CompanionState>) {
     if (!state.confirmed || !state.directory) throw new Error('Link this device again to enable independent messaging')
+    const proof = inspectDirectory(state.directory, state.account)
+    const saved = state.independent?.directories[state.account]
+    const current = saved ? inspectDirectory(saved, state.account) : proof
+    if (!proof.devices.includes(state.request.pubkey) || !current.devices.includes(state.request.pubkey))
+      throw new Error('Device access revoked; delete this local link')
     this.store = store
     this.state = structuredClone(state)
     this.signer = createLocalAccountSigner(this.state.secret)
-    const proof = inspectDirectory(state.directory, state.account)
-    if (!proof.devices.includes(this.signer.pubkey)) throw new Error('Device not authorized')
+    if (this.signer.pubkey !== state.request.pubkey) {
+      this.signer.dispose()
+      throw new Error('Device key does not match enrollment')
+    }
     this.data = this.state.independent ??= {
       messages: [],
       contacts: [],

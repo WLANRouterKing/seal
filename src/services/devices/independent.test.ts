@@ -2,8 +2,8 @@
 import { expect, it } from 'vitest'
 import { createLocalAccountSigner } from '../accountSigner'
 import { createGiftWrap, unwrapGiftWrap } from '../crypto'
-import { checkWire, inspectDirectory, DIRECTORY_ID, DIRECTORY_KIND } from './independent'
-import { newDeviceSecret, now } from './protocol'
+import { checkWire, inspectDirectory, DIRECTORY_ID, DIRECTORY_KIND, IndependentSession } from './independent'
+import { newDeviceSecret, now, makeRequest, randomId } from './protocol'
 async function fixture() {
   const account = createLocalAccountSigner(newDeviceSecret())
   const device = createLocalAccountSigner(newDeviceSecret())
@@ -94,5 +94,61 @@ it('rejects tampered certificates, an unapproved signer, a changed recipient and
     expect(() => checkWire(forged, f.device.pubkey, f.peer.pubkey, f.peer.pubkey, current)).toThrow()
   } finally {
     f.close()
+  }
+})
+
+it('does not reopen a device whose encrypted state already recorded its removal', async () => {
+  const account = createLocalAccountSigner(newDeviceSecret())
+  const secret = newDeviceSecret()
+  const request = makeRequest(secret, {
+    account: account.pubkey,
+    name: 'revoked browser',
+    expires: now() + 300,
+    session: randomId(),
+    relays: ['wss://nos.lol'],
+  })
+  try {
+    const directory = await account.signEvent({
+      kind: DIRECTORY_KIND,
+      created_at: now(),
+      tags: [['d', DIRECTORY_ID]],
+      content: JSON.stringify({ version: 1, devices: [request.pubkey] }),
+    })
+    const removed = await account.signEvent({
+      kind: DIRECTORY_KIND,
+      created_at: now() + 1,
+      tags: [['d', DIRECTORY_ID]],
+      content: JSON.stringify({ version: 1, devices: [] }),
+    })
+    expect(
+      () =>
+        new IndependentSession(
+          {
+            account: account.pubkey,
+            secret,
+            request,
+            confirmed: true,
+            seq: 1,
+            directory,
+            independent: {
+              messages: [],
+              contacts: [],
+              blocked: [],
+              expirations: {},
+              deleted: [],
+              directories: { [account.pubkey]: removed },
+            },
+          },
+          {
+            assertActive() {},
+            async load() {
+              return undefined
+            },
+            async save() {},
+          }
+        )
+    ).toThrow('revoked')
+  } finally {
+    account.dispose()
   }
 })

@@ -6,7 +6,8 @@ const base = process.env.SEAL_APP_URL || 'http://127.0.0.1:5173'
 const password = 'synthetic device test password'
 ;(async () => {
   const browsers = [],
-    errors = []
+    errors = [],
+    deliveries = []
   const mainSecret = generateSecretKey(),
     peerSecret = generateSecretKey()
   const mainPublic = getPublicKey(mainSecret),
@@ -29,6 +30,17 @@ const password = 'synthetic device test password'
       const page = await context.newPage()
       page.setDefaultTimeout(45000)
       page.on('pageerror', (error) => errors.push(error.message))
+      page.on('websocket', (socket) =>
+        socket.on('framesent', (frame) => {
+          try {
+            const data = JSON.parse(String(frame.payload))
+            if (data[0] === 'EVENT' && data[1]?.kind === 1059)
+              deliveries.push({ page, recipient: data[1].tags.find((tag) => tag[0] === 'p')?.[1] })
+          } catch {
+            /* Ignore non-event frames. */
+          }
+        })
+      )
       return page
     }
     let main = await page()
@@ -56,6 +68,9 @@ const password = 'synthetic device test password'
     async function send(target, text) {
       await target.getByLabel('Type a message...', { exact: true }).fill(text)
       await target.getByRole('button', { name: 'Send', exact: true }).click()
+      await target.waitForFunction(
+        () => document.querySelector('textarea[aria-label="Type a message..."]')?.value === ''
+      )
     }
     await importAccount(main, mainSecret)
     await importAccount(peer, peerSecret)
@@ -131,11 +146,27 @@ const password = 'synthetic device test password'
     await main.goto(base)
     await main.getByPlaceholder('Enter your password').fill(password)
     await main.getByRole('button', { name: 'Unlock', exact: true }).click()
+    await main.getByText(afterRestart, { exact: true }).last().waitFor({ timeout: 60000 })
     await main.getByRole('link', { name: 'Settings', exact: true }).click()
     await main.getByRole('button', { name: /Linked devices Add devices/ }).click()
     await main.getByRole('button', { name: 'Revoke access', exact: true }).click()
     await main.getByRole('dialog').getByRole('button', { name: 'Revoke access', exact: true }).click()
     await linked.getByText('The primary device revoked access. Delete the local link.', { exact: true }).waitFor()
+    const beforeRemovalTest = deliveries.length
+    const afterRemoval = 'only remaining authorized inboxes ' + Date.now()
+    await send(peer, afterRemoval)
+    const recipients = deliveries
+      .slice(beforeRemovalTest)
+      .filter((item) => item.page === peer)
+      .map((item) => item.recipient)
+    assert(recipients.includes(mainPublic), 'The account inbox still receives messages')
+    assert(!recipients.includes(JSON.parse(request).pubkey), 'No new ciphertext is addressed to the revoked device')
+    await linked.reload()
+    await linked.getByLabel('Device password (at least 12 characters)').fill(password)
+    await linked.getByRole('button', { name: 'Unlock', exact: true }).click()
+    await linked.getByText('Device access revoked; delete this local link', { exact: true }).waitFor()
+    assert.equal(await linked.locator('.chat-workspace').count(), 0)
+
     await linked.setViewportSize({ width: 390, height: 844 })
     assert(
       await linked.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -143,7 +174,7 @@ const password = 'synthetic device test password'
     )
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: three real app browsers; QR enrollment; PRIMARY PAGE CLOSED during bidirectional relay chat, locked backlog and restart; account identity preserved; signed roster revocation'
+      'PASS: three real app browsers; QR enrollment; PRIMARY PAGE CLOSED during bidirectional relay chat, locked backlog and restart; account identity preserved; primary catches up; revoked inbox excluded from new fanout; revoked unlock refused'
     )
   } catch (error) {
     // No screenshots/traces: account import and QR screens contain sensitive test material.
