@@ -1,12 +1,16 @@
+import { useLinkedApp } from '../../stores/linkedAppStore'
 import { Stack, Text, Button, CopyButton, Box } from '@mantine/core'
 import { QRCodeSVG } from 'qrcode.react'
 import { useTranslation } from 'react-i18next'
+import { pubkeyToNpub } from '../../services/keys'
 import { useAuthStore } from '../../stores/authStore'
 import { createInvitation } from '../../services/invitations'
 
 export default function InviteContact() {
   const { t } = useTranslation()
-  const npub = useAuthStore((state) => state.keys?.npub)
+  const linked = useLinkedApp()
+  const mainNpub = useAuthStore((state) => state.keys?.npub)
+  const npub = linked ? pubkeyToNpub(linked.account) : mainNpub
   if (!npub) return null
   const link = createInvitation(npub)
   return (

@@ -1,3 +1,4 @@
+import { useLinkedApp } from '../stores/linkedAppStore'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Center, Group, Modal, Stack, Text, TextInput } from '@mantine/core'
@@ -12,12 +13,16 @@ import { useBlockedContactStore } from '../stores/blockedContactStore'
 
 export default function Chat() {
   const { t } = useTranslation()
+  const linked = useLinkedApp()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [inviteOpen, setInviteOpen] = useState(false)
-  const { activeChat, setActiveChat } = useMessageStore()
-  const { contacts } = useContactStore()
-  const { blockedContacts } = useBlockedContactStore()
+  const mainMessages = useMessageStore()
+  const { activeChat, setActiveChat } = linked ?? mainMessages
+  const mainContacts = useContactStore()
+  const contacts = linked?.contacts ?? mainContacts.contacts
+  const mainBlocked = useBlockedContactStore()
+  const blockedContacts = linked?.blockedContacts ?? mainBlocked.blockedContacts
   const activeContact = contacts.find((contact) => contact.pubkey === activeChat)
   const isBlocked = blockedContacts.some((contact) => contact.pubkey === activeChat)
 

@@ -10,6 +10,7 @@ import {
 } from 'nostr-tools'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { NIP17_KIND, NIP62_KIND } from '../utils/constants'
+import type { AccountSigner } from './accountSigner'
 import { minePoW, DEFAULT_MESSAGE_DIFFICULTY } from './pow'
 
 // NIP-17 Gift-Wrapped Direct Messages
@@ -76,20 +77,17 @@ export type GiftWrapOptions = RumorOptions
 export async function createGiftWrap(
   content: string,
   recipientPubkey: string,
-  senderPrivateKey: string,
+  senderSigner: AccountSigner,
   options?: GiftWrapOptions
 ): Promise<GiftWrap> {
-  const senderPrivateKeyBytes = hexToBytes(senderPrivateKey)
-  const senderPubkey = getPublicKey(senderPrivateKeyBytes)
+  senderSigner.assertActive()
+  const senderPubkey = senderSigner.pubkey
 
   // 1. Create the rumor (unsigned event with actual message)
   const rumor = createRumor(content, recipientPubkey, senderPubkey, options)
 
-  // 2. Create conversation key for seal encryption (sender -> recipient)
-  const sealConversationKey = nip44.v2.utils.getConversationKey(senderPrivateKeyBytes, recipientPubkey)
-
-  // 3. Encrypt rumor to create seal
-  const encryptedRumor = nip44.v2.encrypt(JSON.stringify(rumor), sealConversationKey)
+  // Encrypt the rumor through the account signer
+  const encryptedRumor = await senderSigner.encrypt(recipientPubkey, JSON.stringify(rumor))
 
   // 4. Create and sign the seal with sender's key
   const sealEvent: UnsignedEvent = {
@@ -99,7 +97,7 @@ export async function createGiftWrap(
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
     pubkey: senderPubkey,
   }
-  const seal = finalizeEvent(sealEvent, senderPrivateKeyBytes) as Seal
+  const seal = (await senderSigner.signEvent(sealEvent)) as Seal
 
   // 5. Generate random one-time key for gift wrap
   const wrapperPrivateKeyBytes = generateSecretKey()
@@ -123,6 +121,7 @@ export async function createGiftWrap(
   // 9. Mine Proof of Work (NIP-13) for spam prevention
   giftWrapEvent = await minePoW(giftWrapEvent, DEFAULT_MESSAGE_DIFFICULTY)
 
+  senderSigner.assertActive()
   return finalizeEvent(giftWrapEvent, wrapperPrivateKeyBytes) as GiftWrap
 }
 
@@ -134,22 +133,25 @@ export interface UnwrappedMessage {
   expiration?: number // NIP-40: Unix timestamp when message expires
 }
 
-export async function unwrapGiftWrap(giftWrap: Event, recipientPrivateKey: string): Promise<UnwrappedMessage | null> {
+export async function unwrapGiftWrap(
+  giftWrap: Event,
+  recipientSigner: AccountSigner
+): Promise<UnwrappedMessage | null> {
   try {
-    const recipientPrivateKeyBytes = hexToBytes(recipientPrivateKey)
-    const recipientPubkey = getPublicKey(recipientPrivateKeyBytes)
+    recipientSigner.assertActive()
+    const recipientPubkey = recipientSigner.pubkey
     if (giftWrap.kind !== NIP17_KIND.GIFT_WRAP || !verifyEvent(giftWrap)) return null
     if (!giftWrap.tags.some((tag) => tag[0] === 'p' && tag[1] === recipientPubkey)) return null
 
     // 1. Decrypt gift wrap to get seal
-    const wrapConversationKey = nip44.v2.utils.getConversationKey(recipientPrivateKeyBytes, giftWrap.pubkey)
-    const sealJson = nip44.v2.decrypt(giftWrap.content, wrapConversationKey)
+    const sealJson = await recipientSigner.decrypt(giftWrap.pubkey, giftWrap.content)
+    recipientSigner.assertActive()
     const seal: Seal = JSON.parse(sealJson)
     if (seal.kind !== NIP17_KIND.SEAL || !verifyEvent(seal)) return null
 
     // 2. Decrypt seal to get rumor
-    const sealConversationKey = nip44.v2.utils.getConversationKey(recipientPrivateKeyBytes, seal.pubkey)
-    const rumorJson = nip44.v2.decrypt(seal.content, sealConversationKey)
+    const rumorJson = await recipientSigner.decrypt(seal.pubkey, seal.content)
+    recipientSigner.assertActive()
     const rumor: Rumor = JSON.parse(rumorJson)
     if (!validateEvent(rumor)) return null
     if (rumor.kind !== NIP17_KIND.RUMOR && rumor.kind !== NIP17_KIND.FILE_MESSAGE) return null
@@ -212,21 +214,16 @@ export async function unwrapGiftWrap(giftWrap: Event, recipientPrivateKey: strin
 export async function createSelfGiftWrap(
   content: string,
   recipientPubkey: string,
-  senderPrivateKey: string,
+  senderSigner: AccountSigner,
   options?: GiftWrapOptions
 ): Promise<GiftWrap> {
-  const senderPrivateKeyBytes = hexToBytes(senderPrivateKey)
-  const senderPubkey = getPublicKey(senderPrivateKeyBytes)
+  senderSigner.assertActive()
+  const senderPubkey = senderSigner.pubkey
 
   // Same as regular gift wrap but recipient is self
   const rumor = createRumor(content, recipientPubkey, senderPubkey, options)
 
-  const sealConversationKey = nip44.v2.utils.getConversationKey(
-    senderPrivateKeyBytes,
-    senderPubkey // Encrypt to self
-  )
-
-  const encryptedRumor = nip44.v2.encrypt(JSON.stringify(rumor), sealConversationKey)
+  const encryptedRumor = await senderSigner.encrypt(senderPubkey, JSON.stringify(rumor))
 
   const sealEvent: UnsignedEvent = {
     kind: NIP17_KIND.SEAL,
@@ -235,7 +232,7 @@ export async function createSelfGiftWrap(
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
     pubkey: senderPubkey,
   }
-  const seal = finalizeEvent(sealEvent, senderPrivateKeyBytes) as Seal
+  const seal = (await senderSigner.signEvent(sealEvent)) as Seal
 
   const wrapperPrivateKeyBytes = generateSecretKey()
   const wrapperPubkey = getPublicKey(wrapperPrivateKeyBytes)
@@ -258,6 +255,7 @@ export async function createSelfGiftWrap(
   // Mine Proof of Work (NIP-13) for spam prevention
   giftWrapEvent = await minePoW(giftWrapEvent, DEFAULT_MESSAGE_DIFFICULTY)
 
+  senderSigner.assertActive()
   return finalizeEvent(giftWrapEvent, wrapperPrivateKeyBytes) as GiftWrap
 }
 
@@ -269,9 +267,9 @@ export interface DMRelayList {
   pubkey: string
 }
 
-export function createDMRelayListEvent(relays: string[], privateKey: string): Event {
-  const privateKeyBytes = hexToBytes(privateKey)
-  const pubkey = getPublicKey(privateKeyBytes)
+export async function createDMRelayListEvent(relays: string[], signer: AccountSigner): Promise<Event> {
+  signer.assertActive()
+  const pubkey = signer.pubkey
 
   const event: UnsignedEvent = {
     kind: NIP17_KIND.DM_RELAYS,
@@ -281,7 +279,7 @@ export function createDMRelayListEvent(relays: string[], privateKey: string): Ev
     pubkey,
   }
 
-  return finalizeEvent(event, privateKeyBytes)
+  return signer.signEvent(event)
 }
 
 export function parseDMRelayListEvent(event: Event): DMRelayList | null {
@@ -349,20 +347,17 @@ export function createFileRumor(
 export async function createFileGiftWrap(
   file: FileMetadata,
   recipientPubkey: string,
-  senderPrivateKey: string,
+  senderSigner: AccountSigner,
   options?: RumorOptions
 ): Promise<GiftWrap> {
-  const senderPrivateKeyBytes = hexToBytes(senderPrivateKey)
-  const senderPubkey = getPublicKey(senderPrivateKeyBytes)
+  senderSigner.assertActive()
+  const senderPubkey = senderSigner.pubkey
 
   // 1. Create the file rumor
   const rumor = createFileRumor(file, recipientPubkey, senderPubkey, options)
 
-  // 2. Create conversation key for seal encryption
-  const sealConversationKey = nip44.v2.utils.getConversationKey(senderPrivateKeyBytes, recipientPubkey)
-
-  // 3. Encrypt rumor to create seal
-  const encryptedRumor = nip44.v2.encrypt(JSON.stringify(rumor), sealConversationKey)
+  // Encrypt the file rumor through the account signer
+  const encryptedRumor = await senderSigner.encrypt(recipientPubkey, JSON.stringify(rumor))
 
   // 4. Create and sign the seal
   const sealEvent: UnsignedEvent = {
@@ -372,7 +367,7 @@ export async function createFileGiftWrap(
     created_at: randomizeTimestamp(Math.floor(Date.now() / 1000)),
     pubkey: senderPubkey,
   }
-  const seal = finalizeEvent(sealEvent, senderPrivateKeyBytes) as Seal
+  const seal = (await senderSigner.signEvent(sealEvent)) as Seal
 
   // 5. Generate random one-time key for gift wrap
   const wrapperPrivateKeyBytes = generateSecretKey()
@@ -396,6 +391,7 @@ export async function createFileGiftWrap(
   // 9. Mine Proof of Work (NIP-13) for spam prevention
   giftWrapEvent = await minePoW(giftWrapEvent, DEFAULT_MESSAGE_DIFFICULTY)
 
+  senderSigner.assertActive()
   return finalizeEvent(giftWrapEvent, wrapperPrivateKeyBytes) as GiftWrap
 }
 
@@ -442,9 +438,9 @@ export interface VanishRequestOptions {
   reason?: string // Optional reason for the vanish request
 }
 
-export function createVanishRequest(privateKey: string, options?: VanishRequestOptions): Event {
-  const privateKeyBytes = hexToBytes(privateKey)
-  const pubkey = getPublicKey(privateKeyBytes)
+export async function createVanishRequest(signer: AccountSigner, options?: VanishRequestOptions): Promise<Event> {
+  signer.assertActive()
+  const pubkey = signer.pubkey
 
   // Build relay tags - either specific relays or ALL_RELAYS
   const relayTags: string[][] = options?.relays?.length
@@ -459,7 +455,7 @@ export function createVanishRequest(privateKey: string, options?: VanishRequestO
     pubkey,
   }
 
-  return finalizeEvent(event, privateKeyBytes)
+  return signer.signEvent(event)
 }
 
 // Export utility for getting hex from nsec

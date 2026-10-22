@@ -2,27 +2,29 @@
 import { describe, expect, it } from 'vitest'
 import { generateSecretKey, getPublicKey, finalizeEvent, nip44 } from 'nostr-tools'
 import { bytesToHex } from '@noble/hashes/utils'
+import { createLocalAccountSigner } from './accountSigner'
 import { createGiftWrap, createSelfGiftWrap, unwrapGiftWrap } from './crypto'
 
 const sender = generateSecretKey()
 const receiver = generateSecretKey()
 const receiverPubkey = getPublicKey(receiver)
-const receiverHex = bytesToHex(receiver)
+const receiverSigner = createLocalAccountSigner(bytesToHex(receiver))
+const senderSigner = createLocalAccountSigner(bytesToHex(sender))
 
 describe('gift-wrap authentication', () => {
   it('round-trips messages and unmarked sender archive copies', async () => {
-    const wrap = await createGiftWrap('hello', receiverPubkey, bytesToHex(sender))
-    expect((await unwrapGiftWrap(wrap, receiverHex))?.content).toBe('hello')
-    const self = await createSelfGiftWrap('archive', receiverPubkey, bytesToHex(sender))
+    const wrap = await createGiftWrap('hello', receiverPubkey, senderSigner)
+    expect((await unwrapGiftWrap(wrap, receiverSigner))?.content).toBe('hello')
+    const self = await createSelfGiftWrap('archive', receiverPubkey, senderSigner)
     expect(self.tags.some((tag) => tag[0] === 'self')).toBe(false)
-    expect((await unwrapGiftWrap(self, bytesToHex(sender)))?.content).toBe('archive')
+    expect((await unwrapGiftWrap(self, senderSigner))?.content).toBe('archive')
   })
 
   it('rejects an invalid outer signature even for stored events', async () => {
-    const wrap = await createGiftWrap('hello', receiverPubkey, bytesToHex(sender))
+    const wrap = await createGiftWrap('hello', receiverPubkey, senderSigner)
     const tampered = JSON.parse(JSON.stringify(wrap))
     tampered.sig = '00'.repeat(64)
-    expect(await unwrapGiftWrap(tampered, receiverHex)).toBeNull()
+    expect(await unwrapGiftWrap(tampered, receiverSigner)).toBeNull()
   })
 
   // Build valid encryption and an authentic outer wrap around a malicious inner event.
@@ -64,34 +66,34 @@ describe('gift-wrap authentication', () => {
     const wrap = await incoming((seal) => {
       seal.sig = '00'.repeat(64)
     })
-    expect(await unwrapGiftWrap(wrap, receiverHex)).toBeNull()
+    expect(await unwrapGiftWrap(wrap, receiverSigner)).toBeNull()
   })
 
   it('rejects a rumor addressed to another recipient', async () => {
     const wrap = await incoming((_seal, rumor) => {
       rumor.tags = [['p', getPublicKey(generateSecretKey())]]
     })
-    expect(await unwrapGiftWrap(wrap, receiverHex)).toBeNull()
+    expect(await unwrapGiftWrap(wrap, receiverSigner)).toBeNull()
   })
 
   it('rejects unsupported rumor kinds', async () => {
     const wrap = await incoming((_seal, rumor) => {
       rumor.kind = 1
     })
-    expect(await unwrapGiftWrap(wrap, receiverHex)).toBeNull()
+    expect(await unwrapGiftWrap(wrap, receiverSigner)).toBeNull()
   })
 
   it('rejects malformed rumor tags', async () => {
     const wrap = await incoming((_seal, rumor) => {
       rumor.tags = 'invalid'
     })
-    expect(await unwrapGiftWrap(wrap, receiverHex)).toBeNull()
+    expect(await unwrapGiftWrap(wrap, receiverSigner)).toBeNull()
   })
 
   it('rejects sender substitution', async () => {
     const wrap = await incoming((_seal, rumor) => {
       rumor.pubkey = getPublicKey(generateSecretKey())
     })
-    expect(await unwrapGiftWrap(wrap, receiverHex)).toBeNull()
+    expect(await unwrapGiftWrap(wrap, receiverSigner)).toBeNull()
   })
 })

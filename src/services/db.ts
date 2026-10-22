@@ -498,6 +498,8 @@ export async function deleteRelay(url: string): Promise<void> {
 // =============================================================================
 
 export async function clearAllData(): Promise<void> {
+  const { clearDeviceStorage } = await import('./devices/storage')
+  await clearDeviceStorage()
   const db = await getDB()
   const tx = db.transaction(
     [

@@ -108,6 +108,10 @@ export default function Onboarding() {
             {t('onboarding.createAccount')}
           </Button>
 
+          <Button component={Link} to="/link-device" size="lg" variant="light" fullWidth>
+            {t('devices.linkExisting')}
+          </Button>
+
           <Button size="lg" variant="default" onClick={() => setStep('import')} fullWidth>
             {t('onboarding.importKey')}
           </Button>

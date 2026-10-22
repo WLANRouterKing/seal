@@ -1,7 +1,8 @@
+import { useLinkedApp } from '../stores/linkedAppStore'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useMediaQuery } from '@mantine/hooks'
 import { useTranslation } from 'react-i18next'
-import { AppShell, Group, Text, Indicator, UnstyledButton, Stack, ActionIcon, Tooltip } from '@mantine/core'
+import { AppShell, Group, Text, Indicator, UnstyledButton, Stack, ActionIcon, Tooltip, Alert } from '@mantine/core'
 import { IconMessageCircle, IconUsers, IconSettings, IconLock } from '@tabler/icons-react'
 import { useRelayStore } from '../stores/relayStore'
 import { useAuthStore } from '../stores/authStore'
@@ -9,9 +10,13 @@ import { useMessageStore } from '../stores/messageStore'
 
 export default function Layout() {
   const { t } = useTranslation()
+  const linked = useLinkedApp()
   const { relays } = useRelayStore()
-  const { hasPassword, lock } = useAuthStore()
-  const { activeChat } = useMessageStore()
+  const auth = useAuthStore()
+  const hasPassword = linked ? true : auth.hasPassword
+  const lock = linked ? () => linked.lock() : auth.lock
+  const mainMessages = useMessageStore()
+  const activeChat = linked ? linked.activeChat : mainMessages.activeChat
   const location = useLocation()
   const desktop = useMediaQuery('(min-width: 62em)')
   const hideNavigation = Boolean(activeChat && location.pathname === '/' && !desktop)
@@ -32,11 +37,17 @@ export default function Layout() {
           </Text>
           <Group gap="md">
             <Group gap="xs">
-              <Indicator color={connectedCount > 0 ? 'green' : 'red'} size={8} processing={connectedCount === 0}>
+              <Indicator
+                color={(linked ? linked.online : connectedCount > 0) ? 'green' : 'red'}
+                size={8}
+                processing={linked ? !linked.online : connectedCount === 0}
+              >
                 <div />
               </Indicator>
               <Text size="xs" c="dimmed">
-                {connectedCount} relay{connectedCount !== 1 ? 's' : ''}
+                {linked
+                  ? t(linked.online ? 'devices.primaryOnline' : 'devices.primaryConnecting')
+                  : `${connectedCount} relay${connectedCount !== 1 ? 's' : ''}`}
               </Text>
             </Group>
             {hasPassword && (
@@ -51,6 +62,11 @@ export default function Layout() {
       </AppShell.Header>
 
       <AppShell.Main style={{ height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {linked?.error && (
+          <Alert color="orange" withCloseButton onClose={linked.clearError}>
+            {linked.error}
+          </Alert>
+        )}
         <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
           <Outlet />
         </div>

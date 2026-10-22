@@ -9,7 +9,8 @@ import { useContactStore } from './stores/contactStore'
 import { useMessageStore } from './stores/messageStore'
 import { useBlockedContactStore } from './stores/blockedContactStore'
 import { invitationFromHash } from './services/invitations'
-import { nsecToPrivateKey, npubToPubkey } from './services/keys'
+import { getAccountSigner } from './services/accountSignerSession'
+import { npubToPubkey } from './services/keys'
 import { notificationService } from './services/notifications'
 import { backgroundService } from './services/backgroundService'
 import { pushService } from './services/pushService'
@@ -18,11 +19,12 @@ import { useLockedNotifications } from './hooks/useLockedNotifications'
 import Layout from './components/Layout'
 import LockScreen from './components/LockScreen'
 import SetupPassword from './components/SetupPassword'
-import Onboarding from './pages/Onboarding'
+import AccountEntry from './pages/AccountEntry'
 import Chat from './pages/Chat'
 import Contacts from './pages/Contacts'
 import Settings from './pages/Settings'
 import Privacy from './pages/Privacy'
+import { getPrimarySession, stopPrimarySession } from './services/devices/primary'
 import { Group, Paper, Stack } from '@mantine/core'
 import { Rings } from 'react-loader-spinner'
 
@@ -114,22 +116,32 @@ function App() {
   useEffect(() => {
     if (keys && hasPassword) {
       const pubkey = npubToPubkey(keys.npub)
-      const privateKey = nsecToPrivateKey(keys.nsec)
-      if (pubkey && privateKey) {
+      const signer = getAccountSigner()
+      if (pubkey && signer) {
         initContacts()
         initBlockedContacts()
-        initMessages(pubkey, privateKey)
+        initMessages(pubkey, signer)
       }
     }
   }, [keys, hasPassword, initBlockedContacts, initContacts, initMessages])
+
+  useEffect(() => {
+    if (keys && hasPassword && !isLocked) {
+      // Publish device authority and accept enrollment; linked messaging runs independently.
+      getPrimarySession().catch(() => {
+        /* Settings displays initialization failures. */
+      })
+      return stopPrimarySession
+    }
+  }, [keys, hasPassword, isLocked])
 
   // Subscribe to messages when unlocked and relays are connected
   useEffect(() => {
     if (keys && hasPassword && connectedCount > 0) {
       const pubkey = npubToPubkey(keys.npub)
-      const privateKey = nsecToPrivateKey(keys.nsec)
-      if (pubkey && privateKey) {
-        return subscribeToMessages(pubkey, privateKey)
+      const signer = getAccountSigner()
+      if (pubkey && signer) {
+        return subscribeToMessages(pubkey, signer)
       }
     }
   }, [keys, hasPassword, connectedCount, subscribeToMessages])
@@ -166,15 +178,7 @@ function App() {
     return <LockScreen />
   }
 
-  if (!keys) {
-    return (
-      <Routes>
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="*" element={<Navigate to={`/onboarding${inviteHash}`} replace />} />
-      </Routes>
-    )
-  }
+  if (!keys) return <AccountEntry inviteHash={inviteHash} />
 
   // Show password setup screen for new accounts
   if (!hasPassword) {

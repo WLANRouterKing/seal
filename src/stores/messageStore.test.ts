@@ -1,3 +1,4 @@
+import { createLocalAccountSigner } from '../services/accountSigner'
 // @vitest-environment node
 import { expect, it, vi } from 'vitest'
 import { clearEncryptionKey } from '../services/encryptionKeyManager'
@@ -15,7 +16,9 @@ it('clears chat caches and closes the private-key subscription synchronously on 
   const close = vi.fn()
   vi.mocked(relayPool.subscribe).mockReturnValue(close)
   useMessageStore.setState({ chats: [{ pubkey: 'alice', unreadCount: 1, updatedAt: 1 }], activeChat: 'alice' })
-  const unsubscribe = useMessageStore.getState().subscribeToMessages('pubkey', 'private-key')
+  const unsubscribe = useMessageStore
+    .getState()
+    .subscribeToMessages('pubkey', createLocalAccountSigner('01'.repeat(32)))
   clearEncryptionKey()
   expect(close).toHaveBeenCalledOnce()
   expect(useMessageStore.getState().messages.size).toBe(0)

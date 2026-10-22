@@ -1,3 +1,4 @@
+import type { AccountSigner } from '../../services/accountSigner'
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Box, Paper, Text, Group, Menu, Loader, Modal, Image, Center, ActionIcon } from '@mantine/core'
@@ -14,13 +15,14 @@ import {
 import type { Message } from '../../types'
 import { formatTimestamp } from '../../utils/format'
 import { useAuthStore } from '../../stores/authStore'
-import { nsecToPrivateKey } from '../../services/keys'
+import { getAccountSigner } from '../../services/accountSignerSession'
 import { getDecryptedFileUrl } from '../../services/fileUpload'
 
 interface MessageBubbleProps {
   message: Message
   contactPubkey: string
   onDelete?: (id: string) => void
+  attachmentsAvailable?: boolean
 }
 
 interface FileData {
@@ -32,7 +34,12 @@ interface FileData {
 const IMAGE_REGEX = /\[img:(data:image\/[^\]]+)\]/g
 const FILE_DATA_REGEX = /\[file:(\{[^\]]+\}|https?:\/\/[^\]]+)\]/g
 
-export default function MessageBubble({ message, contactPubkey, onDelete }: MessageBubbleProps) {
+export default function MessageBubble({
+  message,
+  contactPubkey,
+  onDelete,
+  attachmentsAvailable = true,
+}: MessageBubbleProps) {
   const { t } = useTranslation()
   const { keys } = useAuthStore()
   const isOutgoing = message.isOutgoing
@@ -41,7 +48,7 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isExpired, setIsExpired] = useState(false)
 
-  const privateKey = keys ? nsecToPrivateKey(keys.nsec) || '' : ''
+  const signer = keys ? getAccountSigner() : null
   const otherPubkey = contactPubkey
 
   // Check expiration and auto-hide when expired
@@ -104,27 +111,35 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
             }}
           >
             {/* Legacy base64 images */}
-            {legacyImages.length > 0 &&
+            {attachmentsAvailable &&
+              legacyImages.length > 0 &&
               legacyImages.map((src, index) => <ImageWithLightbox key={`legacy-${index}`} src={src} />)}
 
             {/* Encrypted file images */}
-            {imageFiles.length > 0 &&
+            {attachmentsAvailable &&
+              imageFiles.length > 0 &&
               imageFiles.map((file, index) => (
-                <EncryptedImage key={`file-${index}`} file={file} privateKey={privateKey} otherPubkey={otherPubkey} />
+                <EncryptedImage key={`file-${index}`} file={file} signer={signer} otherPubkey={otherPubkey} />
               ))}
 
             {/* Audio messages */}
-            {audioFiles.length > 0 &&
+            {attachmentsAvailable &&
+              audioFiles.length > 0 &&
               audioFiles.map((file, index) => (
                 <AudioPlayer
                   key={`audio-${index}`}
                   file={file}
-                  privateKey={privateKey}
+                  signer={signer}
                   otherPubkey={otherPubkey}
                   isOutgoing={isOutgoing}
                 />
               ))}
 
+            {!attachmentsAvailable && (legacyImages.length > 0 || imageFiles.length > 0 || audioFiles.length > 0) && (
+              <Text size="sm" p="md">
+                {t('devices.attachmentOnPrimary')}
+              </Text>
+            )}
             {/* Text Content */}
             {textContent && (
               <Box px="md" py="xs">
@@ -207,11 +222,11 @@ function parseContent(content: string): {
 
 function EncryptedImage({
   file,
-  privateKey,
+  signer,
   otherPubkey,
 }: {
   file: FileData
-  privateKey: string
+  signer: AccountSigner | null
   otherPubkey: string
 }) {
   const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null)
@@ -228,14 +243,14 @@ function EncryptedImage({
         return
       }
 
-      if (!privateKey || !otherPubkey) {
+      if (!signer || !otherPubkey) {
         setError(true)
         setIsLoading(false)
         return
       }
 
       try {
-        objectUrl = await getDecryptedFileUrl(file.url, file.mimeType, privateKey, otherPubkey)
+        objectUrl = await getDecryptedFileUrl(file.url, file.mimeType, signer, otherPubkey)
         setDecryptedUrl(objectUrl)
       } catch (err) {
         console.error('Failed to decrypt image:', err)
@@ -252,7 +267,7 @@ function EncryptedImage({
         URL.revokeObjectURL(objectUrl)
       }
     }
-  }, [file.url, file.mimeType, file.encrypted, privateKey, otherPubkey])
+  }, [file.url, file.mimeType, file.encrypted, signer, otherPubkey])
 
   if (isLoading) {
     return (
@@ -280,12 +295,12 @@ function EncryptedImage({
 
 function AudioPlayer({
   file,
-  privateKey,
+  signer,
   otherPubkey,
   isOutgoing,
 }: {
   file: FileData
-  privateKey: string
+  signer: AccountSigner | null
   otherPubkey: string
   isOutgoing: boolean
 }) {
@@ -307,14 +322,14 @@ function AudioPlayer({
         return
       }
 
-      if (!privateKey || !otherPubkey) {
+      if (!signer || !otherPubkey) {
         setError(true)
         setIsLoading(false)
         return
       }
 
       try {
-        objectUrl = await getDecryptedFileUrl(file.url, file.mimeType, privateKey, otherPubkey)
+        objectUrl = await getDecryptedFileUrl(file.url, file.mimeType, signer, otherPubkey)
         setDecryptedUrl(objectUrl)
       } catch (err) {
         console.error('Failed to decrypt audio:', err)
@@ -331,7 +346,7 @@ function AudioPlayer({
         URL.revokeObjectURL(objectUrl)
       }
     }
-  }, [file.url, file.mimeType, file.encrypted, privateKey, otherPubkey])
+  }, [file.url, file.mimeType, file.encrypted, signer, otherPubkey])
 
   useEffect(() => {
     if (!decryptedUrl) return

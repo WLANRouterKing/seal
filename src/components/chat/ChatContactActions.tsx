@@ -1,3 +1,4 @@
+import { useLinkedApp, useLinkedAppStore } from '../../stores/linkedAppStore'
 import { useState } from 'react'
 import { ActionIcon, Alert, Button, Code, Group, Menu, Modal, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import { IconBan, IconDotsVertical, IconTrash, IconUserPlus } from '@tabler/icons-react'
@@ -14,8 +15,11 @@ interface Props {
 // Key this component by pubkey so dialogs cannot follow a switch to another chat.
 export default function ChatContactActions({ pubkey, onDeleteChat }: Props) {
   const { t } = useTranslation()
-  const { contacts, addContact } = useContactStore()
-  const { blockedContacts, addBlockedContact, removeBlockedContact } = useBlockedContactStore()
+  const linked = useLinkedApp()
+  const mainContacts = useContactStore()
+  const { contacts, addContact } = linked ?? mainContacts
+  const mainBlocked = useBlockedContactStore()
+  const { blockedContacts, addBlockedContact, removeBlockedContact } = linked ?? mainBlocked
   const contact = contacts.find((item) => item.pubkey === pubkey)
   const blocked = blockedContacts.some((item) => item.pubkey === pubkey)
   const [action, setAction] = useState<'add' | 'block' | 'unblock' | null>(null)
@@ -43,7 +47,9 @@ export default function ChatContactActions({ pubkey, onDeleteChat }: Props) {
       else if (action === 'block') saved = Boolean(await addBlockedContact(pubkey, contact?.name))
       else {
         await removeBlockedContact(pubkey)
-        saved = !useBlockedContactStore.getState().blockedContacts.some((item) => item.pubkey === pubkey)
+        saved = !(
+          linked ? useLinkedAppStore.getState().blockedContacts : useBlockedContactStore.getState().blockedContacts
+        ).some((item) => item.pubkey === pubkey)
       }
       if (saved) setAction(null)
       else setError(true)
