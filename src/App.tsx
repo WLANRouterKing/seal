@@ -24,6 +24,8 @@ import Chat from './pages/Chat'
 import Contacts from './pages/Contacts'
 import Settings from './pages/Settings'
 import Privacy from './pages/Privacy'
+import LinkDevice from './pages/LinkDevice'
+import { getPrimarySession, stopPrimarySession } from './services/devices/primary'
 import { Group, Paper, Stack } from '@mantine/core'
 import { Rings } from 'react-loader-spinner'
 
@@ -124,6 +126,16 @@ function App() {
     }
   }, [keys, hasPassword, initBlockedContacts, initContacts, initMessages])
 
+  useEffect(() => {
+    if (keys && hasPassword && !isLocked) {
+      // Linked devices work while the app is unlocked, not only on Settings.
+      getPrimarySession().catch(() => {
+        /* Settings displays initialization failures. */
+      })
+      return stopPrimarySession
+    }
+  }, [keys, hasPassword, isLocked])
+
   // Subscribe to messages when unlocked and relays are connected
   useEffect(() => {
     if (keys && hasPassword && connectedCount > 0) {
@@ -171,6 +183,7 @@ function App() {
     return (
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/link-device" element={<LinkDevice />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="*" element={<Navigate to={`/onboarding${inviteHash}`} replace />} />
       </Routes>

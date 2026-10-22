@@ -76,7 +76,7 @@ interface MessageState {
   isLoading: boolean
   // Actions
   initialize: (userPubkey: string, userSigner: AccountSigner) => Promise<void>
-  sendMessage: (recipientPubkey: string, content: string, senderSigner: AccountSigner) => Promise<void>
+  sendMessage: (recipientPubkey: string, content: string, senderSigner: AccountSigner) => Promise<boolean>
   sendFileMessage: (
     recipientPubkey: string,
     file: File,
@@ -157,7 +157,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const blockedPubkeys = new Set(useBlockedContactStore.getState().blockedContacts.map((c) => c.pubkey))
     const isBlocked = blockedPubkeys.has(recipientPubkey)
 
-    if (isBlocked) return
+    if (isBlocked) return false
 
     const tempId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
@@ -213,7 +213,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
       // Get recipient's preferred DM relays (NIP-17 Kind 10050)
       const recipientDMRelays = await useRelayStore.getState().getDMRelays(recipientPubkey)
-      if (generation !== getVaultGeneration()) return
+      if (generation !== getVaultGeneration()) return false
 
       // Publish to recipient's preferred relays and our connected relays
       const connectedRelays = relayPool.getConnectedUrls()
@@ -222,7 +222,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       // Connect to any recipient relays we're not already connected to
       const newRelays = recipientDMRelays.filter((r) => !connectedRelays.includes(r))
       await Promise.all(newRelays.map((r) => relayPool.connect(r)))
-      if (generation !== getVaultGeneration()) return
+      if (generation !== getVaultGeneration()) return false
 
       if (import.meta.env.DEV) {
         console.log('[Message] Publishing to relays:', {
@@ -252,9 +252,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         encryptedEvent: JSON.stringify(selfGiftWrap), // Store self-addressed gift wrap
       }
 
-      if (generation !== getVaultGeneration()) return
+      if (generation !== getVaultGeneration()) return false
       await saveMessageToDB(updatedMessage)
-      if (generation !== getVaultGeneration()) return
+      if (generation !== getVaultGeneration()) return false
 
       const updatedMessages = get().messages
       const contactMessages = updatedMessages.get(recipientPubkey) || []
@@ -264,8 +264,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       )
       set({ messages: new Map(updatedMessages) })
       updateChats(get, set, recipientPubkey, updatedMessage)
+      return updatedMessage.status !== 'failed'
     } catch (error) {
-      if (generation !== getVaultGeneration()) return
+      if (generation !== getVaultGeneration()) return false
       console.error('Failed to send message:', error)
 
       // Mark as failed
@@ -276,6 +277,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         contactMessages.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m))
       )
       set({ messages: new Map(updatedMessages) })
+      return false
     }
   },
 

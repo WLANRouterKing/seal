@@ -16,6 +16,7 @@ import {
   Tooltip,
 } from '@mantine/core'
 import {
+  IconDevices,
   IconServer,
   IconRefresh,
   IconPalette,
@@ -35,6 +36,7 @@ import { useRelayStore } from '../stores/relayStore'
 import { useThemeStore } from '../stores/themeStore'
 import { usePushStore } from '../stores/pushStore'
 import { truncateKey } from '../utils/format'
+import LinkedDevices from '../components/settings/LinkedDevices'
 import RelaySettings from '../components/settings/RelaySettings'
 import KeyExport from '../components/settings/KeyExport'
 import ThemeSettings from '../components/settings/ThemeSettings'
@@ -48,6 +50,7 @@ import { useBlockedContactStore } from '../stores/blockedContactStore'
 import BlockedContactList from '../components/settings/BlockedContactList.tsx'
 
 type SettingsView =
+  | 'devices'
   | 'main'
   | 'relays'
   | 'keys'
@@ -71,6 +74,7 @@ export default function Settings() {
 
   const connectedCount = relays.filter((r) => r.status === 'connected').length
 
+  if (view === 'devices') return <LinkedDevices onBack={() => setView('main')} />
   if (view === 'relays') return <RelaySettings onBack={() => setView('main')} />
   if (view === 'push') return <PushSettings onBack={() => setView('main')} />
   if (view === 'keys') return <KeyExport onBack={() => setView('main')} />
@@ -181,6 +185,14 @@ export default function Settings() {
             onClick={() => setView('theme')}
           />
         </Box>
+
+        <SettingsItem
+          icon={<IconDevices size={20} />}
+          iconColor="cyan"
+          title={t('devices.title')}
+          subtitle={t('devices.subtitle')}
+          onClick={() => setView('devices')}
+        />
 
         {/* Security Section */}
         <Box py="xs">
