@@ -429,6 +429,10 @@
     "erase": "Delete local link",
     "linkExisting": "Link to an existing account",
     "storageFailed": "Could not open device storage.",
-    "checking": "Checking linked device"
+    "checking": "Checking linked device",
+    "entryTitle": "How would you like to open Seal?",
+    "entryDescription": "This browser profile contains a saved device link. Resume it or use a standalone account. Choosing does not delete any data.",
+    "resume": "Open saved device link",
+    "useAccount": "Use a standalone account"
   }
 }

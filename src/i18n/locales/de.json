@@ -429,6 +429,10 @@
     "erase": "Lokale Verknüpfung löschen",
     "linkExisting": "Mit bestehendem Konto verknüpfen",
     "storageFailed": "Gerätespeicher konnte nicht geöffnet werden.",
-    "checking": "Geräteverknüpfung wird geprüft"
+    "checking": "Geräteverknüpfung wird geprüft",
+    "entryTitle": "Wie möchtest du Seal öffnen?",
+    "entryDescription": "Auf diesem Browserprofil ist eine Geräteverknüpfung gespeichert. Du kannst sie fortsetzen oder ein eigenständiges Konto verwenden. Die Auswahl löscht keine Daten.",
+    "resume": "Gespeicherte Geräteverknüpfung öffnen",
+    "useAccount": "Eigenständiges Konto verwenden"
   }
 }

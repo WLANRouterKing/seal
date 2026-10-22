@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { Alert, Center, Loader } from '@mantine/core'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Alert, Button, Center, Loader, Stack, Text } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { hasLinkedVault } from '../services/devices/storage'
 import Onboarding from './Onboarding'
@@ -11,6 +11,8 @@ import Privacy from './Privacy'
 function EntryGate({ inviteHash }: { inviteHash: string }) {
   const { t } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
+  const [accountMode, setAccountMode] = useState(false)
   const [linked, setLinked] = useState<boolean | null>(null)
   const [failed, setFailed] = useState(false)
   useEffect(() => {
@@ -34,7 +36,23 @@ function EntryGate({ inviteHash }: { inviteHash: string }) {
         <Loader aria-label={t('devices.checking')} />
       </Center>
     )
-  if (linked) return <Navigate to="/link-device" replace />
+  if (linked) {
+    if (accountMode) return <Onboarding />
+    return (
+      <Center mih="100dvh" p="md">
+        <Stack maw={420}>
+          <Text size="xl" fw={600}>
+            {t('devices.entryTitle')}
+          </Text>
+          <Text>{t('devices.entryDescription')}</Text>
+          <Button onClick={() => navigate('/link-device')}>{t('devices.resume')}</Button>
+          <Button variant="default" onClick={() => setAccountMode(true)}>
+            {t('devices.useAccount')}
+          </Button>
+        </Stack>
+      </Center>
+    )
+  }
   if (location.pathname !== '/onboarding') return <Navigate to={`/onboarding${inviteHash}`} replace />
   return <Onboarding />
 }

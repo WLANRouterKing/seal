@@ -97,11 +97,16 @@ const password = 'synthetic device test password'
     await linked.getByText(replyText, { exact: true }).waitFor({ timeout: 60000 })
     await linked.getByRole('button', { name: 'Lock', exact: true }).click()
     assert.equal(await linked.getByText(replyText, { exact: true }).count(), 0)
-    // Launching the normal app URL must resume the linked installation, not onboarding.
+    // A saved device link offers a choice; only an explicit click enters its unlock flow.
     await linked.goto(base)
+    await linked.getByRole('button', { name: 'Open saved device link', exact: true }).click()
     await linked.getByRole('button', { name: 'Unlock', exact: true }).waitFor()
     assert.equal(await linked.getByRole('button', { name: 'Create New Account' }).count(), 0)
     await linked.goto(base + '/onboarding')
+    await linked.getByRole('button', { name: 'Use a standalone account', exact: true }).click()
+    await linked.getByRole('button', { name: 'Create New Account', exact: true }).waitFor()
+    await linked.goto(base)
+    await linked.getByRole('button', { name: 'Open saved device link', exact: true }).click()
     await linked.getByRole('button', { name: 'Unlock', exact: true }).waitFor()
     assert.equal(await linked.getByRole('button', { name: 'Create New Account' }).count(), 0)
     await linked.reload()
