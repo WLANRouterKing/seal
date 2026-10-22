@@ -1,3 +1,4 @@
+import { useLinkedApp } from '../../stores/linkedAppStore'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -28,11 +29,15 @@ interface ChatListProps {
 
 export default function ChatList({ onSelectChat, query = '', activeChat }: ChatListProps) {
   const { t } = useTranslation()
-  const { chats, deleteChat } = useMessageStore()
-  const { contacts } = useContactStore()
+  const linked = useLinkedApp()
+  const mainMessages = useMessageStore()
+  const { chats, deleteChat } = linked ?? mainMessages
+  const mainContacts = useContactStore()
+  const contacts = linked?.contacts ?? mainContacts.contacts
   const [swipedChat, setSwipedChat] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const { blockedContacts } = useBlockedContactStore()
+  const mainBlocked = useBlockedContactStore()
+  const blockedContacts = linked?.blockedContacts ?? mainBlocked.blockedContacts
   const blockedPubkeys = new Set(blockedContacts.map((c) => c.pubkey))
 
   const getContactName = (pubkey: string) => {
@@ -93,7 +98,11 @@ export default function ChatList({ onSelectChat, query = '', activeChat }: ChatL
   }
 
   const handleDelete = async (pubkey: string) => {
-    await deleteChat(pubkey)
+    try {
+      await deleteChat(pubkey)
+    } catch {
+      return
+    }
     setConfirmDelete(null)
     setSwipedChat(null)
   }

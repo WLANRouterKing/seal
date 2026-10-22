@@ -22,6 +22,7 @@ interface MessageBubbleProps {
   message: Message
   contactPubkey: string
   onDelete?: (id: string) => void
+  attachmentsAvailable?: boolean
 }
 
 interface FileData {
@@ -33,7 +34,12 @@ interface FileData {
 const IMAGE_REGEX = /\[img:(data:image\/[^\]]+)\]/g
 const FILE_DATA_REGEX = /\[file:(\{[^\]]+\}|https?:\/\/[^\]]+)\]/g
 
-export default function MessageBubble({ message, contactPubkey, onDelete }: MessageBubbleProps) {
+export default function MessageBubble({
+  message,
+  contactPubkey,
+  onDelete,
+  attachmentsAvailable = true,
+}: MessageBubbleProps) {
   const { t } = useTranslation()
   const { keys } = useAuthStore()
   const isOutgoing = message.isOutgoing
@@ -105,17 +111,20 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
             }}
           >
             {/* Legacy base64 images */}
-            {legacyImages.length > 0 &&
+            {attachmentsAvailable &&
+              legacyImages.length > 0 &&
               legacyImages.map((src, index) => <ImageWithLightbox key={`legacy-${index}`} src={src} />)}
 
             {/* Encrypted file images */}
-            {imageFiles.length > 0 &&
+            {attachmentsAvailable &&
+              imageFiles.length > 0 &&
               imageFiles.map((file, index) => (
                 <EncryptedImage key={`file-${index}`} file={file} signer={signer} otherPubkey={otherPubkey} />
               ))}
 
             {/* Audio messages */}
-            {audioFiles.length > 0 &&
+            {attachmentsAvailable &&
+              audioFiles.length > 0 &&
               audioFiles.map((file, index) => (
                 <AudioPlayer
                   key={`audio-${index}`}
@@ -126,6 +135,11 @@ export default function MessageBubble({ message, contactPubkey, onDelete }: Mess
                 />
               ))}
 
+            {!attachmentsAvailable && (legacyImages.length > 0 || imageFiles.length > 0 || audioFiles.length > 0) && (
+              <Text size="sm" p="md">
+                {t('devices.attachmentOnPrimary')}
+              </Text>
+            )}
             {/* Text Content */}
             {textContent && (
               <Box px="md" py="xs">

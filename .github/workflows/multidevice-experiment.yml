@@ -5,7 +5,12 @@ on:
     paths:
       - 'experiments/multidevice/**'
       - 'src/services/devices/**'
-      - 'src/pages/LinkDevice.tsx'
+      - 'src/pages/**'
+      - 'src/stores/linkedAppStore*'
+      - 'src/components/chat/**'
+      - 'src/components/contacts/**'
+      - 'src/components/Layout.tsx'
+      - 'src/components/settings/LinkedAppSettings.tsx'
       - 'src/components/settings/LinkedDevices.tsx'
       - '.github/workflows/multidevice-experiment.yml'
   workflow_dispatch:

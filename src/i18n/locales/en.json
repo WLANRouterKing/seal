@@ -433,6 +433,11 @@
     "entryTitle": "How would you like to open Seal?",
     "entryDescription": "This browser profile contains a saved device link. Resume it or use a standalone account. Choosing does not delete any data.",
     "resume": "Open saved device link",
-    "useAccount": "Use a standalone account"
+    "useAccount": "Use a standalone account",
+    "primaryOnline": "Primary connected",
+    "primaryConnecting": "Connecting to primary…",
+    "attachmentOnPrimary": "Open attachments and voice messages on the primary device.",
+    "sendFailed": "Send not confirmed. Your draft is preserved. Check the chat before retrying.",
+    "unlinkHint": "Lock first to remove the local link. Revoke access on the primary under Linked devices."
   }
 }

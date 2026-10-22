@@ -1,3 +1,4 @@
+import { useLinkedApp } from '../../stores/linkedAppStore'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -36,17 +37,18 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }: ChatWindowProps) {
   const { t } = useTranslation()
+  const linked = useLinkedApp()
   const { keys } = useAuthStore()
   const { getMessagesForContact, sendMessage, sendFileMessage, deleteMessage, deleteChat } = useMessageStore()
   const { getExpiration, setExpiration } = useContactStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  const messages = getMessagesForContact(contactPubkey)
+  const messages = linked ? (linked.messages.get(contactPubkey) ?? []) : getMessagesForContact(contactPubkey)
   const displayName = contact?.name || truncateKey(contactPubkey, 8)
 
   // Get expiration from contact in store (reactive)
-  const currentExpiration = getExpiration(contactPubkey)
+  const currentExpiration = linked ? (linked.expirations[contactPubkey] ?? 0) : getExpiration(contactPubkey)
   const expirationLabel = EXPIRATION_OPTIONS.find((o) => o.value === currentExpiration)?.label || 'Off'
 
   useEffect(() => {
@@ -55,6 +57,10 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
 
   const handleSend = async (content: string) => {
     if (isBlocked) return
+    if (linked) {
+      await linked.sendMessage(contactPubkey, content)
+      return
+    }
     if (!keys) return
     const signer = getAccountSigner()
     if (!signer) return
@@ -70,11 +76,21 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
   }
 
   const handleDelete = async (messageId: string) => {
-    await deleteMessage(contactPubkey, messageId)
+    try {
+      if (linked) await linked.deleteMessage(contactPubkey, messageId)
+      else await deleteMessage(contactPubkey, messageId)
+    } catch {
+      /* App displays the failure. */
+    }
   }
 
   const handleDeleteChat = async () => {
-    await deleteChat(contactPubkey)
+    try {
+      if (linked) await linked.deleteChat(contactPubkey)
+      else await deleteChat(contactPubkey)
+    } catch {
+      return
+    }
     setShowDeleteConfirm(false)
     onBack()
   }
@@ -149,7 +165,13 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
                 {EXPIRATION_OPTIONS.map((option) => (
                   <Menu.Item
                     key={option.value}
-                    onClick={() => setExpiration(contactPubkey, option.value)}
+                    onClick={() => {
+                      void (
+                        linked
+                          ? linked.setExpiration(contactPubkey, option.value)
+                          : setExpiration(contactPubkey, option.value)
+                      ).catch(() => {})
+                    }}
                     color={option.value === currentExpiration ? 'cyan' : undefined}
                     fw={option.value === currentExpiration ? 600 : undefined}
                   >
@@ -183,6 +205,7 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
                   message={message}
                   contactPubkey={contactPubkey}
                   onDelete={handleDelete}
+                  attachmentsAvailable={!linked}
                 />
               ))}
               <div ref={messagesEndRef} />
@@ -191,7 +214,12 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
         </ScrollArea>
 
         {/* Input */}
-        <MessageInput contactBlocked={isBlocked} onSend={handleSend} onSendFile={handleSendFile} />
+        <MessageInput
+          contactBlocked={isBlocked}
+          onSend={handleSend}
+          onSendFile={linked ? undefined : handleSendFile}
+          maxLength={linked ? 4000 : undefined}
+        />
       </Stack>
     </>
   )

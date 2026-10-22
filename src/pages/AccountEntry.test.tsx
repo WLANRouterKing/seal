@@ -2,6 +2,21 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import AccountEntry from './AccountEntry'
+import { useLinkedAppStore } from '../stores/linkedAppStore'
+vi.mock('../components/Layout', async () => {
+  const { Outlet } = await import('react-router-dom')
+  return {
+    default: () => (
+      <div>
+        Shared layout
+        <Outlet />
+      </div>
+    ),
+  }
+})
+vi.mock('./Chat', () => ({ default: () => <div>Shared chat workspace</div> }))
+vi.mock('./Contacts', () => ({ default: () => <div>Shared contacts</div> }))
+vi.mock('../components/settings/LinkedAppSettings', () => ({ default: () => <div>Linked settings</div> }))
 const storage = vi.hoisted(() => ({ hasLinkedVault: vi.fn() }))
 vi.mock('../services/devices/storage', () => storage)
 vi.mock('./Onboarding', () => ({ default: () => <div>Create New Account</div> }))
@@ -20,6 +35,7 @@ vi.mock('@mantine/core', () => ({
 }))
 afterEach(() => {
   cleanup()
+  useLinkedAppStore.getState().lock()
   vi.resetAllMocks()
 })
 for (const path of ['/', '/onboarding', '/settings']) {
@@ -90,3 +106,25 @@ it('allows standalone account onboarding without deleting the existing link', as
   )
   expect(await screen.findByRole('button', { name: 'devices.resume' })).toBeInTheDocument()
 })
+
+for (const [path, content] of [
+  ['/', 'Shared chat workspace'],
+  ['/link-device', 'Shared chat workspace'],
+  ['/contacts', 'Shared contacts'],
+  ['/settings', 'Linked settings'],
+]) {
+  it(`opens the real app at ${path} for an unlocked linked session`, async () => {
+    storage.hasLinkedVault.mockResolvedValue(true)
+    useLinkedAppStore.setState({ active: true })
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <AccountEntry inviteHash="" />
+      </MemoryRouter>
+    )
+    expect(await screen.findByText(content)).toBeInTheDocument()
+    expect(screen.getByText('Shared layout')).toBeInTheDocument()
+    expect(screen.queryByText('Unlock linked device')).toBeNull()
+    act(() => useLinkedAppStore.getState().lock())
+    expect(await screen.findByText('Unlock linked device')).toBeInTheDocument()
+  })
+}

@@ -1,6 +1,7 @@
+import { useLinkedAppStore } from '../stores/linkedAppStore'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Alert,
   Anchor,
@@ -17,14 +18,17 @@ import {
 } from '@mantine/core'
 import { QRCodeSVG } from 'qrcode.react'
 import { npubToPubkey, pubkeyToNpub } from '../services/keys'
-import { CompanionSession, type CompanionState, type DeviceChat, type DeviceMessage } from '../services/devices/session'
+import { CompanionSession, type CompanionState } from '../services/devices/session'
 import { LinkedVault, hasLinkedVault, deleteLinkedVault } from '../services/devices/storage'
 import { DeviceTransport, exclusiveDeviceSession } from '../services/devices/transport'
 import { inspectRequest, makeRequest, newDeviceSecret, now, randomId } from '../services/devices/protocol'
 
-type Phase = 'loading' | 'setup' | 'locked' | 'pairing' | 'grant' | 'linked' | 'removed'
+type Phase = 'loading' | 'setup' | 'locked' | 'pairing' | 'grant' | 'removed'
 export default function LinkDevice() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const notice = useLinkedAppStore((state) => state.notice)
+  const transferred = useRef(false)
   const [phase, setPhase] = useState<Phase>('loading')
   const [name, setName] = useState('')
   const [account, setAccount] = useState('')
@@ -35,11 +39,6 @@ export default function LinkDevice() {
   const [confirmed, setConfirmed] = useState(false)
   const [qr, setQR] = useState('')
   const [code, setCode] = useState('')
-  const [chats, setChats] = useState<DeviceChat[]>([])
-  const [peer, setPeer] = useState('')
-  const [newPeer, setNewPeer] = useState('')
-  const [messages, setMessages] = useState<DeviceMessage[]>([])
-  const [draft, setDraft] = useState('')
   const [eraseConfirm, setEraseConfirm] = useState(false)
   const session = useRef<CompanionSession | undefined>(undefined)
   const vault = useRef(new LinkedVault<CompanionState>())
@@ -56,10 +55,6 @@ export default function LinkDevice() {
     release.current = undefined
     setPassword('')
     setRepeat('')
-    setMessages([])
-    setChats([])
-    setPeer('')
-    setDraft('')
     setQR('')
     setCode('')
     setConfirmed(false)
@@ -93,11 +88,23 @@ export default function LinkDevice() {
       window.removeEventListener('pointerdown', reset)
       window.removeEventListener('keydown', reset)
       document.removeEventListener('visibilitychange', hidden)
-      session.current?.close()
-      currentVault.lock()
-      release.current?.()
+      if (!transferred.current) {
+        session.current?.close()
+        currentVault.lock()
+        release.current?.()
+      }
     }
   }, [lock, t])
+  const enterApp = () => {
+    const client = session.current
+    const unlock = release.current
+    if (!client || !unlock || !client.state.confirmed) throw new Error('Device not confirmed')
+    transferred.current = true
+    session.current = undefined
+    release.current = undefined
+    useLinkedAppStore.getState().activate({ session: client, vault: vault.current, release: unlock })
+    navigate('/', { replace: true })
+  }
   const connect = (state: CompanionState) => {
     const info = state.confirmed
       ? undefined
@@ -119,7 +126,8 @@ export default function LinkDevice() {
         } else setPhase('grant')
       }
     )
-    setPhase(state.confirmed ? 'linked' : state.host ? 'grant' : 'pairing')
+    if (state.confirmed) enterApp()
+    else setPhase(state.host ? 'grant' : 'pairing')
   }
   const perform = async (action: () => Promise<void>) => {
     if (working.current) return
@@ -177,24 +185,6 @@ export default function LinkDevice() {
         throw err
       }
     })
-  const refresh = useCallback(async () => {
-    const client = session.current
-    if (!client) return
-    const result = peer ? await client.request('history', { peer }) : await client.request('chats', null)
-    if (session.current !== client || !alive.current) return
-    if (peer) setMessages(result as DeviceMessage[])
-    else setChats(result as DeviceChat[])
-  }, [peer])
-  useEffect(() => {
-    if (phase !== 'linked') return
-    const update = () => {
-      if (!working.current) void perform(refresh)
-    }
-    update()
-    const timer = setInterval(update, 15000)
-    return () => clearInterval(timer)
-    // perform deliberately uses refs to serialize foreground and background requests.
-  }, [phase, refresh])
   return (
     <Stack p="md" maw={720} mx="auto" style={{ minHeight: '100dvh' }}>
       <Group justify="space-between">
@@ -207,6 +197,7 @@ export default function LinkDevice() {
       </Group>
       <Alert color="blue">{t('devices.primaryRequired')}</Alert>
       {error && <Alert color="red">{error}</Alert>}
+      {notice && <Alert color="orange">{t(notice)}</Alert>}
       {(phase === 'setup' || phase === 'locked') && (
         <Stack>
           {phase === 'setup' && (
@@ -276,7 +267,7 @@ export default function LinkDevice() {
                     await client.confirm(code)
                     if (session.current === client) {
                       setQR('')
-                      setPhase('linked')
+                      enterApp()
                     }
                   })
                 }
@@ -291,110 +282,6 @@ export default function LinkDevice() {
             {t('devices.lock')}
           </Button>
         </Stack>
-      )}
-      {phase === 'linked' && (
-        <>
-          <Group>
-            <Button variant="light" onClick={lock}>
-              {t('devices.lock')}
-            </Button>
-            <Button variant="light" loading={busy} onClick={() => perform(refresh)}>
-              {t('devices.refresh')}
-            </Button>
-          </Group>
-          {peer ? (
-            <>
-              <Button
-                variant="subtle"
-                onClick={() => {
-                  setPeer('')
-                  setMessages([])
-                }}
-              >
-                {t('devices.chats')}
-              </Button>
-              <Text size="xs" style={{ overflowWrap: 'anywhere' }}>
-                {pubkeyToNpub(peer)}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {t('devices.historyLimit')}
-              </Text>
-              {messages
-                .filter((message) => !message.expiration || message.expiration > Date.now() / 1000)
-                .map((message) => (
-                  <Paper
-                    p="sm"
-                    withBorder
-                    key={message.id}
-                    bg={message.isOutgoing ? 'var(--mantine-color-cyan-light)' : undefined}
-                  >
-                    <Text size="xs" c="dimmed">
-                      {message.isOutgoing ? t('devices.you') : t('devices.contact')} ·{' '}
-                      {new Date(message.createdAt * 1000).toLocaleString()} · {message.status}
-                    </Text>
-                    <Text style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{message.content}</Text>
-                  </Paper>
-                ))}
-              <Textarea
-                label={t('devices.message')}
-                value={draft}
-                maxLength={4000}
-                onChange={(event) => setDraft(event.currentTarget.value)}
-                autosize
-                minRows={2}
-              />
-              <Button
-                loading={busy}
-                disabled={!draft.trim()}
-                onClick={() =>
-                  perform(async () => {
-                    const client = session.current!
-                    await client.request('send', { peer, text: draft })
-                    if (session.current === client) {
-                      setDraft('')
-                      await refresh()
-                    }
-                  })
-                }
-              >
-                {t('devices.send')}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Text size="sm">{t('devices.textOnly')}</Text>
-              {chats.map((chat) => (
-                <Button
-                  key={chat.pubkey}
-                  variant="default"
-                  onClick={() => {
-                    setMessages([])
-                    setPeer(chat.pubkey)
-                  }}
-                >
-                  {chat.name}
-                </Button>
-              ))}
-              <TextInput
-                label={t('devices.newChat')}
-                value={newPeer}
-                placeholder="npub1…"
-                onChange={(event) => setNewPeer(event.currentTarget.value)}
-              />
-              <Button
-                variant="light"
-                disabled={!npubToPubkey(newPeer.trim())}
-                onClick={() => {
-                  setMessages([])
-                  setPeer(npubToPubkey(newPeer.trim())!)
-                  setNewPeer('')
-                }}
-              >
-                {t('devices.openChat')}
-              </Button>
-            </>
-          )}
-        </>
       )}
       {phase === 'removed' && <Alert color="orange">{t('devices.removedExplanation')}</Alert>}
       {phase !== 'setup' && phase !== 'loading' && (

@@ -58,16 +58,33 @@ export interface DeviceChat {
   pubkey: string
   name: string
   updatedAt: number
+  unreadCount?: number
+  lastMessage?: DeviceMessage
 }
 export type DeviceCommand =
-  | { op: 'chats' }
+  | { op: 'chats' | 'contacts' }
+  | { op: 'contact-add' | 'contact-block'; peer: string; name: string }
+  | { op: 'contact-remove' | 'contact-unblock' | 'delete-chat'; peer: string }
+  | { op: 'delete-message'; peer: string; id: string }
+  | { op: 'expiration'; peer: string; seconds: number }
   | { op: 'history'; peer: string; before?: number }
   | { op: 'send'; peer: string; text: string }
 export function parseCommand(op: string, input: unknown): DeviceCommand {
-  if (op === 'chats') return { op }
+  if (op === 'chats' || op === 'contacts') return { op }
   if (!input || typeof input !== 'object') throw new Error('Invalid command')
   const data = input as Record<string, unknown>
   if (!isKey(data.peer)) throw new Error('Invalid recipient')
+  if (['contact-add', 'contact-block'].includes(op) && typeof data.name === 'string' && data.name.length <= 100)
+    return { op: op as 'contact-add' | 'contact-block', peer: data.peer, name: data.name }
+  if (op === 'contact-remove' || op === 'contact-unblock' || op === 'delete-chat') return { op, peer: data.peer }
+  if (op === 'delete-message' && typeof data.id === 'string' && /^[a-zA-Z0-9-]{1,128}$/.test(data.id))
+    return { op, peer: data.peer, id: data.id }
+  if (
+    op === 'expiration' &&
+    Number.isSafeInteger(data.seconds) &&
+    [0, 60, 300, 600, 900, 1800, 3600, 21600, 43200, 86400, 604800].includes(Number(data.seconds))
+  )
+    return { op, peer: data.peer, seconds: Number(data.seconds) }
   if (op === 'history' && (data.before === undefined || (Number.isSafeInteger(data.before) && Number(data.before) > 0)))
     return { op, peer: data.peer, before: data.before as number | undefined }
   if (op === 'send' && typeof data.text === 'string' && data.text.trim() && data.text.length <= 4000)
@@ -297,6 +314,9 @@ export class CompanionSession {
     this.transport.listen(this.signer.pubkey, (event) => {
       this.receive(event).catch(() => {})
     })
+  }
+  setStatusHandler(handler: (status: 'grant' | 'removed') => void) {
+    this.changed = handler
   }
   private check() {
     if (!this.active) throw new Error('Device session closed')

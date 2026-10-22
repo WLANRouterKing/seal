@@ -433,6 +433,11 @@
     "entryTitle": "Wie möchtest du Seal öffnen?",
     "entryDescription": "Auf diesem Browserprofil ist eine Geräteverknüpfung gespeichert. Du kannst sie fortsetzen oder ein eigenständiges Konto verwenden. Die Auswahl löscht keine Daten.",
     "resume": "Gespeicherte Geräteverknüpfung öffnen",
-    "useAccount": "Eigenständiges Konto verwenden"
+    "useAccount": "Eigenständiges Konto verwenden",
+    "primaryOnline": "Hauptgerät verbunden",
+    "primaryConnecting": "Verbindung zum Hauptgerät …",
+    "attachmentOnPrimary": "Anhänge und Sprachnachrichten bitte auf dem Hauptgerät öffnen.",
+    "sendFailed": "Versand nicht bestätigt. Der Entwurf bleibt erhalten. Prüfe den Chat vor einem erneuten Versand.",
+    "unlinkHint": "Zum lokalen Entfernen zuerst sperren. Den Zugriff kannst du auf dem Hauptgerät unter „Verknüpfte Geräte“ entziehen."
   }
 }

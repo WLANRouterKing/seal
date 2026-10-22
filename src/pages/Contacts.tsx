@@ -1,3 +1,4 @@
+import { useLinkedApp } from '../stores/linkedAppStore'
 import { useState } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Box, ActionIcon, Affix, Modal, Button, Stack } from '@mantine/core'
@@ -14,14 +15,18 @@ import AddContact from '../components/contacts/AddContact'
 export default function Contacts() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const linked = useLinkedApp()
   const location = useLocation()
   const [params] = useSearchParams()
   const invitation = invitationFromHash(location.hash)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [showAddContact, setShowAddContact] = useState(false)
-  const { contacts, addContact, removeContact, error, clearError } = useContactStore()
-  const { addBlockedContact, removeBlockedContact, blockedContacts } = useBlockedContactStore()
-  const { setActiveChat } = useMessageStore()
+  const mainContacts = useContactStore()
+  const { contacts, addContact, removeContact, error, clearError } = linked ?? mainContacts
+  const mainBlocked = useBlockedContactStore()
+  const { addBlockedContact, removeBlockedContact, blockedContacts } = linked ?? mainBlocked
+  const mainMessages = useMessageStore()
+  const { setActiveChat } = linked ?? mainMessages
 
   const handleAddContact = async (npub: string, name?: string) => {
     const contact = await addContact(npub, name)
@@ -58,9 +63,13 @@ export default function Contacts() {
         contacts={contacts}
         blockedContacts={blockedContacts}
         onStartChat={handleStartChat}
-        onRemoveContact={removeContact}
+        onRemoveContact={(peer) => {
+          void removeContact(peer).catch(() => {})
+        }}
         onBlockContact={addBlockedContact}
-        onUnblockContact={removeBlockedContact}
+        onUnblockContact={(peer) => {
+          void removeBlockedContact(peer).catch(() => {})
+        }}
       />
 
       <Modal opened={inviteOpen} onClose={() => setInviteOpen(false)} title={t('invite.title')} centered>

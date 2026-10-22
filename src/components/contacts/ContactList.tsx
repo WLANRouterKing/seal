@@ -1,3 +1,4 @@
+import { useLinkedApp } from '../../stores/linkedAppStore'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -48,6 +49,7 @@ export default function ContactList({
   onUnblockContact,
 }: ContactListProps) {
   const { t } = useTranslation()
+  const linked = useLinkedApp()
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const blockedPubkeys = new Set(blockedContacts.map((c) => c.pubkey))
 
@@ -211,7 +213,7 @@ export default function ContactList({
               </CopyButton>
             </Box>
 
-            <VerifyContact key={selectedContact.pubkey} contact={selectedContact} />
+            {!linked && <VerifyContact key={selectedContact.pubkey} contact={selectedContact} />}
 
             <Group justify="center" mt="md">
               <Button

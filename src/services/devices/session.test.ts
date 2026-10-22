@@ -180,3 +180,17 @@ describe('real application device authorization', () => {
     }
   })
 })
+
+it('restricts contact and conversation commands to their explicit validated arguments', () => {
+  const peer = 'a'.repeat(64)
+  expect(parseCommand('contact-add', { peer, name: 'Alice' })).toEqual({ op: 'contact-add', peer, name: 'Alice' })
+  expect(parseCommand('expiration', { peer, seconds: 3600 })).toEqual({ op: 'expiration', peer, seconds: 3600 })
+  for (const [op, data] of [
+    ['contact-add', { peer, name: 'a'.repeat(101) }],
+    ['contact-block', { peer: 'bad', name: 'Alice' }],
+    ['delete-message', { peer, id: '../other' }],
+    ['expiration', { peer, seconds: -1 }],
+    ['decrypt', { peer, content: 'ciphertext' }],
+  ] as const)
+    expect(() => parseCommand(op, data)).toThrow()
+})

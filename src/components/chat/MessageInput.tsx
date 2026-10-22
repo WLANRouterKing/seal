@@ -1,18 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Paper, Group, Textarea, ActionIcon, Box, Image, CloseButton, Loader, Text } from '@mantine/core'
+import { Paper, Group, Textarea, ActionIcon, Box, Image, CloseButton, Loader, Text, Alert } from '@mantine/core'
 import { IconPhoto, IconSend, IconMicrophone, IconPlayerStop, IconX } from '@tabler/icons-react'
 import { useAudioRecorder, formatDuration, audioToFile } from '../../hooks/useAudioRecorder'
 
 interface MessageInputProps {
-  onSend: (content: string) => void
+  onSend: (content: string) => void | Promise<void>
+  maxLength?: number
   onSendFile?: (file: File, caption?: string) => void
   contactBlocked?: boolean
 }
 
-export default function MessageInput({ onSend, onSendFile, contactBlocked }: MessageInputProps) {
+export default function MessageInput({ onSend, onSendFile, contactBlocked, maxLength }: MessageInputProps) {
   const { t } = useTranslation()
   const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState(false)
+  const sendingRef = useRef(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -22,17 +26,28 @@ export default function MessageInput({ onSend, onSendFile, contactBlocked }: Mes
   // Audio recording
   const [audioState, audioActions] = useAudioRecorder()
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (sendingRef.current || contactBlocked) return
     const trimmedMessage = message.trim()
-
-    if (selectedFile && onSendFile) {
-      onSendFile(selectedFile, trimmedMessage || undefined)
-      setSelectedFile(null)
-      setImagePreview(null)
-      setMessage('')
-    } else if (trimmedMessage) {
-      onSend(trimmedMessage)
-      setMessage('')
+    if (maxLength && trimmedMessage.length > maxLength) return
+    sendingRef.current = true
+    setSending(true)
+    setSendError(false)
+    try {
+      if (selectedFile && onSendFile) {
+        await onSendFile(selectedFile, trimmedMessage || undefined)
+        setSelectedFile(null)
+        setImagePreview(null)
+        setMessage('')
+      } else if (trimmedMessage) {
+        await onSend(trimmedMessage)
+        setMessage('')
+      }
+    } catch {
+      setSendError(true)
+    } finally {
+      sendingRef.current = false
+      setSending(false)
     }
   }
 
@@ -176,35 +191,39 @@ export default function MessageInput({ onSend, onSendFile, contactBlocked }: Mes
         </Box>
       )}
 
+      {sendError && <Alert color="red">{t('devices.sendFailed')}</Alert>}
       <Group gap="sm" align="flex-end" style={{ marginBottom: '.5rem' }}>
-        {/* Image Upload Button */}
-        <ActionIcon
-          variant="subtle"
-          size="lg"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isProcessing || contactBlocked}
-        >
-          {isProcessing ? <Loader size={20} /> : <IconPhoto size={24} />}
-        </ActionIcon>
+        {onSendFile && (
+          <>
+            {/* Image Upload Button */}
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isProcessing || contactBlocked}
+            >
+              {isProcessing ? <Loader size={20} /> : <IconPhoto size={24} />}
+            </ActionIcon>
 
-        {/* Voice Recording Button */}
-        <ActionIcon
-          variant="subtle"
-          size="lg"
-          onClick={audioActions.startRecording}
-          disabled={isProcessing || !!imagePreview || contactBlocked}
-        >
-          <IconMicrophone size={24} />
-        </ActionIcon>
+            {/* Voice Recording Button */}
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={audioActions.startRecording}
+              disabled={isProcessing || !!imagePreview || contactBlocked}
+            >
+              <IconMicrophone size={24} />
+            </ActionIcon>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImageSelect}
-          style={{ display: 'none' }}
-        />
-
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              style={{ display: 'none' }}
+            />
+          </>
+        )}
         <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -215,7 +234,9 @@ export default function MessageInput({ onSend, onSendFile, contactBlocked }: Mes
           maxRows={4}
           style={{ flex: 1 }}
           radius="xl"
-          disabled={contactBlocked}
+          disabled={contactBlocked || sending}
+          maxLength={maxLength}
+          aria-label={t('chat.messagePlaceholder')}
         />
 
         <ActionIcon
@@ -224,7 +245,8 @@ export default function MessageInput({ onSend, onSendFile, contactBlocked }: Mes
           size="lg"
           radius="xl"
           onClick={handleSubmit}
-          disabled={!canSend || isProcessing || contactBlocked}
+          disabled={!canSend || isProcessing || contactBlocked || sending}
+          aria-label={t('devices.send')}
         >
           <IconSend size={20} />
         </ActionIcon>

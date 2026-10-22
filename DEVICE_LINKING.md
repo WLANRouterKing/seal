@@ -10,8 +10,18 @@ dev`, port 5173), not the separate MLS lab.
 ## Current behavior
 
 This integration supports existing NIP-17 chats through an unlocked primary:
-list chats, read up to 20 recent messages per chat, send text, lock/unlock, restore
-a linked installation and revoke its access. No contacts are automatically added.
+After confirmation or password unlock, the linked device opens the same app
+layout, chat list, message bubbles/composer and contacts screens as the primary.
+It can send text, manually add/remove/block/unblock contacts, delete conversations
+or messages, and change disappearing-message timers through the primary.
+No contacts are automatically added. Existing saved contacts are displayed from
+the primary; they are not copied into an unencrypted local database.
+The current bounded snapshot includes at most 50 chats, 20 recent messages per
+selected chat and 100 saved/blocked contacts each (also limited by encrypted
+packet size). Full history pagination and attachment transfer remain outstanding.
+On cold startup, a saved link offers an explicit choice to unlock it or use a
+standalone account. Unlocking goes directly to the chat app; locking clears its
+in-memory data and returns to the password screen.
 The primary service runs throughout the unlocked app, not only on Settings.
 The primary must be running and unlocked for requests. There is no offline queue;
 a timed-out send may have completed and must be checked before manually retrying.
@@ -35,7 +45,9 @@ devices would defeat revocation. The MLS experiment remains separate and alpha.
   ephemeral kind 24134 events. This is a Seal-specific protocol, not NIP-46 or an
   interoperability claim. Session, request ID, sequence, recipient, sender and
   freshness are checked. No generic signing/decryption endpoint is exposed.
-- Strict operations: confirm, list chats, read history, send bounded text. Each
+- Strict operations: confirm, list chats/contacts, read history, send bounded text,
+  explicitly save/remove/block/unblock a contact, delete a message/chat and set a
+  whitelisted expiration timer. No device-side account signing is exposed. Each
   request's sequence is persisted before side effects, preventing replayed sends
   across restarts. There is no automatic retry of ambiguous sends.
 - Account-bound AES-GCM storage on the primary, encrypted with the unlocked app
@@ -73,7 +85,7 @@ nos.lol on 2026-10-22. The browser test uses two independent Chromium processes,
 real UI enrollment by signed QR text, and a generated third peer that decrypts the
 actual NIP-17 message and sends a reply through the public relay.
 
-Recorded app validation on 2026-10-22:
+Earlier integration baseline (before the shared-UI changes), 2026-10-22:
 
 - 92 app tests passed; one opt-in public-relay test skipped in the default suite.
   That public-relay test was run separately and passed.
