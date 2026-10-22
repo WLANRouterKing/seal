@@ -201,9 +201,11 @@ export default function LinkDevice() {
         <Text size="xl" fw={700}>
           {t('devices.companionTitle')}
         </Text>
-        <Anchor component={Link} to="/onboarding">
-          {t('common.back')}
-        </Anchor>
+        {phase === 'setup' && (
+          <Anchor component={Link} to="/onboarding">
+            {t('common.back')}
+          </Anchor>
+        )}
       </Group>
       <Alert color="blue">{t('devices.primaryRequired')}</Alert>
       {error && <Alert color="red">{error}</Alert>}

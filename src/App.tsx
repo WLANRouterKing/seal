@@ -19,12 +19,11 @@ import { useLockedNotifications } from './hooks/useLockedNotifications'
 import Layout from './components/Layout'
 import LockScreen from './components/LockScreen'
 import SetupPassword from './components/SetupPassword'
-import Onboarding from './pages/Onboarding'
+import AccountEntry from './pages/AccountEntry'
 import Chat from './pages/Chat'
 import Contacts from './pages/Contacts'
 import Settings from './pages/Settings'
 import Privacy from './pages/Privacy'
-import LinkDevice from './pages/LinkDevice'
 import { getPrimarySession, stopPrimarySession } from './services/devices/primary'
 import { Group, Paper, Stack } from '@mantine/core'
 import { Rings } from 'react-loader-spinner'
@@ -179,16 +178,7 @@ function App() {
     return <LockScreen />
   }
 
-  if (!keys) {
-    return (
-      <Routes>
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/link-device" element={<LinkDevice />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="*" element={<Navigate to={`/onboarding${inviteHash}`} replace />} />
-      </Routes>
-    )
-  }
+  if (!keys) return <AccountEntry inviteHash={inviteHash} />
 
   // Show password setup screen for new accounts
   if (!hasPassword) {

@@ -428,6 +428,7 @@
     "eraseConfirm": "Die Verknüpfung auf diesem Gerät lokal löschen. Auf dem Hauptgerät kann ich den Zugriff zusätzlich entziehen.",
     "erase": "Lokale Verknüpfung löschen",
     "linkExisting": "Mit bestehendem Konto verknüpfen",
-    "storageFailed": "Gerätespeicher konnte nicht geöffnet werden."
+    "storageFailed": "Gerätespeicher konnte nicht geöffnet werden.",
+    "checking": "Geräteverknüpfung wird geprüft"
   }
 }

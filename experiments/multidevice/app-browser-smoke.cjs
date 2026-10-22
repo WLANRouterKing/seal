@@ -97,6 +97,13 @@ const password = 'synthetic device test password'
     await linked.getByText(replyText, { exact: true }).waitFor({ timeout: 60000 })
     await linked.getByRole('button', { name: 'Lock', exact: true }).click()
     assert.equal(await linked.getByText(replyText, { exact: true }).count(), 0)
+    // Launching the normal app URL must resume the linked installation, not onboarding.
+    await linked.goto(base)
+    await linked.getByRole('button', { name: 'Unlock', exact: true }).waitFor()
+    assert.equal(await linked.getByRole('button', { name: 'Create New Account' }).count(), 0)
+    await linked.goto(base + '/onboarding')
+    await linked.getByRole('button', { name: 'Unlock', exact: true }).waitFor()
+    assert.equal(await linked.getByRole('button', { name: 'Create New Account' }).count(), 0)
     await linked.reload()
     await linked.getByLabel('Device password (at least 12 characters)').fill(password)
     await linked.getByRole('button', { name: 'Unlock', exact: true }).click()

@@ -428,6 +428,7 @@
     "eraseConfirm": "Delete the local link on this device. I can also revoke access on the primary device.",
     "erase": "Delete local link",
     "linkExisting": "Link to an existing account",
-    "storageFailed": "Could not open device storage."
+    "storageFailed": "Could not open device storage.",
+    "checking": "Checking linked device"
   }
 }
