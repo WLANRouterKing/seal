@@ -127,7 +127,7 @@ function App() {
 
   useEffect(() => {
     if (keys && hasPassword && !isLocked) {
-      // Linked devices work while the app is unlocked, not only on Settings.
+      // Publish device authority and accept enrollment; linked messaging runs independently.
       getPrimarySession().catch(() => {
         /* Settings displays initialization failures. */
       })

@@ -44,11 +44,11 @@ export interface StateStore<T> {
   save(state: T): Promise<void>
   assertActive(): void
 }
-export function primaryStore<T>(account: string): StateStore<T> {
+export function primaryStore<T>(account: string, namespace = 'primary'): StateStore<T> {
   const generation = getVaultGeneration()
   const key = getEncryptionKey()?.key
   if (!key) throw new Error('Unlock the primary device first')
-  const scope = 'primary:' + account
+  const scope = namespace + ':' + account
   const check = () => {
     if (getVaultGeneration() !== generation || getEncryptionKey()?.key !== key) throw new Error('Primary device locked')
   }

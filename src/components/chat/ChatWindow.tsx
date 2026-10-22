@@ -64,7 +64,7 @@ export default function ChatWindow({ contactPubkey, contact, isBlocked, onBack }
     if (!keys) return
     const signer = getAccountSigner()
     if (!signer) return
-    await sendMessage(contactPubkey, content, signer)
+    if (!(await sendMessage(contactPubkey, content, signer))) throw new Error('Send not confirmed')
   }
 
   const handleSendFile = async (file: File, caption?: string) => {

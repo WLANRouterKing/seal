@@ -1,3 +1,9 @@
+import {
+  archivedIndependent,
+  receivePrimaryIndependent,
+  primaryDirectory,
+  sendIndependent,
+} from '../services/devices/independent'
 import type { AccountSigner } from '../services/accountSigner'
 import { getVaultGeneration, onVaultCleared } from '../services/encryptionKeyManager'
 import { create } from 'zustand'
@@ -56,7 +62,8 @@ async function decryptStoredMessage(stored: StoredMessage, signer: AccountSigner
       id: stored.id,
       pubkey: stored.pubkey,
       recipientPubkey: stored.recipientPubkey,
-      content: unwrapped.content,
+      content:
+        archivedIndependent(unwrapped.content, unwrapped.senderPubkey, signer.pubkey)?.content ?? unwrapped.content,
       createdAt: stored.createdAt,
       status: stored.status,
       isOutgoing: stored.isOutgoing,
@@ -189,6 +196,41 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     updateChats(get, set, recipientPubkey, message)
 
     try {
+      const target = await primaryDirectory(senderSigner, recipientPubkey)
+      if (target) {
+        const own = await primaryDirectory(senderSigner, senderSigner.pubkey)
+        if (!own) throw new Error('Device directory is initializing; retry shortly')
+        const sent = await sendIndependent(
+          senderSigner,
+          senderSigner.pubkey,
+          recipientPubkey,
+          content,
+          own,
+          target,
+          expiration
+        )
+        if (generation !== getVaultGeneration()) return false
+        const updated: Message = {
+          ...message,
+          id: sent.message.id,
+          pubkey: senderSigner.pubkey,
+          status: 'sent',
+          encryptedEvent: JSON.stringify(sent.self),
+        }
+        await saveMessageToDB(updated)
+        if (generation !== getVaultGeneration()) return false
+        const next = new Map(get().messages)
+        next.set(
+          recipientPubkey,
+          (next.get(recipientPubkey) ?? [])
+            .filter((item) => item.id !== tempId && item.id !== updated.id)
+            .concat(updated)
+            .sort((a, b) => a.createdAt - b.createdAt)
+        )
+        set({ messages: next })
+        updateChats(get, set, recipientPubkey, updated)
+        return true
+      }
       // Create gift-wrapped message with expiration
       const giftWrapOptions = expiration ? { expiration } : undefined
       const giftWrap = await createGiftWrap(content, recipientPubkey, senderSigner, giftWrapOptions)
@@ -482,6 +524,39 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           )
 
           if (!unwrapped || generation !== getVaultGeneration()) return
+
+          const independent = await receivePrimaryIndependent(unwrapped.content, unwrapped.senderPubkey, userSigner)
+          if (generation !== getVaultGeneration()) return
+          if (independent) {
+            const peer = independent.isOutgoing ? independent.recipient : independent.sender
+            if (
+              useBlockedContactStore.getState().blockedContacts.some((contact) => contact.pubkey === peer) ||
+              isMessageExpired(independent.expiration) ||
+              (await isMessageDeleted(independent.id))
+            )
+              return
+            const existing = get().messages.get(peer) ?? []
+            if (existing.some((message) => message.id === independent.id)) return
+            const message: Message = {
+              ...independent,
+              pubkey: independent.sender,
+              recipientPubkey: independent.recipient,
+              status: independent.isOutgoing ? 'sent' : get().activeChat === peer ? 'read' : 'delivered',
+              encryptedEvent: JSON.stringify(event),
+            }
+            await saveMessageToDB(message)
+            if (generation !== getVaultGeneration()) return
+            const next = new Map(get().messages)
+            const latest = next.get(peer) ?? []
+            if (!latest.some((item) => item.id === message.id))
+              next.set(
+                peer,
+                [...latest, message].sort((a, b) => a.createdAt - b.createdAt)
+              )
+            set({ messages: next })
+            updateChats(get, set, peer, message)
+            return
+          }
 
           // Skip own messages (already handled locally)
           if (unwrapped.senderPubkey === userPubkey) return

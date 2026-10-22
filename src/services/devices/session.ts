@@ -1,4 +1,5 @@
 import type { Event } from 'nostr-tools'
+import type { IndependentData } from './independent'
 import { createLocalAccountSigner, type AccountSigner, type LocalAccountSigner } from '../accountSigner'
 import {
   PROTOCOL,
@@ -37,6 +38,7 @@ export interface PrimaryState {
   account: string
   secret: string
   devices: LinkedDevice[]
+  directory?: Event
 }
 export interface CompanionState {
   account: string
@@ -44,6 +46,8 @@ export interface CompanionState {
   request: Event
   host?: string
   confirmed: boolean
+  directory?: Event
+  independent?: IndependentData
   seq: number
 }
 export interface DeviceMessage {
@@ -103,13 +107,15 @@ export class PrimarySession {
   private factory: TransportFactory
   private execute: (command: DeviceCommand) => Promise<unknown>
   private changed: () => void
+  private syncDirectory?: (state: PrimaryState) => Promise<Event>
   constructor(
     state: PrimaryState,
     store: StateStore<PrimaryState>,
     account: AccountSigner,
     factory: TransportFactory,
     execute: (command: DeviceCommand) => Promise<unknown>,
-    changed: () => void = () => {}
+    changed: () => void = () => {},
+    syncDirectory?: (state: PrimaryState) => Promise<Event>
   ) {
     this.state = state
     this.store = store
@@ -117,6 +123,7 @@ export class PrimarySession {
     this.factory = factory
     this.execute = execute
     this.changed = changed
+    this.syncDirectory = syncDirectory
     if (state.account !== account.pubkey) throw new Error('Wrong primary account')
     this.signer = createLocalAccountSigner(state.secret)
     for (const device of state.devices) if (device.status !== 'removed') this.transport(device.relays)
@@ -126,14 +133,19 @@ export class PrimarySession {
     account: AccountSigner,
     factory: TransportFactory,
     execute: (command: DeviceCommand) => Promise<unknown>,
-    changed?: () => void
+    changed?: () => void,
+    syncDirectory?: (state: PrimaryState) => Promise<Event>
   ) {
     let state = await store.load()
     if (!state) {
       state = { account: account.pubkey, secret: newDeviceSecret(), devices: [] }
       await store.save(state)
     }
-    return new PrimarySession(state, store, account, factory, execute, changed)
+    if (syncDirectory) {
+      state.directory = await syncDirectory(state)
+      await store.save(state)
+    }
+    return new PrimarySession(state, store, account, factory, execute, changed, syncDirectory)
   }
   private check() {
     if (!this.active) throw new Error('Primary session closed')
@@ -227,6 +239,10 @@ export class PrimarySession {
       // This is the authority: relay delivery of the courtesy notice is not required.
       device.status = 'removed'
       await this.store.save(this.state)
+      if (this.syncDirectory) {
+        this.state.directory = await this.syncDirectory(this.state)
+        await this.store.save(this.state)
+      }
       this.check()
       this.changed()
       const packet: Packet = {
@@ -266,7 +282,11 @@ export class PrimarySession {
     let response: unknown
     let op = 'result'
     try {
-      response = command ? await this.execute(command) : { linked: true }
+      if (!command && this.syncDirectory) {
+        this.state.directory = await this.syncDirectory(this.state)
+        await this.store.save(this.state)
+      }
+      response = command ? await this.execute(command) : { linked: true, directory: this.state.directory }
     } catch {
       op = 'error'
       response = 'Request failed on the primary device'
@@ -364,8 +384,9 @@ export class CompanionSession {
     )
     if (request.code !== code || !this.grant) throw new Error('Compare both device codes first')
     this.state.host = this.grant.host
-    await this.request('confirm', this.state.request.id)
+    const response = (await this.request('confirm', this.state.request.id)) as { directory?: Event }
     this.check()
+    this.state.directory = response.directory
     this.state.confirmed = true
     await this.store.save(this.state)
   }

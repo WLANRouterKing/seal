@@ -1,98 +1,100 @@
-# Linked devices in Seal
+# Independent linked devices (development branch)
 
-The actual app now has **Settings → Linked devices → Add device**. On a clean
-second installation/profile, choose **Link to an existing account**, enter the
-primary's public npub, set a local password and show its QR code to the primary.
-Both sides confirm the same code. Pasting the signed pairing text is also
-supported for machines without a camera. Use the normal app dev server (`npm run
-dev`, port 5173), not the separate MLS lab.
+## Acceptance criterion
 
-## Current behavior
+After one confirmed QR/text enrollment, the linked browser must send and receive
+text messages, restore its encrypted local state, and retrieve messages missed
+while locked **with the primary app completely closed**. The ordinary Seal chat
+and contacts UI is used. The primary is needed only to authorize/remove devices.
+The former primary-mediated chat RPC is disabled in the app.
 
-This integration supports existing NIP-17 chats through an unlocked primary:
-After confirmation or password unlock, the linked device opens the same app
-layout, chat list, message bubbles/composer and contacts screens as the primary.
-It can send text, manually add/remove/block/unblock contacts, delete conversations
-or messages, and change disappearing-message timers through the primary.
-No contacts are automatically added. Existing saved contacts are displayed from
-the primary; they are not copied into an unencrypted local database.
-The current bounded snapshot includes at most 50 chats, 20 recent messages per
-selected chat and 100 saved/blocked contacts each (also limited by encrypted
-packet size). Full history pagination and attachment transfer remain outstanding.
-On cold startup, a saved link offers an explicit choice to unlock it or use a
-standalone account. Unlocking goes directly to the chat app; locking clears its
-in-memory data and returns to the password screen.
-The primary service runs throughout the unlocked app, not only on Settings.
-The primary must be running and unlocked for requests. There is no offline queue;
-a timed-out send may have completed and must be checked before manually retrying.
-The linked client keeps plaintext chat content in memory only, clears it on lock,
-and currently does not retain an offline history. It locks after five minutes
-of inactivity or when hidden. Files and native biometric unlock on the linked
-client are not included; the primary's existing biometric login is unchanged.
+Both conversation participants need this Seal version. This is an explicit
+Seal extension, not transparent interoperability with unchanged NIP-17 clients.
+The separate MLS lab is not used by this implementation.
 
-This is **not the independent MLS mode** in `experiments/multidevice`. Existing
-NIP-17 peers cannot decrypt MLS messages, and sharing the nsec to fake independent
-devices would defeat revocation. The MLS experiment remains separate and alpha.
+## How to use
 
-## Security boundaries
+Update both installations and your conversation partner. Previous bridge-only
+links must be revoked on the primary and locally deleted, then enrolled again.
+On the second installation, choose **Link to an existing account**, enter the
+primary's public npub, set a password and present the QR or pairing text. On the
+primary use **Settings → Linked devices → Add device**, inspect the request and
+compare the code on both devices. After both confirmations, the primary can close.
 
-- Independent, locally generated companion and primary-bridge secrets. Neither
-  the account nsec nor any password-derived/storage key crosses the transport.
-- A signed, account-bound, five-minute enrollment request, explicit code comparison
-  on both devices, and an account-signed NIP-44 encrypted grant. The plaintext
-  enrollment request is QR/text only and is never published to a relay.
-- Device traffic uses NIP-44 encryption plus verified Nostr signatures in custom
-  ephemeral kind 24134 events. This is a Seal-specific protocol, not NIP-46 or an
-  interoperability claim. Session, request ID, sequence, recipient, sender and
-  freshness are checked. No generic signing/decryption endpoint is exposed.
-- Strict operations: confirm, list chats/contacts, read history, send bounded text,
-  explicitly save/remove/block/unblock a contact, delete a message/chat and set a
-  whitelisted expiration timer. No device-side account signing is exposed. Each
-  request's sequence is persisted before side effects, preventing replayed sends
-  across restarts. There is no automatic retry of ambiguous sends.
-- Account-bound AES-GCM storage on the primary, encrypted with the unlocked app
-  vault. Separate password-required scrypt/key-slot vault on the companion;
-  non-extractable derived encryption keys; no plaintext storage fallback.
-- Web Locks enforce one owning tab per primary account or companion installation.
-  Unsupported environments fail closed. Session capabilities stop on vault lock.
-- Revocation is persisted on the primary before subsequent requests are processed;
-  it does not depend on delivery of the courtesy relay notice. Prior messages and
-  sends already in progress cannot be recalled. Restoring an older primary backup
-  may restore old grants: revoke and re-pair after such a restore.
-- The initial UI uses `wss://nos.lol` for the device channel. Relay outages prevent
-  synchronization. Relay operators see device public keys, timing and network
-  metadata; the primary's public account key appears on enrollment grants.
-- This is not a security audit. XSS in an unlocked app can use its capabilities.
-  Physical Android/iOS/Windows/Linux camera/lifecycle tests remain necessary.
+The second installation owns a separate private key. Its contacts, block list,
+timers and received text history persist in its password-encrypted device vault.
+Contacts are added manually. Old account-key-encrypted history is not copied.
+Messages sent after enrollment are encrypted separately for every authorized
+inbox and the account inbox; the primary catches up when reopened. Lock clears
+runtime keys and plaintext UI state. Unlock does not contact the primary.
+
+## Wire format and authority
+
+- Existing signed, short-lived QR enrollment and NIP-44 encrypted confirmation
+  transport bind the public account identity to the newly generated device key.
+- An account-signed parameterized replaceable kind 30078 event with
+  `d=seal-independent-devices-v1` publishes `{version:1,devices:[public keys]}`.
+  No account private key, device private key, vault master key or password-derived
+  key is published or transferred. This directory publicly reveals device count
+  and the mapping of account to device public keys.
+- A device signs its own inner kind 14 application event containing recipient
+  account, bounded text, timestamp, nonce and optional expiration. This event and
+  the account-signed authorization proof travel **inside** NIP-44/NIP-59 gift
+  wraps. The NIP-17 seal and rumor authors still match the actual device signer;
+  Seal separately verifies the account authorization before displaying account
+  identity. It never substitutes an unproven account pubkey.
+- Each authorized recipient device and sender sibling receives an independently
+  encrypted persistent kind 1059 event. Relays hold ciphertext for offline pickup.
+  Inner signed event IDs deduplicate copies and replays.
+- A sender resolves the recipient directory before sending. A receiver checks
+  signatures, transport/inner signer equality, recipient scope, authorization
+  proof and the currently fetched directory. Observed directory high-water marks
+  persist encrypted; a known newer directory cannot be replaced by older data.
+- Removing a device publishes a new signed directory. Publication must receive
+  relay acknowledgment before the action returns successfully. Updated peers
+  stop encrypting to that device and reject new messages from its removed key.
+  Previously delivered ciphertext/content cannot be recalled. In-flight sends
+  may complete using their previously resolved recipient list.
+
+## Important implementation boundaries
+
+Discovery and independent delivery currently use `wss://nos.lol`. A relay outage
+can block directory resolution and delivery. Signed replaceable events prove
+origin, **not global freshness**: a censoring relay can hide a removal from a
+client which has not seen it. Persisted high-water marks stop observed rollback,
+not censorship. This is not consensus or an audited revocation protocol.
+
+This remains a development implementation, without an independent security
+review. It uses NIP-44 encryption and device-specific signing, not MLS or a
+forward-secret per-message ratchet. Browser XSS can use unlocked device keys.
+Physical native-device lifecycle/biometric checks remain separate release gates.
+
+Independent attachment/voice-message delivery, import of pre-link history,
+synchronization of contact edits and remote deletion across devices are not
+implemented. Companion text deletion/blocking/timers are local preferences.
+Main-device file messages continue on the existing account-addressed path.
+Unchanged legacy peers can still exchange legacy messages with a primary account,
+but the independent companion refuses to send without a compatible peer directory.
+No silent fallback to an online-primary bridge exists.
 
 ## Validation
 
 ```sh
 npm run test:run
 npm run build
-# Explicit opt-in; sends only synthetic encrypted traffic:
-SEAL_DEVICE_RELAY=wss://nos.lol npx vitest run src/services/devices/relay.test.ts
-# Full actual-app UI test, against npm run dev on port 5173:
 npm ci --prefix experiments/multidevice --ignore-scripts
 (cd experiments/multidevice && npx playwright install chromium)
+npm run dev -- --host 127.0.0.1
+# in another terminal:
 node experiments/multidevice/app-browser-smoke.cjs
 ```
 
-Unit coverage includes QR tampering/expiry, explicit confirmation, account/session
-binding, forbidden signing operations, replay across restart, revocation, storage
-AAD, wrong passwords and lock revocation. The opt-in relay test passed against
-nos.lol on 2026-10-22. The browser test uses two independent Chromium processes,
-real UI enrollment by signed QR text, and a generated third peer that decrypts the
-actual NIP-17 message and sends a reply through the public relay.
+The app browser test uses three independent Chromium processes and real nos.lol
+traffic. It enrolls through the real UI, closes the primary page, exchanges text
+between companion and peer, locks/reloads the companion, retrieves missed text,
+sends again with the primary still closed, then reopens the primary to revoke.
+It is not the MLS simulation or the former primary-online smoke test.
 
-Earlier integration baseline (before the shared-UI changes), 2026-10-22:
-
-- 92 app tests passed; one opt-in public-relay test skipped in the default suite.
-  That public-relay test was run separately and passed.
-- Web build, Electron TypeScript compilation and changed-source lint passed.
-- GitHub Actions job `app-device-link` passed in run
-  [39748767901](https://github.com/WLANRouterKing/seal/actions/runs/39748767901),
-  testing code commit `7fffc70a55a73a87e5a5a5ad87cddcda466f5403`.
-  The real app UI flow above passed, including decryption by the third peer.
-- Camera capture and physical native-device behavior were not exercised by
-  Chromium automation; signed QR text used the same inspection/approval path.
+Unit tests cover authorization signatures, tampering, unapproved/removed device
+signers, account/recipient substitution, encryption with a disposed account
+signer, vault encryption/locking, UI routes and failed-send draft preservation.

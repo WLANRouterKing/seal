@@ -1,11 +1,12 @@
+import type { AppDeviceSession } from '../services/devices/independent'
 import { create } from 'zustand'
 import type { Chat, Contact, Message } from '../types'
-import type { CompanionSession, CompanionState, DeviceChat, DeviceMessage } from '../services/devices/session'
+import type { CompanionState, DeviceChat, DeviceMessage } from '../services/devices/session'
 import type { LinkedVault } from '../services/devices/storage'
 import { npubToPubkey } from '../services/keys'
 
 interface Ownership {
-  session: CompanionSession
+  session: AppDeviceSession
   vault: LinkedVault<CompanionState>
   release(): void
 }
@@ -38,7 +39,7 @@ interface LinkedAppState {
 }
 let ownership: Ownership | undefined
 let polling: ReturnType<typeof setInterval> | undefined
-let refreshing: CompanionSession | undefined
+let refreshing: AppDeviceSession | undefined
 let refreshDone: Promise<void> = Promise.resolve()
 let operations = 0
 function messageFromWire(value: DeviceMessage, account: string, peer: string): Message {
@@ -95,7 +96,7 @@ export const useLinkedAppStore = create<LinkedAppState>((set, get) => ({
     void get().refresh()
     polling = setInterval(() => {
       if (!operations) void get().refresh()
-    }, 15000)
+    }, 1000)
   },
   lock(notice) {
     const old = ownership

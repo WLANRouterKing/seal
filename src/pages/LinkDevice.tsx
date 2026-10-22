@@ -1,3 +1,4 @@
+import { IndependentSession } from '../services/devices/independent'
 import { useLinkedAppStore } from '../stores/linkedAppStore'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -99,10 +100,12 @@ export default function LinkDevice() {
     const client = session.current
     const unlock = release.current
     if (!client || !unlock || !client.state.confirmed) throw new Error('Device not confirmed')
+    const independent = new IndependentSession(client.state, vault.current)
+    client.close()
     transferred.current = true
     session.current = undefined
     release.current = undefined
-    useLinkedAppStore.getState().activate({ session: client, vault: vault.current, release: unlock })
+    useLinkedAppStore.getState().activate({ session: independent, vault: vault.current, release: unlock })
     navigate('/', { replace: true })
   }
   const connect = (state: CompanionState) => {
@@ -179,6 +182,8 @@ export default function LinkDevice() {
         setRepeat('')
         connect(state)
       } catch (err) {
+        session.current?.close()
+        session.current = undefined
         vault.current.lock()
         release.current?.()
         release.current = undefined
