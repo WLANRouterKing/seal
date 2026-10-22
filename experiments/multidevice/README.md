@@ -9,8 +9,8 @@ its account signer is disabled. The main device can remove that browser leaf
 without removing its own leaf.
 
 The UI simulates three devices in one page, with a serialized in-memory relay.
-**It is not a completed remote-device pairing feature.** No public relays are
-contacted and no real nsec can be entered. The device authorization-signing
+**It is not a completed remote-device pairing feature.** The UI contacts no public relays
+and accepts no real nsec. The separate CLI integration test below uses real relays. The device authorization-signing
 callback is local; only Welcome delivery uses the pairing envelope. Real
 cross-device authorization transport, synchronized rosters and integration
 with existing Seal chats remain unimplemented.
@@ -43,6 +43,52 @@ node browser-smoke.cjs
 The separate GitHub workflow runs protocol/storage tests, builds the lab and
 runs the browser lifecycle test. Nothing from this directory is imported into
 Seal's production entry point or deployment bundle.
+
+## Real relay integration test
+
+This opt-in test publishes signed public KeyPackages and encrypted synthetic
+messages using fresh test accounts. Specify a relay you permit the test to use:
+
+```sh
+npm run test:relays --prefix experiments/multidevice -- wss://nos.lol
+```
+
+Three separate Node processes act as primary, browser device and peer. Each has
+its own WebSocket transport. Message delivery, KeyPackage lookup, encrypted
+Welcome retrieval, backlog retrieval and removal commits go through the relay;
+there is no memory-relay fallback. The browser process is terminated and restored
+from password-encrypted disk records. Its account private key is never supplied.
+The primary's transport and account signing are disabled during offline checks.
+
+Enrollment is still a test fixture: local IPC forwards limited setup-signing
+requests and the primary-unwrapped Welcome to the browser. This is **not** a
+remote QR pairing implementation, physical-device test or production integration.
+The Welcome still contains MLS-encrypted joiner secrets. No plaintext private
+key or group secret is intentionally published. The password-derived storage key
+stays inside the local vault and is not part of the relay protocol.
+
+`wire-secrets.mjs` is test-only instrumentation: immediately before publication,
+it rejects known private/account/group secrets found as raw bytes, hex, base64
+or JSON byte arrays in outgoing events. Negative tests intentionally inject a
+secret and check rejection before a connection is opened. It retains secret
+copies only for the regression run and clears them on shutdown. This check is
+not a security proof, does not cover every possible encoding, and is not shipped
+as a production safeguard. Confidentiality relies on the encrypted protocol.
+
+Set `SEAL_RELAY_REPORT=/absolute/path/report.json` to save the result. Reports
+contain relay URLs, timestamps and check counts, not key material. Local test
+state is deleted at exit; published relay events may remain. Network failures
+and relay rejections fail the test rather than silently switching to simulation.
+
+Recorded successful run: `wss://nos.lol`, 2026-10-22 07:56:14–07:56:49 UTC:
+
+- Separate processes retrieved signed packages and encrypted Welcomes.
+- Bidirectional live delivery with primary disconnected and no account signing.
+- Browser process restart restored encrypted state and fetched missed messages.
+- Primary reconnected and received same-account sibling messages.
+- Removed browser could not decrypt the next epoch even before receiving its
+  removal; after processing removal it could no longer send through the SDK.
+- Outgoing events passed checks against tracked private and group secrets.
 
 ## Explicit experimental library fix
 
@@ -134,7 +180,7 @@ The lockfile pins tested code; upstream documents can change.
 ## Validation recorded for this draft
 
 - Seal: 87 passing tests, successful web build and Electron TypeScript compilation.
-- Lab: 8 passing tests, including same-account sibling catch-up and duplicate-leaf
+- Lab: 9 passing tests, including same-account sibling catch-up and duplicate-leaf
   rejection; successful separate web build.
 - Browser lifecycle: passed in GitHub Actions on Chromium, including pairing UI,
   offline exchange, lock/restore, removal, cleanup and mobile-width overflow check.

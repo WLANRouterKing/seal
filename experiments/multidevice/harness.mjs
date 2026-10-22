@@ -67,8 +67,9 @@ export class MemoryRelay {
   }
 }
 
-export function createAccount() {
+export function createAccount(onSecret) {
   const secret = generateSecretKey()
+  onSecret?.(secret)
   const pubkey = getPublicKey(secret)
   let online = true
   let calls = 0

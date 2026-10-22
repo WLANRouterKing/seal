@@ -5,7 +5,8 @@
   "scripts": {
     "test": "node apply-library-fix.mjs && node --test *.test.mjs",
     "dev": "node apply-library-fix.mjs && vite --config vite.config.mjs",
-    "build": "node apply-library-fix.mjs && vite build --config vite.config.mjs"
+    "build": "node apply-library-fix.mjs && vite build --config vite.config.mjs",
+    "test:relays": "node apply-library-fix.mjs && node relay-integration.mjs"
   },
   "dependencies": {
     "@internet-privacy/marmot-ts": "0.7.0",
