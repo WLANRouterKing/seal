@@ -72,3 +72,15 @@ AAD, wrong passwords and lock revocation. The opt-in relay test passed against
 nos.lol on 2026-10-22. The browser test uses two independent Chromium processes,
 real UI enrollment by signed QR text, and a generated third peer that decrypts the
 actual NIP-17 message and sends a reply through the public relay.
+
+Recorded app validation on 2026-10-22:
+
+- 92 app tests passed; one opt-in public-relay test skipped in the default suite.
+  That public-relay test was run separately and passed.
+- Web build, Electron TypeScript compilation and changed-source lint passed.
+- GitHub Actions job `app-device-link` passed in run
+  [39748767901](https://github.com/WLANRouterKing/seal/actions/runs/39748767901),
+  testing code commit `7fffc70a55a73a87e5a5a5ad87cddcda466f5403`.
+  The real app UI flow above passed, including decryption by the third peer.
+- Camera capture and physical native-device behavior were not exercised by
+  Chromium automation; signed QR text used the same inspection/approval path.
